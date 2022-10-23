@@ -12,7 +12,8 @@ from torchmetrics import ConfusionMatrix
 
 
 # TO-DO: Change this to some local directory
-DATA_HOME_DIR = "../data"
+#DATA_HOME_DIR = "../data"
+DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
 def load_and_featurize_dataset():
     dataset_name = "arnetminer"
@@ -73,46 +74,76 @@ def load_pretrained_model(Xtrain):
                                               constants.FINE_TUNE_DROPOUT_PROB: 0.1})
     return lgbm, torch_model.model
 
-def finetune_torch_model(lgbm, torch_model, Xtrain, Xtest, Ytrain, Ytest):
+def predict_proba(model, input):
+    return model(input)[1][:, 1]
+def evaluate(model, input, output):
+    return (sum(model(input)[0] == output) / len(input)).item()
+
+def finetune_torch_model(lgbm, torch_lgbm, Xtrain, Xtest, Ytrain, Ytest):
     # Print out sizes of each layer
     print("LGBM converted to torch model with following structure")
-    for name, param in torch_model.named_parameters():
+    for name, param in torch_lgbm.named_parameters():
         print(name, param.size())
 
         # Do fine tuning
         loss_fn = torch.nn.BCELoss()
-        optimizer = torch.optim.AdamW(torch_model.parameters(), lr=1e-3, weight_decay=5e-4)
+        optimizer = torch.optim.AdamW(torch_lgbm.parameters(), lr=1e-3, weight_decay=5e-4)
+        X_tensor = torch.tensor(Xtrain)
         y_tensor = torch.from_numpy(Ytrain).float()
+        X_test_tensor = torch.tensor(Xtest)
         y_test_tensor = torch.from_numpy(Ytest).int()
+
 
         print("Original loss: ",
               loss_fn(torch.from_numpy(lgbm.predict_proba(Xtrain)[:, 1]).float(), y_tensor).item())
         with torch.no_grad():
-            torch_model.eval()
-            print("Fine-tuning starts from loss: ", loss_fn(torch_model(Xtrain)[1][:, 1], y_tensor).item())
-        torch_model.train()
+            torch_lgbm.eval()
+            print("Fine-tuning starts from loss: ", loss_fn(torch_lgbm(Xtrain)[1][:, 1], y_tensor).item())
+        torch_lgbm.train()
 
-        for i in range(200):
-            optimizer.zero_grad()
-            y_ = torch_model(Xtrain)[1][:, 1]
-            loss = loss_fn(y_, y_tensor)
-            loss.backward()
-            optimizer.step()
-            if i % 10 == 0:
+        batch_size = 20000
+        for i in range(20):  # epoch
+            for j in range(0, len(X_tensor), batch_size):  # batch
+                X_batch = X_tensor[j:j + batch_size].to(device)
+                y_batch = y_tensor[j:j + batch_size].to(device)
+
+                optimizer.zero_grad()
+                y_ = predict_proba(torch_lgbm, X_batch)
+                assert y_.requires_grad
+
+                loss = loss_fn(y_, y_batch)
+                loss.backward()
+                optimizer.step()
+
+                # Print batch loss
                 with torch.no_grad():
-                    torch_model.eval()
-                    print("Iteration ", i, ": ", loss_fn(torch_model(Xtrain)[1][:, 1], y_tensor).item())
-                torch_model.train()
+                    torch_lgbm.eval()
+                    print("\tBatch", f"[{j}:{j + batch_size}]", ":",
+                          loss_fn(predict_proba(torch_lgbm, X_batch), y_batch).item())
+                torch_lgbm.train()
+
+            # Print epoch validation accuracy
+            with torch.no_grad():
+                torch_lgbm.eval()
+                print("Epoch", i + 1, ":", "Dev accuracy:",
+                      evaluate(torch_lgbm, X_test_tensor.to(device), y_test_tensor.to(device)) * 100, "%")
+            torch_lgbm.train()
+
 
         with torch.no_grad():
-            torch_model.eval()
-            print("Fine-tuning done with loss: ", loss_fn(torch_model(Xtrain)[1][:, 1], y_tensor).item())
+            torch_lgbm.eval()
+            print("Fine-tuning done with loss: ", loss_fn(torch_lgbm(Xtrain)[1][:, 1], y_tensor).item())
             confmat = ConfusionMatrix(num_classes=2)
             print("Confusion Matrix of finetuned torch model")
-            print(confmat(torch_model(Xtest)[1][:, 1], y_test_tensor))
+            print(confmat(torch_lgbm(Xtest)[1][:, 1], y_test_tensor))
 
 
 if __name__=='__main__':
+    device = torch.device(
+        "cuda" if torch.cuda.is_available() else "cpu"
+    )
+    print(f"Using device={device}")
+
     # Load dataset for S2AND
     X_train, X_val, X_test, y_train, y_val, y_test = load_and_featurize_dataset()
     print("Data Featurized and Ready")
