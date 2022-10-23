@@ -98,7 +98,8 @@ def finetune_torch_model(lgbm, torch_lgbm, Xtrain, Xtest, Ytrain, Ytest):
               loss_fn(torch.from_numpy(lgbm.predict_proba(Xtrain)[:, 1]).float(), y_tensor).item())
         with torch.no_grad():
             torch_lgbm.eval()
-            print("Fine-tuning starts from loss: ", loss_fn(torch_lgbm(Xtrain)[1][:, 1], y_tensor).item())
+            print("Fine-tuning starts from training loss: ", evaluate(torch_lgbm, X_tensor.to(device), y_tensor.to(device)) * 100,
+                  "%")
         torch_lgbm.train()
 
         batch_size = 20000
@@ -125,17 +126,23 @@ def finetune_torch_model(lgbm, torch_lgbm, Xtrain, Xtest, Ytrain, Ytest):
             # Print epoch validation accuracy
             with torch.no_grad():
                 torch_lgbm.eval()
-                print("Epoch", i + 1, ":", "Dev accuracy:",
+                print("Epoch", i + 1, ":", "Test accuracy:",
                       evaluate(torch_lgbm, X_test_tensor.to(device), y_test_tensor.to(device)) * 100, "%")
             torch_lgbm.train()
 
 
         with torch.no_grad():
             torch_lgbm.eval()
-            print("Fine-tuning done with loss: ", loss_fn(torch_lgbm(Xtrain)[1][:, 1], y_tensor).item())
-            confmat = ConfusionMatrix(num_classes=2)
-            print("Confusion Matrix of finetuned torch model")
-            print(confmat(torch_lgbm(Xtest)[1][:, 1], y_test_tensor))
+            print("Fine-tuning completed with training loss: ", evaluate(torch_lgbm, X_tensor.to(device), y_tensor.to(device)) * 100, "%")
+            # confmat = ConfusionMatrix(num_classes=2)
+            # print("Confusion Matrix of finetuned torch model")
+            # print(confmat(torch_lgbm(Xtest)[1][:, 1], y_test_tensor))
+
+        with torch.no_grad():
+            torch_lgbm.eval()
+            print("----------------")
+            print("Final Test accuracy:", evaluate(torch_lgbm, X_test_tensor.to(device), y_test_tensor.to(device)) * 100, "%")
+            print("----------------")
 
 
 if __name__=='__main__':
