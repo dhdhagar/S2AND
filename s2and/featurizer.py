@@ -779,7 +779,8 @@ def featurize(
                     val_signatures,
                     test_signatures,
                 ) = dataset.split_cluster_signatures()  # type: ignore
-
+            # Modify method call to store blockwise signature pairs as pickle so that dataloader can load from these idxs
+            # After this call block id is lost
             train_pairs, val_pairs, test_pairs = dataset.split_pairs(train_signatures, val_signatures, test_signatures)
 
         else:

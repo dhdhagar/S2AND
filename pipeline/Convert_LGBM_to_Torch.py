@@ -43,18 +43,7 @@ def load_and_featurize_dataset():
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
-def load_pretrained_model(Xtrain):
-    dataset_name = "arnetminer"
-    parent_dir = f"{DATA_HOME_DIR}/{dataset_name}"
-    dataset = ANDData(
-        signatures=join(parent_dir, f"{dataset_name}_signatures.json"),
-        papers=join(parent_dir, f"{dataset_name}_papers.json"),
-        mode="inference",
-        specter_embeddings=join(parent_dir, f"{dataset_name}_specter.pickle"),
-        block_type="s2",
-        name=dataset_name,
-    )
-
+def load_pretrained_model():
     with open(f"{DATA_HOME_DIR}/production_model.pickle", "rb") as _pkl_file:
         chckpt = pickle.load(_pkl_file)
         clusterer = chckpt['clusterer']
@@ -67,7 +56,6 @@ def load_pretrained_model(Xtrain):
     # y_proba = lgbm.predict_proba(Xtrain)[:, 1]
     # print(y_proba)
 
-    #lgbm.fit()
     torch_model = hummingbird.ml.convert(clusterer.classifier, "torch", None,
                                              extra_config=
                                              {constants.FINE_TUNE: True,
@@ -156,7 +144,7 @@ if __name__=='__main__':
     print("Data Featurized and Ready")
 
     # Load and convert pretrained LGBM to Torch
-    lgbm, torch_lgbm = load_pretrained_model(X_train)
+    lgbm, torch_lgbm = load_pretrained_model()
     print("Model loaded and converted to Torch")
     # Finetune this converted model and compare losses
     finetune_torch_model(lgbm, torch_lgbm, X_train, X_test, y_train, y_test)

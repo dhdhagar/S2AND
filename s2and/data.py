@@ -1240,7 +1240,10 @@ class ANDData:
                         else:
                             different_name_different_cluster.append((s1, s2, 0))
         elif not self.pair_sampling_balanced_homonym_synonym and not self.pair_sampling_balanced_classes:
-            for _, signatures in blocks.items():
+            # store block-wise featurized pairs in a pickle file
+            blockwise_sig_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]] = {}
+            for block_id, signatures in blocks.items():
+                sig_pairs: List[Tuple[str, str, Union[int, float]]] = []
                 for i, s1 in enumerate(signatures):
                     for s2 in signatures[i + 1 :]:
                         if self.signature_to_cluster_id is not None:
@@ -1248,10 +1251,21 @@ class ANDData:
                             s2_cluster = self.signature_to_cluster_id[s2]
                             if s1_cluster == s2_cluster:
                                 possible.append((s1, s2, 1))
+                                sig_pairs.append((s1, s2, 1))
                             else:
                                 possible.append((s1, s2, 0))
+                                sig_pairs.append((s1, s2, 0))
                         else:
                             possible.append((s1, s2, NUMPY_NAN))
+                            sig_pairs.append((s1, s2, NUMPY_NAN))
+                blockwise_sig_pairs[block_id] = sig_pairs
+
+            # Write the blockwise similarity pairs to a pickle file
+            # TO-DO: make this train/val/test specific
+            with open(f"/Users/pprakash/PycharmProjects/prob_ent_resolution-unity/data/train_blockwiseFeaturePairs.pickle",
+                      "wb") as _pkl_file:
+                pickle.dump(blockwise_sig_pairs, _pkl_file)
+
         else:
             for _, signatures in blocks.items():
                 for i, s1 in enumerate(signatures):
@@ -1270,7 +1284,6 @@ class ANDData:
                                 same_name_different_cluster.append((s1, s2, 0))
                             else:
                                 different_name_different_cluster.append((s1, s2, 0))
-
         if all_pairs:
             if (
                 self.pair_sampling_balanced_homonym_synonym
