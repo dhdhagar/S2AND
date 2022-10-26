@@ -1,4 +1,4 @@
 {
-    "main_data_dir": "absolute path of wherever you downloaded the data to",
+    "main_data_dir": "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND",
     "internal_data_dir": "don't worry about it unless you work at AI2"
 }

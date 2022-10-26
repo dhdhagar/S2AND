@@ -1,3 +1,4 @@
+import pickle
 from typing import Tuple, List, Union, Dict, Callable, Any, Optional
 
 import os
@@ -17,6 +18,7 @@ from s2and.consts import (
     FEATURIZER_VERSION,
     LARGE_INTEGER,
     DEFAULT_CHUNK_SIZE,
+    PREPROCESSED_DATA_DIR,
 )
 from s2and.text import (
     equal,
@@ -703,7 +705,6 @@ def many_pairs_featurize(
     logger.info("Numpy arrays made")
     return features, labels, nameless_features
 
-
 def featurize(
     dataset: ANDData,
     featurizer_info: FeaturizationInfo,
@@ -779,8 +780,7 @@ def featurize(
                     val_signatures,
                     test_signatures,
                 ) = dataset.split_cluster_signatures()  # type: ignore
-            # Modify method call to store blockwise signature pairs as pickle so that dataloader can load from these idxs
-            # After this call block id is lost
+
             train_pairs, val_pairs, test_pairs = dataset.split_pairs(train_signatures, val_signatures, test_signatures)
 
         else:
@@ -824,3 +824,148 @@ def featurize(
         )
         logger.info("featurized test")
         return train_features, val_features, test_features
+
+def store_featurized_pickles(
+    dataset: ANDData,
+    featurizer_info: FeaturizationInfo,
+    n_jobs: int = 1,
+    use_cache: bool = False,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    nameless_featurizer_info: Optional[FeaturizationInfo] = None,
+    nan_value: float = np.nan,
+    delete_training_data: bool = False,
+) -> Union[Tuple[TupleOfArrays, TupleOfArrays, TupleOfArrays], TupleOfArrays]:
+    """
+    Featurizes the input dataset and stores as preprocessed data in pickle files
+
+    Parameters
+    ----------
+    dataset: ANDData
+        the dataset containing the relevant data
+    featurizer_info: FeaturizationInfo
+        the FeautrizationInfo object containing the listing of features to use
+        and featurizer version
+    n_jobs: int
+        the number of cpus to use
+    use_cache: bool
+        whether or not to use write to/read from the features cache
+    chunk_size: int
+        the chunk size for multiprocessing
+    nameless_featurizer_info: FeaturizationInfo
+        the FeaturizationInfo for creating the features that do not use any name features,
+        these will not be computed if this is None
+    nan_value: float
+        the value to replace nans with
+    delete_training_data: bool
+        Whether to delete some suspicious training examples
+
+    Returns
+    -------
+    train/val/test pickle file names if mode is 'train',
+    TODO: if mode is 'inference'
+    """
+    if dataset.mode == "inference":
+        logger.info("featurizing all pairs")
+        all_pairs = dataset.all_pairs()
+        all_features = many_pairs_featurize(
+            all_pairs,
+            dataset,
+            featurizer_info,
+            n_jobs,
+            use_cache,
+            chunk_size,
+            nameless_featurizer_info,
+            nan_value,
+            False,
+        )
+        logger.info("featurized all pairs")
+        return all_features
+    else:
+        if dataset.train_pairs is None:
+            if dataset.train_blocks is not None:
+                (
+                    train_signatures,
+                    val_signatures,
+                    test_signatures,
+                ) = dataset.split_cluster_signatures_fixed()
+            elif dataset.train_signatures is not None:
+                (
+                    train_signatures,
+                    val_signatures,
+                    test_signatures,
+                ) = dataset.split_data_signatures_fixed()
+            else:
+                (
+                    train_signatures,
+                    val_signatures,
+                    test_signatures,
+                ) = dataset.split_cluster_signatures()  # type: ignore
+            # Modify method call to store blockwise signature pairs as pickle so that dataloader can load from these idxs
+            # After this call block id is lost
+            train_blockwise_pairs, val_blockwise_pairs, test_blockwise_pairs = dataset.split_pairs_to_store(
+                train_signatures, val_signatures, test_signatures)
+
+        else:
+            train_pairs, val_pairs, test_pairs = dataset.fixed_pairs()
+
+        logger.info("featurizing train")
+        train_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        for block_id, signature_pair_list in train_blockwise_pairs.items():
+            train_features, train_labels, _ = many_pairs_featurize(
+                train_blockwise_pairs[block_id],
+                dataset,
+                featurizer_info,
+                n_jobs,
+                use_cache,
+                chunk_size,
+                nameless_featurizer_info,
+                nan_value,
+                delete_training_data,
+            )
+
+            train_blockwise_features[block_id] = [train_features, train_labels]
+        logger.info("featurized train, featurizing val")
+        val_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        for block_id, signature_pair_list in val_blockwise_pairs.items():
+            val_features, val_labels, _ = many_pairs_featurize(
+                val_blockwise_pairs[block_id],
+                dataset,
+                featurizer_info,
+                n_jobs,
+                use_cache,
+                chunk_size,
+                nameless_featurizer_info,
+                nan_value,
+                False,
+            )
+            val_blockwise_features[block_id] = [val_features, val_labels]
+        logger.info("featurized val, featurizing test")
+        test_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        for block_id, signature_pair_list in test_blockwise_pairs.items():
+            test_features, test_labels, _ = many_pairs_featurize(
+                test_blockwise_pairs[block_id],
+                dataset,
+                featurizer_info,
+                n_jobs,
+                use_cache,
+                chunk_size,
+                nameless_featurizer_info,
+                nan_value,
+                False,
+            )
+            test_blockwise_features[block_id] = [test_features, test_labels]
+        logger.info("featurized test")
+
+        # Store these features in separate pickles
+        train_pkl = "f${PREPROCESSED_DATA_DIR}/train_seed1.pkl"
+        val_pkl =  "f${PREPROCESSED_DATA_DIR}/val_seed1.pkl"
+        test_pkl = "f${PREPROCESSED_DATA_DIR}/test_seed1.pkl"
+
+        with open(train_pkl,"wb") as _pkl_file:
+            pickle.dump(train_blockwise_features, _pkl_file)
+        with open(val_pkl,"wb") as _pkl_file:
+            pickle.dump(val_blockwise_features, _pkl_file)
+        with open(test_pkl,"wb") as _pkl_file:
+            pickle.dump(test_blockwise_features, _pkl_file)
+
+        return train_pkl, val_pkl, test_pkl
