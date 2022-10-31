@@ -1441,8 +1441,6 @@ class ANDData:
                             sig_pairs.append((s1, s2, NUMPY_NAN))
                 blockwise_sig_pairs[block_id] = sig_pairs
 
-
-
         else:
             for _, signatures in blocks.items():
                 for i, s1 in enumerate(signatures):
@@ -1492,12 +1490,15 @@ class ANDData:
                 and not self.pair_sampling_balanced_classes
                 and not self.pair_sampling_balanced_homonym_synonym
             ):
-                # Take samples from each block
+                # Take samples from each block weighted by their len of total samples
                 sample_size = min(len(possible), sample_size)
+                blockwise_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]] = {}
                 for k in blockwise_sig_pairs.keys():
                     block_sample_size = int(sample_size * len(blockwise_sig_pairs[k])/len(possible))
-                    blockwise_sig_pairs[k] = random_sampling(blockwise_sig_pairs[k], block_sample_size, self.random_seed)
-                return blockwise_sig_pairs
+                    samples = random_sampling(blockwise_sig_pairs[k], block_sample_size, self.random_seed)
+                    if(len(samples)>0):
+                        blockwise_pairs[k] = samples
+                return blockwise_pairs
 
             return pairs
 

@@ -908,15 +908,25 @@ def store_featurized_pickles(
         else:
             train_pairs, val_pairs, test_pairs = dataset.fixed_pairs()
 
+        featurizer_info = FeaturizationInfo()
+        n_jobs = 1
+        use_cache = False,
+        chunk_size: int = DEFAULT_CHUNK_SIZE
+        nameless_featurizer_info = None
+        nan_value: float = np.nan
+        delete_training_data: bool = False
+
         logger.info("featurizing train")
         train_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
-        for block_id, signature_pair_list in train_blockwise_pairs.items():
+        for block_id in list(train_blockwise_pairs.keys()):
+            print(train_blockwise_pairs[block_id])
+            sigPairsList: List[Tuple[str, str, Union[int, float]]] = train_blockwise_pairs[block_id]
             train_features, train_labels, _ = many_pairs_featurize(
-                train_blockwise_pairs[block_id],
+                sigPairsList,
                 dataset,
                 featurizer_info,
                 n_jobs,
-                use_cache,
+                False,
                 chunk_size,
                 nameless_featurizer_info,
                 nan_value,
@@ -932,7 +942,7 @@ def store_featurized_pickles(
                 dataset,
                 featurizer_info,
                 n_jobs,
-                use_cache,
+                False,
                 chunk_size,
                 nameless_featurizer_info,
                 nan_value,
@@ -947,7 +957,7 @@ def store_featurized_pickles(
                 dataset,
                 featurizer_info,
                 n_jobs,
-                use_cache,
+                False,
                 chunk_size,
                 nameless_featurizer_info,
                 nan_value,
@@ -957,9 +967,9 @@ def store_featurized_pickles(
         logger.info("featurized test")
 
         # Store these features in separate pickles
-        train_pkl = "f${PREPROCESSED_DATA_DIR}/train_seed1.pkl"
-        val_pkl =  "f${PREPROCESSED_DATA_DIR}/val_seed1.pkl"
-        test_pkl = "f${PREPROCESSED_DATA_DIR}/test_seed1.pkl"
+        train_pkl = f"{PREPROCESSED_DATA_DIR}/train_seed1.pkl"
+        val_pkl = f"{PREPROCESSED_DATA_DIR}/val_seed1.pkl"
+        test_pkl = f"{PREPROCESSED_DATA_DIR}/test_seed1.pkl"
 
         with open(train_pkl,"wb") as _pkl_file:
             pickle.dump(train_blockwise_features, _pkl_file)

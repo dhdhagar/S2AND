@@ -15,7 +15,8 @@ from s2and.consts import DEFAULT_CHUNK_SIZE
 import pickle
 import numpy as np
 
-DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+#DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution"
 dataset_name = "arnetminer"
 parent_dir = f"{DATA_HOME_DIR}/{dataset_name}"
 AND_dataset = ANDData(
@@ -45,7 +46,7 @@ def save_blockwise_featurized_data():
 
 
 def read_blockwise_signaturePairs():
-    blockwise_sig_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]] = {}
+    blockwise_sig_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]]
     with open(f"/Users/pprakash/PycharmProjects/prob_ent_resolution-unity/data/train_blockwiseFeaturePairs.pickle",
               "rb") as _pkl_file:
         blockwise_sig_pairs = pickle.load(_pkl_file)
@@ -154,10 +155,10 @@ if __name__=='__main__':
     )
     print(f"Using device={device}")
 
-    save_blockwise_featurized_data()
+    #save_blockwise_featurized_data()
     blockwise_sig_pairs = read_blockwise_signaturePairs()
 
-    train_Dataset = s2BlocksDataset(blockwise_sig_pairs)
-    train_Dataloader = DataLoader(train_Dataset, shuffle=True)
+    #train_Dataset = s2BlocksDataset(blockwise_sig_pairs)
+    #train_Dataloader = DataLoader(train_Dataset, shuffle=True)
 
 

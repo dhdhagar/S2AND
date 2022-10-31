@@ -8,16 +8,17 @@ from hummingbird.ml import constants
 from torch.optim import optimizer
 from torch.utils.data import Dataset, DataLoader
 
+from s2and.consts import PREPROCESSED_DATA_DIR
 from s2and.featurizer import FeaturizationInfo, store_featurized_pickles, many_pairs_featurize
 from os.path import join
 from s2and.data import ANDData
-from s2and.consts import DEFAULT_CHUNK_SIZE
 import pickle
 import numpy as np
 
+#DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution"
 
 def save_blockwise_featurized_data():
-    DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
     dataset_name = "arnetminer"
     parent_dir = f"{DATA_HOME_DIR}/{dataset_name}"
     AND_dataset = ANDData(
@@ -31,7 +32,7 @@ def save_blockwise_featurized_data():
         val_pairs_size=100,
         test_pairs_size=100,
         name=dataset_name,
-        n_jobs=4,
+        n_jobs=2,
     )
 
     # Load the featurizer, which calculates pairwise similarity scores
@@ -43,7 +44,7 @@ def save_blockwise_featurized_data():
 
 
 def read_blockwise_features(pkl):
-    blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+    blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]
     with open(pkl,"rb") as _pkl_file:
         blockwise_data = pickle.load(_pkl_file)
 
@@ -128,10 +129,17 @@ if __name__=='__main__':
     )
     print(f"Using device={device}")
 
-    save_blockwise_featurized_data()
-    blockwise_features = read_blockwise_features()
+    #save_blockwise_featurized_data()
+
+    train_pkl = f"{PREPROCESSED_DATA_DIR}/train_seed1.pkl"
+    val_pkl = f"{PREPROCESSED_DATA_DIR}/val_seed1.pkl"
+    test_pkl = f"{PREPROCESSED_DATA_DIR}/test_seed1.pkl"
+    blockwise_features = read_blockwise_features(train_pkl)
 
     train_Dataset = s2BlocksDataset(blockwise_features)
     train_Dataloader = DataLoader(train_Dataset, shuffle=True)
+
+    model = load_pretrained_model()
+    train(model, train_Dataloader)
 
 
