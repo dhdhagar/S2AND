@@ -134,3 +134,6 @@ foo-*
 *.dat
 *.png
 *.cpp
+
+.idea
+data

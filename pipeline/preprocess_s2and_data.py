@@ -16,7 +16,7 @@ import pickle
 import numpy as np
 
 #DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
-DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution"
+DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
 def save_blockwise_featurized_data():
     dataset_name = "arnetminer"
@@ -129,7 +129,7 @@ if __name__=='__main__':
     )
     print(f"Using device={device}")
 
-    #save_blockwise_featurized_data()
+    save_blockwise_featurized_data()
 
     train_pkl = f"{PREPROCESSED_DATA_DIR}/train_seed1.pkl"
     val_pkl = f"{PREPROCESSED_DATA_DIR}/val_seed1.pkl"

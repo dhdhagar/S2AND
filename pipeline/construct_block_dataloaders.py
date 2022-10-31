@@ -16,7 +16,7 @@ import pickle
 import numpy as np
 
 #DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
-DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution"
+DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 dataset_name = "arnetminer"
 parent_dir = f"{DATA_HOME_DIR}/{dataset_name}"
 AND_dataset = ANDData(
