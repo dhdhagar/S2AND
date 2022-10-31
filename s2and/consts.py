@@ -41,4 +41,4 @@ DEFAULT_CHUNK_SIZE = 100
 LARGE_DISTANCE = 1e4
 LARGE_INTEGER = 10 * LARGE_DISTANCE
 CLUSTER_SEEDS_LOOKUP = {"require": 0, "disallow": LARGE_DISTANCE}
-PREPROCESSED_DATA_DIR = "../data/preprocessed_data"
+PREPROCESSED_DATA_DIR = os.path.join(CONFIG["main_data_dir"], "preprocessed_data")
