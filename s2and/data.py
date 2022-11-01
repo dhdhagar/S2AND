@@ -399,6 +399,16 @@ class ANDData:
         self.preprocess_signatures(name_counts_loaded)
         logger.info("preprocessed signatures")
 
+    def get_signature_objects(self, signature_ids: Dict[str, List[str]]) -> Dict[str, List[Signature]]:
+        signature_dict: Dict[str, List[Signature]] = {}
+        for block_id in signature_ids.keys():
+            signature_list: List[Signature] = []
+            for id in signature_ids[block_id]:
+                signature_list.append(self.signatures[id])
+            signature_dict[block_id] = signature_list
+        return signature_dict
+
+
     @staticmethod
     def get_full_name_for_features(signature: Signature, include_last: bool = True, include_suffix: bool = True) -> str:
         """
@@ -1380,6 +1390,7 @@ class ANDData:
 
         Returns
         -------
+        Tuple of 2 lists
         list: list of signature pairs
         """
         assert (

@@ -11,7 +11,7 @@ from collections import Counter
 
 from tqdm import tqdm
 
-from s2and.data import ANDData
+from s2and.data import ANDData, Signature
 from s2and.consts import (
     CACHE_ROOT,
     NUMPY_NAN,
@@ -910,7 +910,7 @@ def store_featurized_pickles(
 
         featurizer_info = FeaturizationInfo()
         n_jobs = 1
-        use_cache = False,
+        use_cache = False
         chunk_size: int = DEFAULT_CHUNK_SIZE
         nameless_featurizer_info = None
         nan_value: float = np.nan
@@ -919,20 +919,18 @@ def store_featurized_pickles(
         logger.info("featurizing train")
         train_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
         for block_id in list(train_blockwise_pairs.keys()):
-            print(train_blockwise_pairs[block_id])
             sigPairsList: List[Tuple[str, str, Union[int, float]]] = train_blockwise_pairs[block_id]
             train_features, train_labels, _ = many_pairs_featurize(
                 sigPairsList,
                 dataset,
                 featurizer_info,
                 n_jobs,
-                False,
+                use_cache,
                 chunk_size,
                 nameless_featurizer_info,
                 nan_value,
                 delete_training_data,
             )
-
             train_blockwise_features[block_id] = [train_features, train_labels]
         logger.info("featurized train, featurizing val")
         val_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
@@ -942,7 +940,7 @@ def store_featurized_pickles(
                 dataset,
                 featurizer_info,
                 n_jobs,
-                False,
+                use_cache,
                 chunk_size,
                 nameless_featurizer_info,
                 nan_value,
@@ -957,7 +955,7 @@ def store_featurized_pickles(
                 dataset,
                 featurizer_info,
                 n_jobs,
-                False,
+                use_cache,
                 chunk_size,
                 nameless_featurizer_info,
                 nan_value,
@@ -977,5 +975,24 @@ def store_featurized_pickles(
             pickle.dump(val_blockwise_features, _pkl_file)
         with open(test_pkl,"wb") as _pkl_file:
             pickle.dump(test_blockwise_features, _pkl_file)
+
+        # Check if the signature objects are stored or not, useful for qualitative analysis
+        train_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/train_signatures_seed1.pkl"
+        val_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/val_signatures_seed1.pkl"
+        test_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/test_signatures_seed1.pkl"
+
+        if(not os.path.isfile(train_signatures_pkl)):
+            train_object_list: Dict[str, List[Signature]] = dataset.get_signature_objects(train_signatures)
+            with open(train_signatures_pkl, "wb") as _pkl_file:
+                pickle.dump(train_object_list, _pkl_file)
+
+            val_object_list: Dict[str, List[Signature]] = dataset.get_signature_objects(val_signatures)
+            with open(val_signatures_pkl, "wb") as _pkl_file:
+                pickle.dump(val_object_list, _pkl_file)
+
+            test_object_list: Dict[str, List[Signature]] = dataset.get_signature_objects(test_signatures)
+            with open(test_signatures_pkl, "wb") as _pkl_file:
+                pickle.dump(test_object_list, _pkl_file)
+
 
         return train_pkl, val_pkl, test_pkl
