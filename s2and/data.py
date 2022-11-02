@@ -1433,7 +1433,7 @@ class ANDData:
                             same_name_different_cluster.append((s1, s2, 0))
                         else:
                             different_name_different_cluster.append((s1, s2, 0))
-        elif not self.pair_sampling_balanced_homonym_synonym and not self.pair_sampling_balanced_classes:
+        elif not self.pair_sampling_balanced_homonym_synonym and not self.pair_sampling_balanced_classes: #Important for Blockwise featurization
             for block_id, signatures in blocks.items():
                 sig_pairs: List[Tuple[str, str, Union[int, float]]] = []
                 for i, s1 in enumerate(signatures):

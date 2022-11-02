@@ -899,7 +899,7 @@ def store_featurized_pickles(
                     train_signatures,
                     val_signatures,
                     test_signatures,
-                ) = dataset.split_cluster_signatures()  # type: ignore
+                ) = dataset.split_cluster_signatures()  # this is called for getting blockwise signature pairs
             # Modify method call to store blockwise signature pairs as pickle so that dataloader can load from these idxs
             # After this call block id is lost
             train_blockwise_pairs, val_blockwise_pairs, test_blockwise_pairs = dataset.split_pairs_to_store(
@@ -907,14 +907,6 @@ def store_featurized_pickles(
 
         else:
             train_pairs, val_pairs, test_pairs = dataset.fixed_pairs()
-
-        featurizer_info = FeaturizationInfo()
-        n_jobs = 1
-        use_cache = False
-        chunk_size: int = DEFAULT_CHUNK_SIZE
-        nameless_featurizer_info = None
-        nan_value: float = np.nan
-        delete_training_data: bool = False
 
         logger.info("featurizing train")
         train_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
@@ -965,9 +957,13 @@ def store_featurized_pickles(
         logger.info("featurized test")
 
         # Store these features in separate pickles
-        train_pkl = f"{PREPROCESSED_DATA_DIR}/train_seed1.pkl"
-        val_pkl = f"{PREPROCESSED_DATA_DIR}/val_seed1.pkl"
-        test_pkl = f"{PREPROCESSED_DATA_DIR}/test_seed1.pkl"
+        # Create the directory if not already created
+        if(not os.path.exists(f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1")):
+            os.makedirs(f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1")
+
+        train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/train_features.pkl"
+        val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/val_features.pkl"
+        test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/test_features.pkl"
 
         with open(train_pkl,"wb") as _pkl_file:
             pickle.dump(train_blockwise_features, _pkl_file)
@@ -977,9 +973,9 @@ def store_featurized_pickles(
             pickle.dump(test_blockwise_features, _pkl_file)
 
         # Check if the signature objects are stored or not, useful for qualitative analysis
-        train_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/train_signatures_seed1.pkl"
-        val_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/val_signatures_seed1.pkl"
-        test_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/test_signatures_seed1.pkl"
+        train_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/train_signatures.pkl"
+        val_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/val_signatures.pkl"
+        test_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/test_signatures.pkl"
 
         if(not os.path.isfile(train_signatures_pkl)):
             train_object_list: Dict[str, List[Signature]] = dataset.get_signature_objects(train_signatures)

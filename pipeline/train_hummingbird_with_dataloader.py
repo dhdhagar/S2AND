@@ -39,7 +39,7 @@ class s2BlocksDataset(Dataset):
 
         return (X, y)
 
-def load_pretrained_model():
+def load_pretrained_model_to_torch():
     with open(f"{DATA_HOME_DIR}/production_model.pickle", "rb") as _pkl_file:
         chckpt = pickle.load(_pkl_file)
         clusterer = chckpt['clusterer']
@@ -95,19 +95,19 @@ def train(model, train_Dataloader):
 
 
 if __name__=='__main__':
-
+    dataset = "arnetminer"
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
     print(f"Using device={device}")
 
-    train_pkl = f"{PREPROCESSED_DATA_DIR}/train_seed1.pkl"
-    val_pkl = f"{PREPROCESSED_DATA_DIR}/val_seed1.pkl"
-    test_pkl = f"{PREPROCESSED_DATA_DIR}/test_seed1.pkl"
+    train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/train_features.pkl"
+    val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/val_features.pkl"
+    test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/test_features.pkl"
     blockwise_features = read_blockwise_features(train_pkl)
 
     train_Dataset = s2BlocksDataset(blockwise_features)
     train_Dataloader = DataLoader(train_Dataset, shuffle=True)
 
-    lgbm = load_pretrained_model()
-    model = train_lgbm(lgbm, train_Dataloader)
+    lgbm_hm = load_pretrained_model_to_torch()
+    model = train(lgbm_hm, train_Dataloader)

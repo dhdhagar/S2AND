@@ -63,14 +63,15 @@ def train_lgbm(model, train_Dataloader):
     return model
 
 def eval_lgbm(model, test_Dataloader):
-
+    # TODO add evaluate code
     return
 
 
 if __name__=='__main__':
-    train_pkl = f"{PREPROCESSED_DATA_DIR}/train_seed1.pkl"
-    val_pkl = f"{PREPROCESSED_DATA_DIR}/val_seed1.pkl"
-    test_pkl = f"{PREPROCESSED_DATA_DIR}/test_seed1.pkl"
+    dataset = "arnetminer"
+    train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/train_features.pkl"
+    val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/val_features.pkl"
+    test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/test_features.pkl"
     blockwise_features = read_blockwise_features(train_pkl)
 
     train_Dataset = s2BlocksDataset(blockwise_features)
