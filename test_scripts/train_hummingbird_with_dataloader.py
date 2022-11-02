@@ -11,8 +11,8 @@ from s2and.consts import PREPROCESSED_DATA_DIR
 import pickle
 import numpy as np
 
-DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
-#DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
+#DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
 def read_blockwise_features(pkl):
     blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]

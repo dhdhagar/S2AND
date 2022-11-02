@@ -399,7 +399,22 @@ class ANDData:
         self.preprocess_signatures(name_counts_loaded)
         logger.info("preprocessed signatures")
 
+    def process_whole_dataset(self):
+        """
+        Call this function before calling the preprocessing function if you wish to preprocess ALL train/test/val pairs
+        """
+        n = len(self.train_signatures)
+        self.train_pairs_size = n*(n-1)/2
+        n = len(self.val_signatures)
+        self.val_pairs_size = n * (n - 1) / 2
+        n = len(self.test_signatures)
+        self.test_pairs_size = n * (n - 1) / 2
+
+
     def get_signature_objects(self, signature_ids: Dict[str, List[str]]) -> Dict[str, List[Signature]]:
+        """
+        Returns a dict of blockId with a list of it's Signature objects, useful for qualitative analysis
+        """
         signature_dict: Dict[str, List[Signature]] = {}
         for block_id in signature_ids.keys():
             signature_list: List[Signature] = []

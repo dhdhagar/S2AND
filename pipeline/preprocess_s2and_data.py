@@ -15,8 +15,8 @@ from s2and.data import ANDData
 import pickle
 import numpy as np
 
-DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
-#DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
+#DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
 def save_blockwise_featurized_data(dataset_name):
     parent_dir = f"{DATA_HOME_DIR}/{dataset_name}"
@@ -33,6 +33,8 @@ def save_blockwise_featurized_data(dataset_name):
         name=dataset_name,
         n_jobs=2,
     )
+    # Uncomment the following line if you wish to preprocess the whole dataset
+    #AND_dataset.process_whole_dataset()
 
     # Load the featurizer, which calculates pairwise similarity scores
     featurization_info = FeaturizationInfo()
