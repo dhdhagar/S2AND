@@ -10,7 +10,6 @@ import torch
 from torchmetrics import ConfusionMatrix
 
 
-
 # TO-DO: Change this to some local directory
 #DATA_HOME_DIR = "../data"
 DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
@@ -35,7 +34,7 @@ def load_and_featurize_dataset():
     # Load the featurizer, which calculates pairwise similarity scores
     featurization_info = FeaturizationInfo()
     # the cache will make it faster to train multiple times - it stores the features on disk for you
-    train, val, test = featurize(dataset, featurization_info, n_jobs=4, use_cache=True)
+    train, val, test = featurize(dataset, featurization_info, n_jobs=4, use_cache=True, nan_value=-1)
     X_train, y_train, _ = train
     X_val, y_val, _ = val
     X_test, y_test, _ = test
@@ -48,14 +47,9 @@ def load_pretrained_model():
         chckpt = pickle.load(_pkl_file)
         clusterer = chckpt['clusterer']
 
-    # Get Classifier to convert to torch model
+    # Get Classifier and convert to torch model
     lgbm = clusterer.classifier
     print(lgbm)
-
-    # Predict using this chckpt
-    # y_proba = lgbm.predict_proba(Xtrain)[:, 1]
-    # print(y_proba)
-
     torch_model = hummingbird.ml.convert(clusterer.classifier, "torch", None,
                                              extra_config=
                                              {constants.FINE_TUNE: True,

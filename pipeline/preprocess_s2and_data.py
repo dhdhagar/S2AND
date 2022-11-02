@@ -38,7 +38,7 @@ def save_blockwise_featurized_data():
     # Load the featurizer, which calculates pairwise similarity scores
     featurization_info = FeaturizationInfo()
     # the cache will make it faster to train multiple times - it stores the features on disk for you
-    train_pkl, val_pkl, test_pkl = store_featurized_pickles(AND_dataset, featurization_info, n_jobs=4, use_cache=True)
+    train_pkl, val_pkl, test_pkl = store_featurized_pickles(AND_dataset, featurization_info, n_jobs=4, use_cache=True, nan_value=-1)
 
     return train_pkl, val_pkl, test_pkl
 
@@ -84,7 +84,7 @@ if __name__=='__main__':
     train_Dataloader = DataLoader(train_Dataset, shuffle=True)
 
     for (idx, batch) in enumerate(train_Dataloader):
-        # LOADING THE DATA IN A BATCH
+        # LOADING THE DATA IN A BATCH TO TEST EVERYTHING IS CORRECT
         data, target = batch
         print("batch #", idx, np.shape(data), np.shape(target))
 
