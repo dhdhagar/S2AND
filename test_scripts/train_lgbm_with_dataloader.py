@@ -17,9 +17,7 @@ def read_blockwise_features(pkl):
     with open(pkl,"rb") as _pkl_file:
         blockwise_data = pickle.load(_pkl_file)
 
-    print(list(blockwise_data.keys())[0])
-    print(len(blockwise_data.keys()))
-    print(blockwise_data)
+    print("Total num of blocks:", len(blockwise_data.keys()))
     return blockwise_data
 
 class s2BlocksDataset(Dataset):
@@ -34,7 +32,6 @@ class s2BlocksDataset(Dataset):
         dict_key = list(self.blockwise_data.keys())[idx]
         X, y = self.blockwise_data[dict_key]
         # TODO: Add subsampling logic here
-
         return (X, y)
 
 def load_pretrained_model():

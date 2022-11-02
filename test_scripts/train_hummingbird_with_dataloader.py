@@ -19,9 +19,7 @@ def read_blockwise_features(pkl):
     with open(pkl,"rb") as _pkl_file:
         blockwise_data = pickle.load(_pkl_file)
 
-    print(list(blockwise_data.keys())[0])
-    print(len(blockwise_data.keys()))
-    print(blockwise_data)
+    print("Total num of blocks:", len(blockwise_data.keys()))
     return blockwise_data
 
 class s2BlocksDataset(Dataset):
@@ -35,8 +33,11 @@ class s2BlocksDataset(Dataset):
     def __getitem__(self, idx):
         dict_key = list(self.blockwise_data.keys())[idx]
         X, y = self.blockwise_data[dict_key]
+        n = np.shape(X)[1]
+        f = np.shape(X)[2]
         # TODO: Add subsampling logic here
-
+        X = X.reshape((n,f))
+        y = y.reshape((n,))
         return (X, y)
 
 def load_pretrained_model_to_torch():
@@ -72,6 +73,7 @@ def train(model, train_Dataloader):
 
         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
         data, target = data.to(device), target.to(device)
+        print(data.size(), data.size())
 
         # FORWARD PASS
         output = predict_class(model, data)
