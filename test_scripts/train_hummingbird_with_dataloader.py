@@ -69,12 +69,16 @@ def train(model, train_Dataloader):
 
         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
         data, target = data.to(device), target.to(device)
+        # Reshape data to 2-D matrix, and target to 1D
         n = np.shape(data)[1]
         f = np.shape(data)[2]
         if(n<=1):
             continue
         data = torch.reshape(data, (n, f))
         target = torch.reshape(target, (n,))
+        # Change dtype of data and target to float
+        data = data.to(torch.float64)
+        target = target.to(torch.float64)
         print(data.size(), data.size())
 
         # FORWARD PASS
