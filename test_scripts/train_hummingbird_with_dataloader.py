@@ -33,11 +33,7 @@ class s2BlocksDataset(Dataset):
     def __getitem__(self, idx):
         dict_key = list(self.blockwise_data.keys())[idx]
         X, y = self.blockwise_data[dict_key]
-        n = np.shape(X)[1]
-        f = np.shape(X)[2]
         # TODO: Add subsampling logic here
-        X = X.reshape((n,f))
-        y = y.reshape((n,))
         return (X, y)
 
 def load_pretrained_model_to_torch():
@@ -73,6 +69,12 @@ def train(model, train_Dataloader):
 
         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
         data, target = data.to(device), target.to(device)
+        n = np.shape(data)[1]
+        f = np.shape(data)[2]
+        if(n<=1):
+            continue
+        data = torch.reshape(data, (n, f))
+        target = torch.reshape(target, (n,))
         print(data.size(), data.size())
 
         # FORWARD PASS
