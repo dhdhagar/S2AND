@@ -76,13 +76,13 @@ def train(model, train_Dataloader):
             continue
         data = torch.reshape(data, (n, f))
         target = torch.reshape(target, (n,))
-        # Change dtype of data and target to float
-        data = data.to(torch.float64)
-        target = target.to(torch.float64)
         print(data.size(), data.size())
 
         # FORWARD PASS
         output = predict_class(model, data)
+        # Change dtype to float for BCE Loss
+        target = target.to(torch.float64)
+        output = output.to(torch.float64)
         loss = loss_fn(output, target)
 
         # BACKWARD AND OPTIMIZE
@@ -94,7 +94,7 @@ def train(model, train_Dataloader):
         # Print batch loss
         with torch.no_grad():
             model.eval()
-            print("\tBatch", f":{idx}", ":", loss_fn(predict_class(model, data), target).item())
+            print("\tBatch", f":{idx}", ":", loss_fn(predict_class(model, data).to(torch.float64), target).item())
         model.train()
 
         print("Accuracy on training set is",
