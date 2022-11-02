@@ -403,11 +403,13 @@ class ANDData:
         """
         Call this function before calling the preprocessing function if you wish to preprocess ALL train/test/val pairs
         """
-        n = len(self.train_signatures)
-        self.train_pairs_size = n*(n-1)/2
-        n = len(self.val_signatures)
+        N = len(self.signatures)
+        print("Dataset has total ", N, "signatures")
+        n = 0.8 * N
+        self.train_pairs_size = n * (n - 1) / 2
+        n = 0.1 * N
         self.val_pairs_size = n * (n - 1) / 2
-        n = len(self.test_signatures)
+        n = 0.1 * N
         self.test_pairs_size = n * (n - 1) / 2
 
 
