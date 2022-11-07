@@ -7,6 +7,8 @@ import pandas as pd
 import logging
 import pickle
 import multiprocessing
+
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from functools import reduce
@@ -109,6 +111,29 @@ class MiniPaper(NamedTuple):
     journal_name: Optional[str]
     authors: List[str]
 
+class S2BlocksDataset(Dataset):
+    """
+    Class to define a Torch Dataset that can be leveraged by a Dataloader
+    Requires as Input:
+        blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]] which represents:
+            Key: Block Id
+            Value: Tuple of
+                X (feature array, 2D matrix of size [n*(n-1)/2, f]),
+                Y (Binary Class labels, 1D array of size [n(n-1)/2,]) where
+                n is the number of signatures in a S2 block and f is the number of pairwise features
+    """
+    def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]):
+        self.blockwise_data = blockwise_data
+
+    def __len__(self):
+        return len(self.blockwise_data.keys())
+
+    def __getitem__(self, idx):
+        # returns all pairwise-features for a specified Block
+        dict_key = list(self.blockwise_data.keys())[idx]
+        X, y = self.blockwise_data[dict_key]
+        # TODO: Add subsampling logic here, if required
+        return (X, y)
 
 class ANDData:
     """

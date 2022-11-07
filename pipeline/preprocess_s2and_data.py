@@ -18,7 +18,7 @@ import numpy as np
 #DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
 DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
-def save_blockwise_featurized_data(dataset_name):
+def save_blockwise_featurized_data(dataset_name, random_seed, nan_value=-1):
     parent_dir = f"{DATA_HOME_DIR}/{dataset_name}"
     AND_dataset = ANDData(
         signatures=join(parent_dir, f"{dataset_name}_signatures.json"),
@@ -32,6 +32,7 @@ def save_blockwise_featurized_data(dataset_name):
         test_pairs_size=100,
         name=dataset_name,
         n_jobs=2,
+        random_seed=random_seed,
     )
     # Uncomment the following line if you wish to preprocess the whole dataset
     AND_dataset.process_whole_dataset()
@@ -39,8 +40,12 @@ def save_blockwise_featurized_data(dataset_name):
     # Load the featurizer, which calculates pairwise similarity scores
     featurization_info = FeaturizationInfo()
     # the cache will make it faster to train multiple times - it stores the features on disk for you
-    train_pkl, val_pkl, test_pkl = store_featurized_pickles(AND_dataset, featurization_info,
-                                                            n_jobs=2, use_cache=False, nan_value=-1)
+    train_pkl, val_pkl, test_pkl = store_featurized_pickles(AND_dataset,
+                                                            featurization_info,
+                                                            n_jobs=2,
+                                                            use_cache=False,
+                                                            nan_value=nan_value,
+                                                            random_seed=random_seed)
 
     return train_pkl, val_pkl, test_pkl
 
@@ -53,38 +58,20 @@ def read_blockwise_features(pkl):
     print("Total num of blocks:", len(blockwise_data.keys()))
     return blockwise_data
 
-class s2BlocksDataset(Dataset):
-    def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]):
-        self.blockwise_data = blockwise_data
-
-    def __len__(self):
-        return len(self.blockwise_data.keys())
-
-
-    def __getitem__(self, idx):
-        dict_key = list(self.blockwise_data.keys())[idx]
-        X, y = self.blockwise_data[dict_key]
-        # TODO: Add subsampling logic here, if needed
-        return (X, y)
-
 
 if __name__=='__main__':
     # Creates the pickles that store the preprocessed data
+    # TODO: Create a loop to perform preprocessing for all Datasets
     dataset = "arnetminer"
-    save_blockwise_featurized_data(dataset)
+    random_seeds = {1, 2, 3, 4, 5}
+    for seed in random_seeds:
+        save_blockwise_featurized_data(dataset, seed)
 
-    # Check the pickles are created OK
-    train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/train_features.pkl"
-    val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/val_features.pkl"
-    test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/test_features.pkl"
-    blockwise_features = read_blockwise_features(train_pkl)
+        # Check the pickles are created OK
+        train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{seed}/train_features.pkl"
+        val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{seed}/val_features.pkl"
+        test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{seed}/test_features.pkl"
+        blockwise_features = read_blockwise_features(train_pkl)
 
-    # Sample Dataloader
-    train_Dataset = s2BlocksDataset(blockwise_features)
-    train_Dataloader = DataLoader(train_Dataset, shuffle=True)
 
-    for (idx, batch) in enumerate(train_Dataloader):
-        # LOADING THE DATA IN A BATCH TO TEST EVERYTHING IS CORRECT
-        data, target = batch
-        print("batch #", idx, np.shape(data), np.shape(target))
 

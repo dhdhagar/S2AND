@@ -10,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 from s2and.consts import PREPROCESSED_DATA_DIR
 import pickle
 import numpy as np
+from s2and.data import S2BlocksDataset
 
 #DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
 DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
@@ -22,19 +23,7 @@ def read_blockwise_features(pkl):
     print("Total num of blocks:", len(blockwise_data.keys()))
     return blockwise_data
 
-class s2BlocksDataset(Dataset):
-    def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]):
-        self.blockwise_data = blockwise_data
 
-    def __len__(self):
-        return len(self.blockwise_data.keys())
-
-
-    def __getitem__(self, idx):
-        dict_key = list(self.blockwise_data.keys())[idx]
-        X, y = self.blockwise_data[dict_key]
-        # TODO: Add subsampling logic here
-        return (X, y)
 
 def load_pretrained_model_to_torch():
     with open(f"{DATA_HOME_DIR}/production_model.pickle", "rb") as _pkl_file:
@@ -114,7 +103,7 @@ if __name__=='__main__':
     test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/test_features.pkl"
     blockwise_features = read_blockwise_features(train_pkl)
 
-    train_Dataset = s2BlocksDataset(blockwise_features)
+    train_Dataset = S2BlocksDataset(blockwise_features)
     train_Dataloader = DataLoader(train_Dataset, shuffle=True)
 
     lgbm_hm = load_pretrained_model_to_torch()

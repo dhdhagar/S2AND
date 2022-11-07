@@ -3,15 +3,11 @@ import hummingbird.ml
 from hummingbird.ml import constants
 from os.path import join
 from s2and.data import ANDData
-from s2and.model import PairwiseModeler
 from s2and.featurizer import FeaturizationInfo, featurize
-from s2and.eval import pairwise_eval
 import torch
-from torchmetrics import ConfusionMatrix
 
 
 # TO-DO: Change this to some local directory
-#DATA_HOME_DIR = "../data"
 DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
 def load_and_featurize_dataset():

@@ -834,6 +834,7 @@ def store_featurized_pickles(
     nameless_featurizer_info: Optional[FeaturizationInfo] = None,
     nan_value: float = np.nan,
     delete_training_data: bool = False,
+    random_seed: int = 1,
 ) -> Union[Tuple[TupleOfArrays, TupleOfArrays, TupleOfArrays], TupleOfArrays]:
     """
     Featurizes the input dataset and stores as preprocessed data in pickle files
@@ -865,6 +866,7 @@ def store_featurized_pickles(
     TODO: if mode is 'inference'
     """
     if dataset.mode == "inference":
+        # TODO: store pickles for All Pairs
         logger.info("featurizing all pairs")
         all_pairs = dataset.all_pairs()
         all_features = many_pairs_featurize(
@@ -958,12 +960,12 @@ def store_featurized_pickles(
 
         # Store these features in separate pickles
         # Create the directory if not already created
-        if(not os.path.exists(f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1")):
-            os.makedirs(f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1")
+        if(not os.path.exists(f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed{random_seed}")):
+            os.makedirs(f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed{random_seed}")
 
-        train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/train_features.pkl"
-        val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/val_features.pkl"
-        test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/test_features.pkl"
+        train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed{random_seed}/train_features.pkl"
+        val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed{random_seed}/val_features.pkl"
+        test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed{random_seed}/test_features.pkl"
 
         with open(train_pkl,"wb") as _pkl_file:
             pickle.dump(train_blockwise_features, _pkl_file)
@@ -973,9 +975,9 @@ def store_featurized_pickles(
             pickle.dump(test_blockwise_features, _pkl_file)
 
         # Check if the signature objects are stored or not, useful for qualitative analysis
-        train_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/train_signatures.pkl"
-        val_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/val_signatures.pkl"
-        test_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed1/test_signatures.pkl"
+        train_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed{random_seed}/train_signatures.pkl"
+        val_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed{random_seed}/val_signatures.pkl"
+        test_signatures_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset.name}/seed{random_seed}/test_signatures.pkl"
 
         if(not os.path.isfile(train_signatures_pkl)):
             train_object_list: Dict[str, List[Signature]] = dataset.get_signature_objects(train_signatures)
