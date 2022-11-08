@@ -45,9 +45,9 @@ class Parser(argparse.ArgumentParser):
         )
 
         parser.add_argument(
-            "--data_home_dir", action="store_true", help="Directory where the data is stored"
+            "--data_home_dir", type=str, help="Directory where the data is stored"
         )
 
         parser.add_argument(
-            "--dataset_name", action="store_true", help="name of AND dataset that you want to preprocess"
+            "--dataset_name", type=str, help="name of AND dataset that you want to preprocess"
         )

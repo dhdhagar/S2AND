@@ -9,6 +9,7 @@ import torch
 
 # TO-DO: Change this to some local directory
 DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
+#DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
 
 def load_and_featurize_dataset():
     dataset_name = "arnetminer"
@@ -30,7 +31,7 @@ def load_and_featurize_dataset():
     # Load the featurizer, which calculates pairwise similarity scores
     featurization_info = FeaturizationInfo()
     # the cache will make it faster to train multiple times - it stores the features on disk for you
-    train, val, test = featurize(dataset, featurization_info, n_jobs=4, use_cache=True, nan_value=-1)
+    train, val, test = featurize(dataset, featurization_info, n_jobs=4, use_cache=False, nan_value=-1)
     X_train, y_train, _ = train
     X_val, y_val, _ = val
     X_test, y_test, _ = test
@@ -50,6 +51,8 @@ def load_pretrained_model():
                                              extra_config=
                                              {constants.FINE_TUNE: True,
                                               constants.FINE_TUNE_DROPOUT_PROB: 0.1})
+
+    print(type(torch_model))
     return lgbm, torch_model.model
 
 def predict_proba(model, input):

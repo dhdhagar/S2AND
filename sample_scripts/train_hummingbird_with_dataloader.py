@@ -1,12 +1,12 @@
-from typing import Union, Dict
-from typing import List
+from typing import Dict
 from typing import Tuple
 
 import hummingbird
 import torch
 from hummingbird.ml import constants
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
+from pipeline.MLP_Layer import MLP_Layer
 from s2and.consts import PREPROCESSED_DATA_DIR
 import pickle
 import numpy as np
@@ -106,5 +106,5 @@ if __name__=='__main__':
     train_Dataset = S2BlocksDataset(blockwise_features)
     train_Dataloader = DataLoader(train_Dataset, shuffle=True)
 
-    lgbm_hm = load_pretrained_model_to_torch()
+    lgbm_hm = MLP_Layer()
     model = train(lgbm_hm, train_Dataloader)
