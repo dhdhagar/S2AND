@@ -68,13 +68,13 @@ if __name__=='__main__':
     print(args)
 
     params = args.__dict__
-    if("data_home_dir" in params.keys()):
+    if(params["data_home_dir"] is None):
         DATA_HOME_DIR = params["data_home_dir"]
     else:
         # DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
         DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
-    if("dataset_name" in params.keys()):
+    if(params["dataset_name"] is None):
         dataset = params["dataset_name"]
     else:
         dataset = "arnetminer"
@@ -83,6 +83,7 @@ if __name__=='__main__':
 
     random_seeds = {1, 2, 3, 4, 5}
     for seed in random_seeds:
+
         save_blockwise_featurized_data(dataset, seed)
 
         # Check the pickles are created OK
