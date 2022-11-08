@@ -14,9 +14,8 @@ from os.path import join
 from s2and.data import ANDData
 import pickle
 import numpy as np
+from utils.parser import Parser
 
-#DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
-DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
 def save_blockwise_featurized_data(dataset_name, random_seed, nan_value=-1):
     parent_dir = f"{DATA_HOME_DIR}/{dataset_name}"
@@ -61,8 +60,27 @@ def read_blockwise_features(pkl):
 
 if __name__=='__main__':
     # Creates the pickles that store the preprocessed data
+    # Read cmd line args
+    parser = Parser(add_preprocessing_args=True)
+    parser.add_preprocessing_args()
+
+    args = parser.parse_args()
+    print(args)
+
+    params = args.__dict__
+    if("data_home_dir" in params.keys()):
+        DATA_HOME_DIR = params["data_home_dir"]
+    else:
+        # DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+        DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
+
+    if("dataset_name" in params.keys()):
+        dataset = params["dataset_name"]
+    else:
+        dataset = "arnetminer"
+
     # TODO: Create a loop to perform preprocessing for all Datasets
-    dataset = "arnetminer"
+
     random_seeds = {1, 2, 3, 4, 5}
     for seed in random_seeds:
         save_blockwise_featurized_data(dataset, seed)
