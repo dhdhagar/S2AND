@@ -6,7 +6,7 @@ import torch
 from hummingbird.ml import constants
 from torch.utils.data import DataLoader
 
-from pipeline.MLP_Layer import MLP_Layer
+from pipeline.mlp_layer import MlpLayer
 from s2and.consts import PREPROCESSED_DATA_DIR
 import pickle
 import numpy as np
@@ -106,5 +106,5 @@ if __name__=='__main__':
     train_Dataset = S2BlocksDataset(blockwise_features)
     train_Dataloader = DataLoader(train_Dataset, shuffle=True)
 
-    lgbm_hm = MLP_Layer()
+    lgbm_hm = MlpLayer()
     model = train(lgbm_hm, train_Dataloader)

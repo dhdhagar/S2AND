@@ -17,7 +17,7 @@ import numpy as np
 from utils.parser import Parser
 
 
-def save_blockwise_featurized_data(dataset_name, random_seed, nan_value=-1):
+def save_blockwise_featurized_data(dataset_name, random_seed):
     parent_dir = f"{DATA_HOME_DIR}/{dataset_name}"
     AND_dataset = ANDData(
         signatures=join(parent_dir, f"{dataset_name}_signatures.json"),
@@ -43,7 +43,6 @@ def save_blockwise_featurized_data(dataset_name, random_seed, nan_value=-1):
                                                             featurization_info,
                                                             n_jobs=2,
                                                             use_cache=False,
-                                                            nan_value=nan_value,
                                                             random_seed=random_seed)
 
     return train_pkl, val_pkl, test_pkl

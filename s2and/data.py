@@ -132,6 +132,8 @@ class S2BlocksDataset(Dataset):
         # returns all pairwise-features for a specified Block
         dict_key = list(self.blockwise_data.keys())[idx]
         X, y = self.blockwise_data[dict_key]
+        # Convert NaNs to -1 for now, TODO: remove when imputation layer is added
+        np.nan_to_num(X, copy=False, nan=-1)
         # TODO: Add subsampling logic here, if required
         return (X, y)
 

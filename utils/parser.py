@@ -40,11 +40,6 @@ class Parser(argparse.ArgumentParser):
         """
         parser = self.add_argument_group("Preprocessing Arguments")
         parser.add_argument(
-            "--nan_value", type=int, default=-1,
-            help="What to replace the nan value with",
-        )
-
-        parser.add_argument(
             "--data_home_dir", type=str, help="Directory where the data is stored"
         )
 
