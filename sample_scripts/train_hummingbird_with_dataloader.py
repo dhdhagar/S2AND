@@ -61,8 +61,7 @@ def train(model, train_Dataloader):
         # Reshape data to 2-D matrix, and target to 1D
         n = np.shape(data)[1]
         f = np.shape(data)[2]
-        if(n<=1):
-            continue
+
         data = torch.reshape(data, (n, f))
         target = torch.reshape(target, (n,))
         print(data.size(), data.size())
