@@ -6,7 +6,7 @@ import torch
 from hummingbird.ml import constants
 from torch.utils.data import DataLoader
 
-from pipeline.mlp_layer import MLPLayer
+from pipeline.model import model
 from s2and.consts import PREPROCESSED_DATA_DIR
 import pickle
 import numpy as np
@@ -64,7 +64,7 @@ def train(model, train_Dataloader):
 
         data = torch.reshape(data, (n, f))
         target = torch.reshape(target, (n,))
-        print(data.size(), data.size())
+        print(data.size(), target.size())
 
         # FORWARD PASS
         output = predict_class(model, data)
@@ -100,10 +100,32 @@ if __name__=='__main__':
     train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/train_features.pkl"
     val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/val_features.pkl"
     test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed1/test_features.pkl"
+
     blockwise_features = read_blockwise_features(train_pkl)
-
     train_Dataset = S2BlocksDataset(blockwise_features)
-    train_Dataloader = DataLoader(train_Dataset, shuffle=True)
+    train_Dataloader = DataLoader(train_Dataset, shuffle=False)
+    print(train_Dataloader)
 
-    lgbm_hm = MLPLayer()
-    model = train(lgbm_hm, train_Dataloader)
+    #Only train for first block picked up by dataloader:
+    # Get the first block size
+    batch_size = 0
+    for (idx, batch) in enumerate(train_Dataloader):
+        # LOADING THE DATA IN A BATCH
+        data, target = batch
+
+        # MOVING THE TENSORS TO THE CONFIGURED DEVICE
+        data, target = data.to(device), target.to(device)
+        # Reshape data to 2-D matrix, and target to 1D
+        n = np.shape(data)[1]
+        f = np.shape(data)[2]
+
+        batch_size = n
+        data = torch.reshape(data, (n, f))
+        target = torch.reshape(target, (n,))
+        print(data.size(), target.size())
+
+        e2e_model = model(batch_size)
+        output = e2e_model(data, np.zeros((n,)))
+        print(output)
+
+    #train(e2e_model, train_Dataloader)

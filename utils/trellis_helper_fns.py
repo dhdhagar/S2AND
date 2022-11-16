@@ -8,9 +8,7 @@ def build_trellis(pw_probs: np.ndarray, only_avg_hac: bool = False):
     return t
 
 
-def cut_trellis(t: Trellis,
-                num_points: int,
-                num_ecc: int = 0):
+def cut_trellis(t: Trellis):
     membership_indptr = t.leaves_indptr
     membership_indices = t.leaves_indices
     membership_data = get_membership_data(membership_indptr,
@@ -22,9 +20,9 @@ def cut_trellis(t: Trellis,
         node_start = membership_indptr[node]
         node_end = membership_indptr[node + 1]
         leaves = membership_indices[node_start:node_end]
-        if num_ecc > 0:
-            num_ecc_sat[node] = get_num_ecc_sat(
-                leaves, num_points)
+        # if num_ecc > 0: # Condition is never true for 0 there-exists constraints
+        #     num_ecc_sat[node] = get_num_ecc_sat(
+        #         leaves, num_points)
         obj_vals[node] = get_intra_cluster_energy(leaves)
         for lchild, rchild in t.get_child_pairs_iter(node):
             cpair_num_ecc_sat = num_ecc_sat[lchild] + num_ecc_sat[rchild]
@@ -52,8 +50,8 @@ def cut_trellis(t: Trellis,
     # `node_start` and `node_end` also correspond to the root of the
     # trellis.
     best_clustering = membership_data[node_start:node_end]
-    if num_ecc > 0:
-        best_clustering = best_clustering[:-num_ecc]
+    # if num_ecc > 0: # Condition is never true for 0 there-exists constraints
+    #     best_clustering = best_clustering[:-num_ecc]
 
     return best_clustering, obj_vals[node], num_ecc_sat[node]
 
@@ -67,22 +65,11 @@ def get_membership_data(indptr: np.ndarray,
             data[j] = i
     return data
 
-def get_num_ecc_sat(leaves: np.ndarray, num_points: int):
-    point_leaves = leaves[leaves < num_points]
-    ecc_indices = leaves[leaves >= num_points] - num_points
-    if ecc_indices.squeeze().size == 0:
-        return 0
-    feats = get_cluster_feats(self.features[point_leaves])
-    ecc_avail = self.ecc_mx[ecc_indices]
-    to_satisfy = (ecc_avail > 0).sum(axis=1)
-    num_ecc_sat = ((feats @ ecc_avail.T).T == to_satisfy).sum()
-    return num_ecc_sat
-
-def get_intra_cluster_energy(leaves: np.ndarray):
-    row_mask = np.isin(self.edge_weights.row, leaves)
-    col_mask = np.isin(self.edge_weights.col, leaves)
+def get_intra_cluster_energy(edge_weights, leaves: np.ndarray):
+    row_mask = np.isin(edge_weights.row, leaves)
+    col_mask = np.isin(edge_weights.col, leaves)
     data_mask = row_mask & col_mask
-    return np.sum(self.edge_weights.data[data_mask])
+    return np.sum(edge_weights.data[data_mask])
 
 @staticmethod
 @nb.njit

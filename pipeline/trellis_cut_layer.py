@@ -1,8 +1,6 @@
 import torch
 from ecc.ecc_layer import cluster_labels_to_matrix
-import numpy as np
-
-from ecc.trellis import Trellis
+from utils.trellis_helper_fns import build_trellis, cut_trellis
 
 
 class TrellisCutLayer(torch.nn.Module):
