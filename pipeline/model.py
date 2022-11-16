@@ -7,6 +7,7 @@ from pipeline.trellis_cut_layer import TrellisCutLayer
 
 class model(torch.nn.Module):
     def __init__(self, block_size):
+        super().__init__()
         self.mlp_layer = MLPLayer()
         self.sdp_layer = SDPLayer(num_points=block_size, max_num_ecc=1, max_sdp_iters=50000)
         self.trellis_cut_estimator = TrellisCutLayer()

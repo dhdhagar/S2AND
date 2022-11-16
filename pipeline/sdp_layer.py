@@ -48,7 +48,8 @@ class SDPLayer(torch.nn.Module):
             "verbose": True,
             # "warm_start": True,  # Enabled by default
             "max_iters": self.max_sdp_iters,
-            "eps": 1e-3
+            "eps": 1e-3,
+            "ignore_dpp": True
         })
 
         # Perform the necessary transforms to get final upper triangular matrix of clustering probabilities

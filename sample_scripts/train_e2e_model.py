@@ -39,56 +39,6 @@ def load_pretrained_model_to_torch():
                                               constants.FINE_TUNE_DROPOUT_PROB: 0.1})
     return torch_model.model
 
-def train(model, train_Dataloader):
-    model.to(device)
-    loss_fn = torch.nn.BCELoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=5e-4)
-
-    def predict_class(model, input):
-        return model(input)[1][:, 1]
-
-    def evaluate(model, input, output):
-        return (sum(model(input)[0] == output) / len(input)).item()
-
-    # loop through each batch in the DataLoader object
-    model.train()
-    for (idx, batch) in enumerate(train_Dataloader):
-        # LOADING THE DATA IN A BATCH
-        data, target = batch
-
-        # MOVING THE TENSORS TO THE CONFIGURED DEVICE
-        data, target = data.to(device), target.to(device)
-        # Reshape data to 2-D matrix, and target to 1D
-        n = np.shape(data)[1]
-        f = np.shape(data)[2]
-
-        data = torch.reshape(data, (n, f))
-        target = torch.reshape(target, (n,))
-        print(data.size(), target.size())
-
-        # FORWARD PASS
-        output = predict_class(model, data)
-        # Change dtype to float for BCE Loss
-        target = target.to(torch.float64)
-        output = output.to(torch.float64)
-        loss = loss_fn(output, target)
-
-        # BACKWARD AND OPTIMIZE
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        # PREDICTIONS
-        # Print batch loss
-        with torch.no_grad():
-            model.eval()
-            print("\tBatch", f":{idx}", ":", loss_fn(predict_class(model, data).to(torch.float64), target).item())
-        model.train()
-
-        print("Accuracy on training set is",
-              evaluate(model, data.to(device), target.to(device)))
-
-
 
 if __name__=='__main__':
     dataset = "arnetminer"
@@ -122,10 +72,12 @@ if __name__=='__main__':
         batch_size = n
         data = torch.reshape(data, (n, f))
         target = torch.reshape(target, (n,))
-        print(data.size(), target.size())
+        print("Data read", data.size(), target.size())
 
         e2e_model = model(batch_size)
+        print("model loaded", e2e_model)
         output = e2e_model(data, np.zeros((n,)))
         print(output)
+        break
 
     #train(e2e_model, train_Dataloader)
