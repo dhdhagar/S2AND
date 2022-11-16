@@ -7,7 +7,6 @@
 import argparse
 from collections import defaultdict
 import copy
-import heapq
 from itertools import product
 import json
 import logging
@@ -16,20 +15,16 @@ import pickle
 import time
 
 import cvxpy as cp
-import higra as hg
 import numba as nb
 from numba.typed import List
 import numpy as np
 import pytorch_lightning as pl
 from scipy.sparse import csr_matrix, coo_matrix, dok_matrix
 from scipy.sparse import vstack as sp_vstack
-from scipy.special import softmax
 from sklearn.metrics import adjusted_rand_score as rand_idx
 from sklearn.metrics import homogeneity_completeness_v_measure as cluster_f1
 
-from trellis import Trellis
-
-from IPython import embed
+from ecc.trellis import Trellis
 
 
 class EccClusterer(object):
