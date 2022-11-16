@@ -11,6 +11,7 @@ class SDPLayer(torch.nn.Module):
                  num_points: int, # edge_weights.shape[0]
                  max_num_ecc: int,
                  max_sdp_iters: int):
+        super().__init__()
         self.num_points = num_points
         self.max_sdp_iters = max_sdp_iters
 
