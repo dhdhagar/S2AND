@@ -8,25 +8,24 @@ from cvxpylayers.torch import CvxpyLayer
 class SDPLayer(torch.nn.Module):
     # Taken from the ECC Clusterer class in ecc_layer.py
     def __init__(self,
-                 num_points: int, # edge_weights.shape[0]
-                 max_num_ecc: int,
                  max_sdp_iters: int):
         super().__init__()
-        self.num_points = num_points
         self.max_sdp_iters = max_sdp_iters
 
         # ECC Constraint related variables: set to default
-        self.max_num_ecc = max_num_ecc
-        self.num_ecc = 0
+        self.num_points = 0
+        self.n = 0
 
+
+    def build_and_solve_sdp(self):
         # Initialize the cvxpy layer
-        self.n = self.num_points + self.max_num_ecc
-        self.X = cp.Variable((self.n, self.n), PSD=True)
-        self.W = cp.Parameter((self.n, self.n))
+        n = self.num_points
+        self.X = cp.Variable((n, n), PSD=True)
+        self.W = cp.Parameter((n, n))
 
         # build out constraint set
         constraints = [
-            cp.diag(self.X) == np.ones((self.n,)),
+            cp.diag(self.X) == np.ones((n,)),
             self.X[:self.num_points, :] >= 0,
         ]
 
@@ -38,10 +37,7 @@ class SDPLayer(torch.nn.Module):
         # Build the SDP cvxpylayer
         self.cvxpy_layer = CvxpyLayer(self.prob, parameters=[self.W], variables=[self.X])
 
-
-    def build_and_solve_sdp(self):
         logging.info('Solving optimization problem')
-
         # Forward pass through the SDP cvxpylayer
         pw_probs = self.cvxpy_layer(self.W_val, solver_args={
             "solve_method": "SCS",
@@ -57,7 +53,7 @@ class SDPLayer(torch.nn.Module):
             sdp_obj_value = torch.sum(self.W_val * pw_probs).item()
 
         # number of active graph nodes we are clustering
-        active_n = self.num_points + self.num_ecc
+        active_n = self.num_points
 
         # run heuristic max forcing for now
         if self.num_ecc > 0:
@@ -93,20 +89,22 @@ class SDPLayer(torch.nn.Module):
 
         return sdp_obj_value, pw_probs
 
-    def forward(self, edge_weights):
+    def forward(self,
+                num_points: int, # edge_weights.shape[0]
+                edge_weights):
         # what all should be requires_grad = True?
-        edge_weights = edge_weights.tocoo()
-
+        self.num_points = edge_weights.size(dim=0)
         # formulate SDP
         logging.info('Constructing optimization problem')
-        W = csr_matrix((edge_weights.data, (edge_weights.row, edge_weights.col)), shape=(self.n, self.n))
-        self.W_val = torch.tensor(W.todense(), requires_grad=True)
+        #W = csr_matrix((edge_weights.data, (edge_weights.row, edge_weights.col)), shape=(self.n, self.n))
+        #self.W_val = torch.tensor(W.todense(), requires_grad=True)
+        self.W_val = edge_weights
 
         # Solve the SDP and return result
         # TODO: Why grad set to None?
-        # params = [self.W_val]
-        # for param in params:
-        #     param.grad = None
+        params = [self.W_val]
+        for param in params:
+            param.grad = None
 
         sdp_obj_value, pw_probs = self.build_and_solve_sdp()
         return pw_probs

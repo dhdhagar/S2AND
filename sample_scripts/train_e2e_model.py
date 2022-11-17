@@ -76,7 +76,7 @@ if __name__=='__main__':
 
         e2e_model = model(batch_size)
         print("model loaded", e2e_model)
-        output = e2e_model(data, np.zeros((n,)))
+        output = e2e_model(data)
         print(output)
         break
 
