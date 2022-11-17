@@ -60,13 +60,13 @@ if __name__=='__main__':
     print(args)
 
     params = args.__dict__
-    if(params["data_home_dir"] is None):
+    if(params["data_home_dir"] is not None):
         DATA_HOME_DIR = params["data_home_dir"]
     else:
-        DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
-        #DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
+        #DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+        DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
-    if(params["dataset_name"] is None):
+    if(params["dataset_name"] is not None):
         dataset = params["dataset_name"]
     else:
         dataset = "arnetminer"

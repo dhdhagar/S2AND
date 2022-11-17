@@ -90,7 +90,6 @@ class SDPLayer(torch.nn.Module):
         return sdp_obj_value, pw_probs
 
     def forward(self,
-                num_points: int, # edge_weights.shape[0]
                 edge_weights):
         # what all should be requires_grad = True?
         self.num_points = edge_weights.size(dim=0)
