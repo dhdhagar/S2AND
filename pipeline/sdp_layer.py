@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from scipy.sparse import csr_matrix
 import logging
 import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
@@ -12,11 +11,6 @@ class SDPLayer(torch.nn.Module):
         super().__init__()
         self.max_sdp_iters = max_sdp_iters
 
-        # ECC Constraint related variables: set to default
-        self.num_points = 0
-        self.n = 0
-
-
     def build_and_solve_sdp(self):
         # Initialize the cvxpy layer
         n = self.num_points
@@ -26,7 +20,7 @@ class SDPLayer(torch.nn.Module):
         # build out constraint set
         constraints = [
             cp.diag(self.X) == np.ones((n,)),
-            self.X[:self.num_points, :] >= 0,
+            self.X[:n, :] >= 0,
         ]
 
         # create problem
@@ -95,6 +89,7 @@ class SDPLayer(torch.nn.Module):
         self.num_points = edge_weights.size(dim=0)
         # formulate SDP
         logging.info('Constructing optimization problem')
+        # Conversion of scipy sparse matrix to tensor not needed as we r getting tensor as input
         #W = csr_matrix((edge_weights.data, (edge_weights.row, edge_weights.col)), shape=(self.n, self.n))
         #self.W_val = torch.tensor(W.todense(), requires_grad=True)
         self.W_val = edge_weights

@@ -14,7 +14,8 @@ class model(torch.nn.Module):
 
     def forward(self, x):
         edge_weights = self.mlp_layer(x)
-        edge_weights = edge_weights[1]
+        # Take only the probabilities of belonging to class 1 as output from mlp
+        edge_weights = edge_weights[1][:, 1:]
         print(edge_weights)
         print("Size of OP of mlp layer is", edge_weights.size())
         output_probs = self.sdp_layer(edge_weights)
