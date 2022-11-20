@@ -96,10 +96,5 @@ class SDPLayer(torch.nn.Module):
         self.W_val = edge_weights
 
         # Solve the SDP and return result
-        # TODO: Why grad set to None?
-        params = [self.W_val]
-        for param in params:
-            param.grad = None
-
         sdp_obj_value, pw_probs = self.build_and_solve_sdp()
         return pw_probs

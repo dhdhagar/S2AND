@@ -56,7 +56,7 @@ if __name__=='__main__':
     train_Dataloader = DataLoader(train_Dataset, shuffle=False)
     print(train_Dataloader)
 
-    #Only train for first block picked up by dataloader:
+    # Only train for first block picked up by dataloader:
     # Get the first block size
     batch_size = 0
     for (idx, batch) in enumerate(train_Dataloader):
@@ -73,6 +73,11 @@ if __name__=='__main__':
         data = torch.reshape(data, (n, f))
         target = torch.reshape(target, (n,))
         print("Data read", data.size(), target.size())
+
+        # TODO: Why grad set to None?
+        # params = [self.W_val]
+        # for param in params:
+        #     param.grad = None
 
         e2e_model = model(batch_size)
         print("model loaded", e2e_model)
