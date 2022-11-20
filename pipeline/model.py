@@ -9,7 +9,7 @@ class model(torch.nn.Module):
     def __init__(self, block_size):
         super().__init__()
         self.mlp_layer = MLPLayer()
-        self.sdp_layer = SDPLayer(max_sdp_iters=50000)
+        self.sdp_layer = SDPLayer(max_sdp_iters=100)
         self.trellis_cut_estimator = TrellisCutLayer()
 
     def forward(self, x):

@@ -41,7 +41,7 @@ def load_pretrained_model_to_torch():
 
 
 if __name__=='__main__':
-    dataset = "arnetminer"
+    dataset = "pubmed"
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )

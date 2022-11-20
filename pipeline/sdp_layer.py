@@ -30,6 +30,7 @@ class SDPLayer(torch.nn.Module):
 
         # Build the SDP cvxpylayer
         self.cvxpy_layer = CvxpyLayer(self.prob, parameters=[self.W], variables=[self.X])
+        print("Built the cvxpy layer")
 
         logging.info('Solving optimization problem')
         # Forward pass through the SDP cvxpylayer
