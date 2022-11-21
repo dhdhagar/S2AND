@@ -10,10 +10,12 @@ class SDPLayer(torch.nn.Module):
                  max_sdp_iters: int):
         super().__init__()
         self.max_sdp_iters = max_sdp_iters
+        self.num_ecc = 0
 
     def build_and_solve_sdp(self):
         # Initialize the cvxpy layer
-        n = self.num_points
+        #n = self.num_points
+        n = 4
         self.X = cp.Variable((n, n), PSD=True)
         self.W = cp.Parameter((n, n))
 
@@ -93,7 +95,12 @@ class SDPLayer(torch.nn.Module):
         # Conversion of scipy sparse matrix to tensor not needed as we r getting tensor as input
         #W = csr_matrix((edge_weights.data, (edge_weights.row, edge_weights.col)), shape=(self.n, self.n))
         #self.W_val = torch.tensor(W.todense(), requires_grad=True)
-        self.W_val = edge_weights
+        # Convert the 1D matrix to upper triangular matrix
+        edge_weights = edge_weights[:10, :]
+        ind = np.triu_indices(4)
+        result = np.zeros((4, 4), int)
+        result[ind] = edge_weights
+        self.W_val = result
 
         # Solve the SDP and return result
         sdp_obj_value, pw_probs = self.build_and_solve_sdp()
