@@ -1,3 +1,5 @@
+import math
+
 import torch
 import numpy as np
 import logging
@@ -88,19 +90,19 @@ class SDPLayer(torch.nn.Module):
 
     def forward(self,
                 edge_weights):
-        # what all should be requires_grad = True?
-        self.num_points = edge_weights.size(dim=0)
+        # Calculate num of points given mlp output size
+        self.num_points = torch.int64(math.sqrt(edge_weights.size(dim=0))) + 1
+        n = self.num_points
         # formulate SDP
         logging.info('Constructing optimization problem')
         # Conversion of scipy sparse matrix to tensor not needed as we r getting tensor as input
         #W = csr_matrix((edge_weights.data, (edge_weights.row, edge_weights.col)), shape=(self.n, self.n))
         #self.W_val = torch.tensor(W.todense(), requires_grad=True)
         # Convert the 1D matrix to upper triangular matrix
-        edge_weights = edge_weights[:10, :]
-        ind = torch.triu_indices(4, 4)
-        edge_weights = torch.sparse_coo_tensor(ind, edge_weights, [4, 4])
+        ind = torch.triu_indices(n, n)
+        edge_weights = torch.sparse_coo_tensor(ind, edge_weights, [n, n])
         edge_weights = edge_weights.to_dense()
-        self.W_val = torch.from_numpy(edge_weights)
+        self.W_val = torch.reshape(edge_weights, (n, n))
 
         # Solve the SDP and return result
         sdp_obj_value, pw_probs = self.build_and_solve_sdp()
