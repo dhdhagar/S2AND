@@ -97,11 +97,10 @@ class SDPLayer(torch.nn.Module):
         #self.W_val = torch.tensor(W.todense(), requires_grad=True)
         # Convert the 1D matrix to upper triangular matrix
         edge_weights = edge_weights[:10, :]
-        torch.detach(edge_weights).numpy()
-        ind = np.triu_indices(4)
-        result = np.zeros((4, 4), int)
-        result[ind] = edge_weights
-        self.W_val = torch.from_numpy(result)
+        ind = torch.triu_indices(4, 4)
+        edge_weights = torch.sparse_coo_tensor(ind, edge_weights, [4, 4])
+        edge_weights = edge_weights.to_dense()
+        self.W_val = torch.from_numpy(edge_weights)
 
         # Solve the SDP and return result
         sdp_obj_value, pw_probs = self.build_and_solve_sdp()
