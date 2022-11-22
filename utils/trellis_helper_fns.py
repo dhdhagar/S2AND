@@ -23,7 +23,7 @@ def cut_trellis(t: Trellis):
         # if num_ecc > 0: # Condition is never true for 0 there-exists constraints
         #     num_ecc_sat[node] = get_num_ecc_sat(
         #         leaves, num_points)
-        obj_vals[node] = get_intra_cluster_energy(leaves)
+        obj_vals[node] = get_intra_cluster_energy(edge_weights, leaves)
         for lchild, rchild in t.get_child_pairs_iter(node):
             cpair_num_ecc_sat = num_ecc_sat[lchild] + num_ecc_sat[rchild]
             cpair_obj_val = obj_vals[lchild] + obj_vals[rchild]

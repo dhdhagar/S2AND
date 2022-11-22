@@ -56,6 +56,14 @@ if __name__=='__main__':
     train_Dataloader = DataLoader(train_Dataset, shuffle=False)
     print(train_Dataloader)
 
+    e2e_model = model()
+    print("model loaded", e2e_model)
+    print("Learnable parameters:")
+    for parameter in e2e_model.parameters():
+        if(parameter.requires_grad):
+            print(parameter)
+    optimizer = torch.optim.SGD(e2e_model.parameters(), lr=0.001, momentum=0.9)
+
     # Only train for first block picked up by dataloader:
     # Get the first block size
     batch_size = 0
@@ -74,15 +82,20 @@ if __name__=='__main__':
         target = torch.reshape(target, (n,))
         print("Data read", data.size(), target.size())
 
-        # TODO: Why grad set to None?
-        # params = [self.W_val]
-        # for param in params:
-        #     param.grad = None
+        # Zero your gradients for every batch!
+        optimizer.zero_grad()
 
-        e2e_model = model(batch_size)
-        print("model loaded", e2e_model)
+        # Forward pass through the e2e model
         output = e2e_model(data)
         print(output)
+
+        # Calculate the loss and its gradients
+        gold_output = torch.ones(output.size())
+        loss = torch.norm(gold_output - output)
+        loss.backward()
+
+        # Gather data and report
+        print("loss is ", loss.item())
         break
 
     #train(e2e_model, train_Dataloader)

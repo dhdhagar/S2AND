@@ -16,8 +16,7 @@ class SDPLayer(torch.nn.Module):
 
     def build_and_solve_sdp(self):
         # Initialize the cvxpy layer
-        #n = self.num_points
-        n = 4
+        n = self.num_points
         self.X = cp.Variable((n, n), PSD=True)
         self.W = cp.Parameter((n, n))
 
@@ -91,16 +90,13 @@ class SDPLayer(torch.nn.Module):
     def forward(self,
                 edge_weights):
         # Calculate num of points given mlp output size
-        self.num_points = torch.int64(math.sqrt(edge_weights.size(dim=0))) + 1
+        self.num_points = round(math.sqrt(2*edge_weights.size(dim=0))) + 1
         n = self.num_points
         # formulate SDP
         logging.info('Constructing optimization problem')
-        # Conversion of scipy sparse matrix to tensor not needed as we r getting tensor as input
-        #W = csr_matrix((edge_weights.data, (edge_weights.row, edge_weights.col)), shape=(self.n, self.n))
-        #self.W_val = torch.tensor(W.todense(), requires_grad=True)
-        # Convert the 1D matrix to upper triangular matrix
-        ind = torch.triu_indices(n, n)
-        edge_weights = torch.sparse_coo_tensor(ind, edge_weights, [n, n])
+        # Convert the 1D pairwise-similarities list to nxn upper triangular matrix
+        ind = torch.triu_indices(n, n, offset=1)
+        edge_weights = torch.sparse_coo_tensor(ind, edge_weights, [n, n, 1])
         edge_weights = edge_weights.to_dense()
         self.W_val = torch.reshape(edge_weights, (n, n))
 

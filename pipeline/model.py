@@ -6,10 +6,10 @@ from pipeline.trellis_cut_layer import TrellisCutLayer
 
 
 class model(torch.nn.Module):
-    def __init__(self, block_size):
+    def __init__(self):
         super().__init__()
         self.mlp_layer = MLPLayer()
-        self.sdp_layer = SDPLayer(max_sdp_iters=100)
+        self.sdp_layer = SDPLayer(max_sdp_iters=50000)
         self.trellis_cut_estimator = TrellisCutLayer()
 
     def forward(self, x):
@@ -20,6 +20,8 @@ class model(torch.nn.Module):
         print("Size of OP of mlp layer is", edge_weights.size())
         output_probs = self.sdp_layer(edge_weights)
         print("Size of OP of sdp layer is", output_probs.size())
-        pred_clustering = self.trellis_cut_estimator(output_probs)
+        #TODO: First fix TrellisCut Helper functions error
+        #pred_clustering = self.trellis_cut_estimator(output_probs)
+        pred_clustering = output_probs
         print("Size of OP of Trellis Cut layer is", pred_clustering.size())
         return pred_clustering
