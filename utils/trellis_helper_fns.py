@@ -55,7 +55,6 @@ def cut_trellis(t: Trellis):
 
     return best_clustering, obj_vals[node], num_ecc_sat[node]
 
-@staticmethod
 @nb.njit(parallel=True)
 def get_membership_data(indptr: np.ndarray,
                         indices: np.ndarray):
@@ -71,7 +70,6 @@ def get_intra_cluster_energy(edge_weights, leaves: np.ndarray):
     data_mask = row_mask & col_mask
     return np.sum(edge_weights.data[data_mask])
 
-@staticmethod
 @nb.njit
 def merge_memberships(lchild_indices: np.ndarray,
                       lchild_data: np.ndarray,
