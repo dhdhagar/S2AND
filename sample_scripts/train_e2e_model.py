@@ -59,9 +59,9 @@ if __name__=='__main__':
     e2e_model = model()
     print("model loaded", e2e_model)
     print("Learnable parameters:")
-    for parameter in e2e_model.parameters():
+    for name, parameter in e2e_model.named_parameters():
         if(parameter.requires_grad):
-            print(parameter)
+            print(name)
     optimizer = torch.optim.SGD(e2e_model.parameters(), lr=0.001, momentum=0.9)
 
     # Only train for first block picked up by dataloader:

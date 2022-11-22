@@ -13,6 +13,7 @@ class SDPLayer(torch.nn.Module):
         super().__init__()
         self.max_sdp_iters = max_sdp_iters
         self.num_ecc = 0
+        self.W_val = None
 
     def build_and_solve_sdp(self):
         # Initialize the cvxpy layer
@@ -98,7 +99,7 @@ class SDPLayer(torch.nn.Module):
         ind = torch.triu_indices(n, n, offset=1)
         edge_weights = torch.sparse_coo_tensor(ind, edge_weights, [n, n, 1])
         edge_weights = edge_weights.to_dense()
-        self.W_val = torch.reshape(edge_weights, (n, n))
+        self.W_val = torch.reshape(edge_weights, (n, n), requires_grad=True)
 
         # Solve the SDP and return result
         sdp_obj_value, pw_probs = self.build_and_solve_sdp()
