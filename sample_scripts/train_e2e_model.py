@@ -95,7 +95,6 @@ if __name__=='__main__':
         loss.backward()
         print(e2e_model.sdp_layer.W_val.grad)
         print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3.grad)
-        print(e2e_model.mlp_layer.mlp_model._operators[0].bias_3.grad)
 
         # Gather data and report
         print("loss is ", loss.item())

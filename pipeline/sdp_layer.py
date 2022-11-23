@@ -14,6 +14,8 @@ class SDPLayer(torch.nn.Module):
         self.max_sdp_iters = max_sdp_iters
         self.num_ecc = 0
 
+        self.W_val = torch.nn.Parameter()
+
     def build_and_solve_sdp(self):
         # Initialize the cvxpy layer
         n = self.num_points
@@ -88,17 +90,11 @@ class SDPLayer(torch.nn.Module):
         return sdp_obj_value, pw_probs
 
     def forward(self,
-                edge_weights):
-        # Calculate num of points given mlp output size
-        self.num_points = round(math.sqrt(2*edge_weights.size(dim=0))) + 1
-        n = self.num_points
+                edge_weights_uncompressed):
         # formulate SDP
         logging.info('Constructing optimization problem')
-        # Convert the 1D pairwise-similarities list to nxn upper triangular matrix
-        ind = torch.triu_indices(n, n, offset=1)
-        self.W_val = (torch.sparse_coo_tensor(ind, edge_weights, [n, n, 1])).to_dense()
-        self.W_val = torch.reshape(self.W_val, (n, n))
-        self.W_val.retain_grad()
+        self.num_points = edge_weights_uncompressed.size(dim=0)
+        self.W_val = edge_weights_uncompressed
 
         # Solve the SDP and return result
         sdp_obj_value, pw_probs = self.build_and_solve_sdp()

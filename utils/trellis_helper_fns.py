@@ -1,6 +1,7 @@
 from ecc.trellis import Trellis
 import numpy as np
 import numba as nb
+from scipy.sparse import csr_matrix, coo_matrix
 
 def build_trellis(pw_probs: np.ndarray, only_avg_hac: bool = False):
     t = Trellis(adj_mx=pw_probs)
@@ -8,7 +9,7 @@ def build_trellis(pw_probs: np.ndarray, only_avg_hac: bool = False):
     return t
 
 
-def cut_trellis(t: Trellis):
+def cut_trellis(t: Trellis, edge_weights: coo_matrix):
     membership_indptr = t.leaves_indptr
     membership_indices = t.leaves_indices
     membership_data = get_membership_data(membership_indptr,
@@ -64,7 +65,8 @@ def get_membership_data(indptr: np.ndarray,
             data[j] = i
     return data
 
-def get_intra_cluster_energy(edge_weights, leaves: np.ndarray):
+def get_intra_cluster_energy(edge_weights: coo_matrix,
+                             leaves: np.ndarray):
     row_mask = np.isin(edge_weights.row, leaves)
     col_mask = np.isin(edge_weights.col, leaves)
     data_mask = row_mask & col_mask
