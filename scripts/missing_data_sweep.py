@@ -256,7 +256,8 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
     fpr, tpr, _ = roc_curve(y, y_prob)
     roc_auc = auc(fpr, tpr)
     thresh_for_f1 = 0.5
-    pr, rc, f1, _ = precision_recall_fscore_support(y, y_prob > thresh_for_f1, beta=1.0, average=mode)
+    pr, rc, f1, _ = precision_recall_fscore_support(y, y_prob > thresh_for_f1, beta=1.0, average=mode,
+                                                    zero_division=0)
 
     if loss_fn is not None:
         if 'BCELoss' in loss_fn.__class__.__name__:
