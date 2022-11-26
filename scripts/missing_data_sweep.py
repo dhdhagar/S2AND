@@ -514,7 +514,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
             })
 
 
-needs_sigmoid = [NeuMissVanilla, NeuMissVanillaLeaky]
+needs_sigmoid = [NeuMissVanilla]
 metric_to_idx = {'auroc': 0, 'f1': 1}
 
 
