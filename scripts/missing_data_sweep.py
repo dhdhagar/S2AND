@@ -401,7 +401,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                                                                verbose=verbose)
 
         if verbose:
-            logger.info("Training:\n")
+            logger.info("Training:")
         with torch.no_grad():
             model.eval()
             init_eval_train = evaluate(model, X_train_tensor, y_train_tensor,
@@ -424,7 +424,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                 'test_f1': init_eval_test[1]})
 
         if verbose:
-            logger.info(f"\nDev metric to optimize: {dev_opt_metric}")
+            logger.info(f"Dev metric to optimize: {dev_opt_metric}")
 
         best_model_on_dev = None
         best_metric = -1.
@@ -499,12 +499,10 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
         with torch.no_grad():
             best_model_on_dev.eval()
             if verbose:
-                logger.info("----------------")
                 logger.info(f"Initial model evaluation:")
                 logger.info("Train AUROC, F1:", init_eval_train)
                 logger.info("Dev AUROC, F1:", init_eval_dev)
                 logger.info("Test AUROC, F1:", init_eval_test)
-                logger.info()
 
             best_eval_train = evaluate(best_model_on_dev, X_train_tensor, y_train_tensor,
                                        batch_size=batch_size, overfit_one_batch=overfit_one_batch)
@@ -516,7 +514,6 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                 logger.info("Dev AUROC, F1:", best_eval_dev)
                 logger.info("Test AUROC, F1:", best_eval_test)
                 logger.info(f"Time taken: {end_time - start_time}")
-                logger.info()
             wandb.log({
                 'best_train_auroc': best_eval_train[0],
                 'best_train_f1': best_eval_train[1],
@@ -555,7 +552,9 @@ if __name__ == '__main__':
     args = parser.parse_args().__dict__
     logger.info("Script arguments:")
     logger.info(args)
-    logger.info(f"\nUsing device={device}\n")
+    logger.info(f"Using device={device}")
+
+    wandb.login()
 
     with open(args['wandb_sweep_params'], 'r') as fh:
         sweep_params = json.load(fh)
