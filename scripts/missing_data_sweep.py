@@ -4,6 +4,7 @@ import copy
 import os
 import pickle
 import argparse
+import logging
 
 import numpy as np
 import wandb
@@ -21,6 +22,10 @@ from neumiss import NeuMissBlock, NeuMissDEQBlock
 device = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
 )
+
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class ArgParser(argparse.ArgumentParser):
@@ -376,7 +381,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                 pos_weight = (len(y_train_tensor) - y_train_tensor.sum()) / y_train_tensor.sum()
 
         if verbose:
-            print(f"Loss function pos_weight={pos_weight}")
+            logger.info(f"Loss function pos_weight={pos_weight}")
         loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight) if model.__class__ in needs_sigmoid else \
             torch.nn.BCELoss()
 
@@ -396,7 +401,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                                                                verbose=verbose)
 
         if verbose:
-            print("Training:\n")
+            logger.info("Training:\n")
         with torch.no_grad():
             model.eval()
             init_eval_train = evaluate(model, X_train_tensor, y_train_tensor,
@@ -405,10 +410,10 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
             init_eval_test = evaluate(model, X_test_tensor.to(device), y_test_tensor)
 
             if verbose:
-                print(f"Initial model evaluation:")
-                print("Train AUROC, F1:", init_eval_train)
-                print("Dev AUROC, F1:", init_eval_dev)
-                print("Test AUROC, F1:", init_eval_test)
+                logger.info(f"Initial model evaluation:")
+                logger.info("Train AUROC, F1:", init_eval_train)
+                logger.info("Dev AUROC, F1:", init_eval_dev)
+                logger.info("Test AUROC, F1:", init_eval_test)
 
             wandb.log({
                 'train_auroc': init_eval_train[0],
@@ -419,7 +424,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                 'test_f1': init_eval_test[1]})
 
         if verbose:
-            print(f"\nDev metric to optimize: {dev_opt_metric}")
+            logger.info(f"\nDev metric to optimize: {dev_opt_metric}")
 
         best_model_on_dev = None
         best_metric = -1.
@@ -453,7 +458,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
 
                 # Print batch loss
                 if verbose:
-                    print("\tBatch", f"[{j}:{j + batch_size}]", ":", running_loss[-1])
+                    logger.info("\tBatch", f"[{j}:{j + batch_size}]", ":", running_loss[-1])
                 wandb.log({'train_loss_batch': running_loss[-1]})
 
             # Print epoch validation accuracy
@@ -462,10 +467,10 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                 dev_auroc_f1_loss = evaluate(model, X_val_tensor.to(device), y_val_tensor,
                                              loss_fn=loss_fn, pos_weight=pos_weight)
                 if verbose:
-                    print("Epoch", i + 1, ":", "Dev AUROC,F1,loss:", dev_auroc_f1_loss)
+                    logger.info("Epoch", i + 1, ":", "Dev AUROC,F1,loss:", dev_auroc_f1_loss)
                 if dev_auroc_f1_loss[metric_to_idx[dev_opt_metric]] > best_metric:
                     if verbose:
-                        print(f"New best dev {dev_opt_metric}; storing model")
+                        logger.info(f"New best dev {dev_opt_metric}; storing model")
                     best_epoch = i
                     best_metric = dev_auroc_f1_loss[metric_to_idx[dev_opt_metric]]
                     best_dev_f1 = dev_auroc_f1_loss[1]
@@ -494,24 +499,24 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
         with torch.no_grad():
             best_model_on_dev.eval()
             if verbose:
-                print("----------------")
-                print(f"Initial model evaluation:")
-                print("Train AUROC, F1:", init_eval_train)
-                print("Dev AUROC, F1:", init_eval_dev)
-                print("Test AUROC, F1:", init_eval_test)
-                print()
+                logger.info("----------------")
+                logger.info(f"Initial model evaluation:")
+                logger.info("Train AUROC, F1:", init_eval_train)
+                logger.info("Dev AUROC, F1:", init_eval_dev)
+                logger.info("Test AUROC, F1:", init_eval_test)
+                logger.info()
 
             best_eval_train = evaluate(best_model_on_dev, X_train_tensor, y_train_tensor,
                                        batch_size=batch_size, overfit_one_batch=overfit_one_batch)
             best_eval_dev = (best_dev_auroc, best_dev_f1)
             best_eval_test = evaluate(best_model_on_dev, X_test_tensor.to(device), y_test_tensor)
             if verbose:
-                print(f"Best dev eval on Epoch {best_epoch}:")
-                print("Train AUROC, F1:", best_eval_train)
-                print("Dev AUROC, F1:", best_eval_dev)
-                print("Test AUROC, F1:", best_eval_test)
-                print(f"Time taken: {end_time - start_time}")
-                print()
+                logger.info(f"Best dev eval on Epoch {best_epoch}:")
+                logger.info("Train AUROC, F1:", best_eval_train)
+                logger.info("Dev AUROC, F1:", best_eval_dev)
+                logger.info("Test AUROC, F1:", best_eval_test)
+                logger.info(f"Time taken: {end_time - start_time}")
+                logger.info()
             wandb.log({
                 'best_train_auroc': best_eval_train[0],
                 'best_train_f1': best_eval_train[1],
@@ -527,10 +532,10 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
             final_eval_dev = evaluate(model, X_val_tensor.to(device), y_val_tensor)
             final_eval_test = evaluate(model, X_test_tensor.to(device), y_test_tensor)
             if verbose:
-                print(f"Final model eval on Epoch {n_epochs}:")
-                print("Train AUROC, F1:", final_eval_train)
-                print("Dev AUROC, F1:", final_eval_dev)
-                print("Test AUROC, F1:", final_eval_test)
+                logger.info(f"Final model eval on Epoch {n_epochs}:")
+                logger.info("Train AUROC, F1:", final_eval_train)
+                logger.info("Dev AUROC, F1:", final_eval_dev)
+                logger.info("Test AUROC, F1:", final_eval_test)
             wandb.log({
                 'train_auroc': final_eval_train[0],
                 'train_f1': final_eval_train[1],
@@ -548,9 +553,9 @@ metric_to_idx = {'auroc': 0, 'f1': 1}
 if __name__ == '__main__':
     parser = ArgParser()
     args = parser.parse_args().__dict__
-    print("Script arguments:")
-    print(args)
-    print(f"\nUsing device={device}\n")
+    logger.info("Script arguments:")
+    logger.info(args)
+    logger.info(f"\nUsing device={device}\n")
 
     with open(args['wandb_sweep_params'], 'r') as fh:
         sweep_params = json.load(fh)
