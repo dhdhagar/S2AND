@@ -83,20 +83,13 @@ class ArgParser(argparse.ArgumentParser):
 
 
 class NeuMissHB(torch.nn.Module):
-    def __init__(self, n_features, neumiss_depth, hb_model):
+    def __init__(self, n_features, hb_model, neumiss_depth=10, neumiss_deq=False):
         super().__init__()
-        self.neumiss = NeuMissBlock(n_features=n_features, depth=neumiss_depth)
-        self.gbdtnn = hb_model
-
-    def forward(self, x):
-        imputed = self.neumiss(x)
-        return self.gbdtnn(imputed)
-
-
-class NeuMissDEQHB(torch.nn.Module):
-    def __init__(self, n_features, hb_model):
-        super().__init__()
-        self.neumiss = NeuMissDEQBlock(n_features=n_features)
+        neumiss_layer = NeuMissDEQBlock if neumiss_deq else NeuMissBlock
+        neumiss_args = {"n_features": n_features}
+        if not neumiss_deq:
+            neumiss_args.update({"depth": neumiss_depth})
+        self.neumiss = neumiss_layer(**neumiss_args)
         self.gbdtnn = hb_model
 
     def forward(self, x):
@@ -105,50 +98,33 @@ class NeuMissDEQHB(torch.nn.Module):
 
 
 class NeuMissVanilla(torch.nn.Module):
-    def __init__(self, n_features, neumiss_depth, hidden_dim=1024, n_hidden_layers=10, dropout_p=0.1,
-                 add_neumiss=True, add_batchnorm=False):
+    def __init__(self, n_features, neumiss_depth=10, hidden_dim=1024, n_hidden_layers=10, dropout_p=0.1,
+                 add_neumiss=True, add_batchnorm=False, neumiss_deq=False, activation="leaky_relu", negative_slope=0.01):
         super().__init__()
+        neumiss_layer = NeuMissDEQBlock if neumiss_deq else NeuMissBlock
+        neumiss_args = {"n_features": n_features}
+        if not neumiss_deq:
+            neumiss_args.update({"depth": neumiss_depth})
+        activation_fn = nn.ReLU if activation == "relu" else nn.LeakyReLU
+        activation_args = {}
+        if activation == "leaky_relu":
+            activation_args.update({"negative_slope": negative_slope})
         if add_batchnorm:
             self.linear_layer = nn.Sequential(
-                *(([NeuMissBlock(n_features=n_features, depth=neumiss_depth)] if add_neumiss else []) +
+                *(([neumiss_layer(**neumiss_args)] if add_neumiss else []) +
                   [nn.Linear(n_features, hidden_dim)] +
-                  [nn.BatchNorm1d(hidden_dim), nn.ReLU(), nn.Dropout(p=dropout_p),
+                  [nn.BatchNorm1d(hidden_dim), activation_fn(**activation_args), nn.Dropout(p=dropout_p),
                    nn.Linear(hidden_dim, hidden_dim)] * n_hidden_layers +
-                  [nn.BatchNorm1d(hidden_dim), nn.ReLU(), nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
-            )
-        else:
-            self.linear_layer = nn.Sequential(
-                *(([NeuMissBlock(n_features=n_features, depth=neumiss_depth)] if add_neumiss else []) +
-                  [nn.Linear(n_features, hidden_dim)] +
-                  [nn.ReLU(), nn.Dropout(p=dropout_p),
-                   nn.Linear(hidden_dim, hidden_dim)] * n_hidden_layers +
-                  [nn.ReLU(), nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
-            )
-
-    def forward(self, x):
-        return self.linear_layer(x)
-
-
-class NeuMissVanillaLeaky(torch.nn.Module):
-    def __init__(self, n_features, neumiss_depth, hidden_dim=1024, n_hidden_layers=10, dropout_p=0.1,
-                 negative_slope=0.01, add_batchnorm=False, add_neumiss=True):
-        super().__init__()
-        if add_batchnorm:
-            self.linear_layer = nn.Sequential(
-                *(([NeuMissBlock(n_features=n_features, depth=neumiss_depth)] if add_neumiss else []) +
-                  [nn.Linear(n_features, hidden_dim)] +
-                  [nn.BatchNorm1d(hidden_dim), nn.LeakyReLU(negative_slope=negative_slope), nn.Dropout(p=dropout_p),
-                   nn.Linear(hidden_dim, hidden_dim)] * n_hidden_layers +
-                  [nn.BatchNorm1d(hidden_dim), nn.LeakyReLU(negative_slope=negative_slope), nn.Dropout(p=dropout_p),
+                  [nn.BatchNorm1d(hidden_dim), activation_fn(**activation_args), nn.Dropout(p=dropout_p),
                    nn.Linear(hidden_dim, 1)])
             )
         else:
             self.linear_layer = nn.Sequential(
-                *(([NeuMissBlock(n_features=n_features, depth=neumiss_depth)] if add_neumiss else []) +
+                *(([neumiss_layer(**neumiss_args)] if add_neumiss else []) +
                   [nn.Linear(n_features, hidden_dim)] +
-                  [nn.LeakyReLU(negative_slope=negative_slope), nn.Dropout(p=dropout_p),
+                  [activation_fn(**activation_args), nn.Dropout(p=dropout_p),
                    nn.Linear(hidden_dim, hidden_dim)] * n_hidden_layers +
-                  [nn.LeakyReLU(negative_slope=negative_slope), nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
+                  [activation_fn(**activation_args), nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
             )
 
     def forward(self, x):
@@ -340,25 +316,14 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
             if hyp['convert_nan']:
                 model = hb_model
             else:
-                if hyp['neumiss_deq']:
-                    model = NeuMissDEQHB(n_features=X_train_tensor.shape[1], hb_model=hb_model)
-                else:
-                    model = NeuMissHB(n_features=X_train_tensor.shape[1], neumiss_depth=hyp['neumiss_depth'],
-                                      hb_model=hb_model)
+                model = NeuMissHB(n_features=X_train_tensor.shape[1], hb_model=hb_model,
+                                  neumiss_depth=hyp['neumiss_depth'], neumiss_deq=hyp['neumiss_deq'])
         else:
-            if hyp['vanilla_activation'] == 'relu':
-                model = NeuMissVanilla(n_features=X_train_tensor.shape[1], neumiss_depth=hyp['neumiss_depth'],
-                                       hidden_dim=hyp['vanilla_hidden_dim'],
-                                       n_hidden_layers=hyp['vanilla_n_hidden_layers'],
-                                       dropout_p=hyp['vanilla_dropout'], add_neumiss=not hyp['convert_nan'],
-                                       add_batchnorm=hyp['vanilla_batchnorm'])
-            elif hyp['vanilla_activation'] == 'leaky_relu':
-                model = NeuMissVanillaLeaky(n_features=X_train_tensor.shape[1], neumiss_depth=hyp['neumiss_depth'],
-                                            hidden_dim=hyp['vanilla_hidden_dim'],
-                                            n_hidden_layers=hyp['vanilla_n_hidden_layers'],
-                                            dropout_p=hyp['vanilla_dropout'],
-                                            add_neumiss=not hyp['convert_nan'],
-                                            add_batchnorm=hyp['vanilla_batchnorm'])
+            model = NeuMissVanilla(n_features=X_train_tensor.shape[1], neumiss_depth=hyp['neumiss_depth'],
+                                   hidden_dim=hyp['vanilla_hidden_dim'], n_hidden_layers=hyp['vanilla_n_hidden_layers'],
+                                   dropout_p=hyp['vanilla_dropout'], add_neumiss=not hyp['convert_nan'],
+                                   add_batchnorm=hyp['vanilla_batchnorm'], neumiss_deq=hyp['neumiss_deq'],
+                                   activation=hyp['vanilla_activation'])
 
         if hyp['reinit_model']:
             if hyp['hb_model']:
