@@ -573,7 +573,7 @@ if __name__ == '__main__':
         sweep_config.update({
             'early_terminate': {
                 'type': 'hyperband',
-                'min_iter': 40
+                'min_iter': 5
             }
         })
 
