@@ -16,6 +16,7 @@ from hummingbird.ml import constants
 import torch
 from torch import nn
 
+from s2and.model import PairwiseModeler
 from neumiss import NeuMissBlock, NeuMissDEQBlock
 
 
