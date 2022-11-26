@@ -190,9 +190,20 @@ def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test, convert_nan=True
     y_test_tensor = torch.tensor(y_test)
 
     if convert_nan:
-        X_train_tensor = torch.nan_to_num(X_train_tensor, nan_val)
-        X_val_tensor = torch.nan_to_num(X_val_tensor, nan_val)
-        X_test_tensor = torch.nan_to_num(X_test_tensor, nan_val)
+        if nan_val == "rand":
+            def rand_helper(X, l, h):
+                imputations = torch.isnan(X) * np.random.uniform(l, h, size=X.shape)
+                X = torch.nan_to_num(X, 0.) + imputations
+                return X
+            low = [np.nanmin(X_train[:, i]) for i in range(X_train.shape[1])]
+            high = [np.nanmax(X_train[:, i]) for i in range(X_train.shape[1])]
+            X_train_tensor = rand_helper(X_train_tensor, low, high)
+            X_val_tensor = rand_helper(X_val_tensor, low, high)
+            X_test_tensor = rand_helper(X_test_tensor, low, high)
+        else:
+            X_train_tensor = torch.nan_to_num(X_train_tensor, nan_val)
+            X_val_tensor = torch.nan_to_num(X_val_tensor, nan_val)
+            X_test_tensor = torch.nan_to_num(X_test_tensor, nan_val)
 
     return X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor
 
