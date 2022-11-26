@@ -1,0 +1,11 @@
+{
+    "lr": {"max": 1e-2, "min": 1e-6},
+    "weighted_loss": {"values": [true, false]},
+    "weight_decay": {"values": [1e-1, 1e-2, 1e-3, 0]},
+    "dev_opt_metric": {"values": ["auroc", "f1"]},
+    "hb_model": {"value": true},
+    "hb_temp": {"values": [100, 10, 1e-1, 1e-2, 1e-4, 1e-6, 1e-8]},
+    "convert_nan": {"value": true},
+    "nan_value": {"value": -1},
+    "reinit_model": {"values": [false, true]}
+}
