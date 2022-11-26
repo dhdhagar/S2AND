@@ -45,6 +45,10 @@ class ArgParser(argparse.ArgumentParser):
             help="Wandb sweep name",
         )
         self.add_argument(
+            "--wandb_sweep_id", type=str,
+            help="Wandb sweep id (optional -- if run is already started)",
+        )
+        self.add_argument(
             "--wandb_sweep_method", type=str, default="bayes",
             help="Wandb sweep method (bayes/random/grid)",
         )
@@ -578,9 +582,12 @@ if __name__ == '__main__':
         })
 
     # Init sweep
-    sweep_id = wandb.sweep(sweep=sweep_config,
-                           project=args['wandb_project'],
-                           entity=args['wandb_entity'])
+    sweep_id = args["wandb_sweep_id"]
+    if sweep_id is None:
+        sweep_id = wandb.sweep(sweep=sweep_config,
+                               project=args['wandb_project'],
+                               entity=args['wandb_entity'])
+
     # Start sweep job
     wandb.agent(sweep_id, function=lambda: train(dataset_name=args['dataset'],
                                                  dataset_random_seed=args['dataset_random_seed']))
