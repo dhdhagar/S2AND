@@ -77,6 +77,10 @@ class ArgParser(argparse.ArgumentParser):
             help="Whether to prevent wandb sweep early terminate or not",
         )
         self.add_argument(
+            "--wandb_max_runs", type=int, default=600,
+            help="Maximum number of runs to try in the sweep",
+        )
+        self.add_argument(
             "--s2and_model", type=str, default="production_model",
             help="S2AND model to use for hummingbird conversion (production_model/full_union_seed_*)",
         )
@@ -576,27 +580,7 @@ if __name__ == '__main__':
                                entity=args['wandb_entity'])
 
     # Start sweep job
-    wandb.agent(sweep_id, function=lambda: train(dataset_name=args['dataset'],
-                                                 dataset_random_seed=args['dataset_random_seed']))
-
-    # Example sweep parameters:
-    # {
-    #     # Training
-    #     'lr': {'max': 1e-2, 'min': 1e-6},
-    #     'weighted_loss': {'values': [True, False]},
-    #     'weight_decay': {'values': [1e-1, 1e-2, 1e-3, 0]},
-    #     'dev_opt_metric': {'values': ['auroc', 'f1']},
-    #     "convert_nan": {'value': False},
-    #     "nan_value": {'value': -1},
-    #     # Model
-    #     "hb_model": {'value': False},
-    #     #         "hb_temp": {'values': [1., 1e-1, 1e-2, 1e-4, 1e-6, 1e-8]},
-    #     #         "hb_activation": {'value': 'tanh'},
-    #     "neumiss_deq": {'value': False},
-    #     "neumiss_depth": {'values': [5, 10, 20]},
-    #     "vanilla_hidden_dim": {'values': [128, 256, 512, 1024, 2048]},
-    #     "vanilla_n_hidden_layers": {'values': [1, 2, 3]},
-    #     "vanilla_dropout": {'values': [0., 0.1, 0.2, 0.4]},
-    #     "vanilla_batchnorm": {'values': [True, False]},
-    #     "reinit_model": {'values': [False, True]}
-    # }
+    wandb.agent(sweep_id,
+                function=lambda: train(dataset_name=args['dataset'],
+                                       dataset_random_seed=args['dataset_random_seed']),
+                count=args['wandb_max_runs'])
