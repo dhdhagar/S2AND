@@ -537,7 +537,8 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                 'test_auroc': final_eval_test[0],
                 'test_f1': final_eval_test[1]
             })
-
+        logger.info("End of wandb block in train()")
+    logger.info("End of train() call")
 
 needs_sigmoid = [NeuMissVanilla]
 metric_to_idx = {'auroc': 0, 'f1': 1}
@@ -584,3 +585,5 @@ if __name__ == '__main__':
                 function=lambda: train(dataset_name=args['dataset'],
                                        dataset_random_seed=args['dataset_random_seed']),
                 count=args['wandb_max_runs'])
+
+    logger.info("End of sweep script")
