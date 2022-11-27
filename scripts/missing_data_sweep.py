@@ -98,8 +98,9 @@ class NeuMissHB(torch.nn.Module):
 
 
 class NeuMissVanilla(torch.nn.Module):
-    def __init__(self, n_features, neumiss_depth=10, hidden_dim=1024, n_hidden_layers=10, dropout_p=0.1,
-                 add_neumiss=True, add_batchnorm=False, neumiss_deq=False, activation="leaky_relu", negative_slope=0.01):
+    def __init__(self, n_features, neumiss_depth=10, hidden_dim=1024, n_hidden_layers=1, dropout_p=0.1,
+                 add_neumiss=True, add_batchnorm=True, neumiss_deq=False, activation="leaky_relu", negative_slope=0.01,
+                 hidden_config=None):
         super().__init__()
         neumiss_layer = NeuMissDEQBlock if neumiss_deq else NeuMissBlock
         neumiss_args = {"n_features": n_features}
@@ -109,22 +110,29 @@ class NeuMissVanilla(torch.nn.Module):
         activation_args = {}
         if activation == "leaky_relu":
             activation_args.update({"negative_slope": negative_slope})
-        if add_batchnorm:
-            self.linear_layer = nn.Sequential(
-                *(([neumiss_layer(**neumiss_args)] if add_neumiss else []) +
-                  [nn.Linear(n_features, hidden_dim)] +
-                  [nn.BatchNorm1d(hidden_dim), activation_fn(**activation_args), nn.Dropout(p=dropout_p),
-                   nn.Linear(hidden_dim, hidden_dim)] * n_hidden_layers +
-                  [nn.BatchNorm1d(hidden_dim), activation_fn(**activation_args), nn.Dropout(p=dropout_p),
-                   nn.Linear(hidden_dim, 1)])
-            )
+
+        if hidden_config is not None:
+            network = [neumiss_layer(**neumiss_args)] if add_neumiss else []
+            in_dim = n_features
+            for out_dim in hidden_config:
+                network += [nn.Linear(in_dim, out_dim)] + \
+                           ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + [activation_fn(**activation_args),
+                                                                                   nn.Dropout(p=dropout_p)]
+                in_dim = out_dim
+            network += [nn.Linear(in_dim, 1)]
+            self.linear_layer = nn.Sequential(*network)
         else:
+            if n_hidden_layers < 1:
+                raise ValueError("NeuMissVanilla requires a minimum of one hidden layer.")
             self.linear_layer = nn.Sequential(
                 *(([neumiss_layer(**neumiss_args)] if add_neumiss else []) +
                   [nn.Linear(n_features, hidden_dim)] +
-                  [activation_fn(**activation_args), nn.Dropout(p=dropout_p),
-                   nn.Linear(hidden_dim, hidden_dim)] * n_hidden_layers +
-                  [activation_fn(**activation_args), nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
+                  (([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
+                   [activation_fn(**activation_args), nn.Dropout(p=dropout_p),
+                    nn.Linear(hidden_dim, hidden_dim)]) * (n_hidden_layers - 1) +
+                  ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) + [activation_fn(**activation_args),
+                                                                             nn.Dropout(p=dropout_p),
+                                                                             nn.Linear(hidden_dim, 1)])
             )
 
     def forward(self, x):
@@ -287,6 +295,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
         "hb_activation": 'tanh',
         "neumiss_deq": False,
         "neumiss_depth": 20,
+        "vanilla_hidden_config": None,
         "vanilla_hidden_dim": 1024,
         "vanilla_n_hidden_layers": 1,
         "vanilla_dropout": 0.,
@@ -334,11 +343,12 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
                                    hidden_dim=hyp['vanilla_hidden_dim'], n_hidden_layers=hyp['vanilla_n_hidden_layers'],
                                    dropout_p=hyp['vanilla_dropout'], add_neumiss=not hyp['convert_nan'],
                                    add_batchnorm=hyp['vanilla_batchnorm'], neumiss_deq=hyp['neumiss_deq'],
-                                   activation=hyp['vanilla_activation'])
+                                   activation=hyp['vanilla_activation'], hidden_config=hyp['vanilla_hidden_config'])
 
         if hyp['reinit_model']:
             if hyp['hb_model']:
-                init_weights(model.gbdtnn, activation=hyp['hb_activation'], vanilla=False)
+                init_weights(model if hyp['convert_nan'] else model.gbdtnn, activation=hyp['hb_activation'],
+                             vanilla=False)
             else:
                 init_weights(model.linear_layer, activation=hyp['vanilla_activation'], vanilla=True)
 
