@@ -13,6 +13,7 @@ class SDPLayer(torch.nn.Module):
         super().__init__()
         self.max_sdp_iters = max_sdp_iters
         self.num_ecc = 0
+        self.W_val = None
 
     def build_and_solve_sdp(self):
         # Initialize the cvxpy layer

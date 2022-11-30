@@ -63,9 +63,9 @@ if __name__=='__main__':
         if(parameter.requires_grad):
             print(name)
 
-    parameters_to_be_optimized = e2e_model.parameters()
-    parameters_to_be_optimized.append(e2e_model.uncompress_layer.uncompressed_matrix)
-    parameters_to_be_optimized.append(e2e_model.sdp_layer.W_val)
+    parameters_to_be_optimized = [e2e_model.parameters(),
+                                  e2e_model.uncompress_layer.uncompressed_matrix,
+                                  e2e_model.sdp_layer.W_val]
     optimizer = torch.optim.SGD(parameters_to_be_optimized, lr=0.001, momentum=0.9)
 
     # Only train for first block picked up by dataloader:
