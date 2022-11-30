@@ -1,0 +1,12 @@
+{
+    "lr": {"max": 1e-2, "min": 1e-6},
+    "weighted_loss": {"values": [true, false]},
+    "weight_decay": {"values": [1e-1, 1e-2, 1e-3, 0]},
+    "dev_opt_metric": {"values": ["auroc", "f1"]},
+    "convert_nan": {"value": true},
+    "nan_value": {"value": "rand"},
+    "vanilla_hidden_config": {"value":  [13986, 55]},
+    "vanilla_dropout": {"values": [0, 0.1, 0.2, 0.3, 0.4, 0.5]},
+    "vanilla_batchnorm": {"values": [true, false]},
+    "reinit_model": {"values": [false, true]}
+}
