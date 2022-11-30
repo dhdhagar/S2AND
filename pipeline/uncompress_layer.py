@@ -4,7 +4,7 @@ import math
 class UncompressTransformLayer(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.uncompressed_matrix = torch.nn.Parameter()
+        self.uncompressed_matrix = None
 
     def forward(self, compressed_matrix):
         # Calculate size of uncompressed matrix

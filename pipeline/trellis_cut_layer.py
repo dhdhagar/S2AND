@@ -1,6 +1,7 @@
 import torch
 from ecc.ecc_layer import cluster_labels_to_matrix
 from utils.trellis_helper_fns import build_trellis, cut_trellis
+from scipy import sparse
 
 
 class TrellisCutLayer(torch.nn.Module):
@@ -13,7 +14,7 @@ class TrellisCutLayer(torch.nn.Module):
 
     def get_rounded_solution(self, edge_weights, pw_probs, only_avg_hac=False):
         t = build_trellis(pw_probs.detach().numpy(), only_avg_hac=only_avg_hac)
-        pred_clustering, cut_obj_value, num_ecc_satisfied = cut_trellis(t, edge_weights.detach().tocoo())
+        pred_clustering, cut_obj_value, num_ecc_satisfied = cut_trellis(t, sparse.coo_matrix(edge_weights.detach().numpy()))
 
         self.cut_obj_value = cut_obj_value
         self.num_ecc_satisfied = num_ecc_satisfied
