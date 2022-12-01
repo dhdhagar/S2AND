@@ -207,9 +207,15 @@ def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test, convert_nan=True
                 imputations = torch.isnan(X) * np.random.uniform(l, h, size=X.shape)
                 X = torch.nan_to_num(X, 0.) + imputations
                 return X
-            low = [np.nanmin(X_train[:, i], initial=0) for i in range(X_train.shape[1])]
+
+            def nan_default(value, default=0):
+                if np.isnan(value):
+                    return default
+                return value
+
+            low = [nan_default(np.nanmin(X_train[:, i])) for i in range(X_train.shape[1])]
             # `initial` needed to add 0-imputation a dimensions is fully unobserved
-            high = [np.nanmax(X_train[:, i], initial=0) for i in range(X_train.shape[1])]
+            high = [nan_default(np.nanmax(X_train[:, i])) for i in range(X_train.shape[1])]
             X_train_tensor = rand_helper(X_train_tensor, low, high)
             X_val_tensor = rand_helper(X_val_tensor, low, high)
             X_test_tensor = rand_helper(X_test_tensor, low, high)
