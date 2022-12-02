@@ -191,7 +191,20 @@ def convert_gbdt_to_torch(classifier_model, test_input=None, dropout=0.1,
 
 
 # Get data tensors and optionally convert NANs
-def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test, convert_nan=True, nan_val=-1):
+def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test,
+                convert_nan=True, nan_val=-1, drop_feat_nan_pct=-1):
+    if 0 <= drop_feat_nan_pct <= 1:
+        # Drop features with missing data above the specified threshold
+        missing_per_feat = (np.sum(np.isnan(X_train), axis=0) / len(X_train))
+        keep_feat_mask = missing_per_feat < drop_feat_nan_pct
+        X_train = X_train[:, keep_feat_mask]
+        y_train = y_train[:, keep_feat_mask]
+        X_val = X_val[:, keep_feat_mask]
+        y_val = y_val[:, keep_feat_mask]
+        X_test = X_test[:, keep_feat_mask]
+        y_test = y_test[:, keep_feat_mask]
+        logger.info(f"Dropped {sum(~keep_feat_mask)} features with missing data >= {drop_feat_nan_pct*100}%")
+
     X_train_tensor = torch.tensor(X_train)
     y_train_tensor = torch.tensor(y_train)
 
@@ -300,6 +313,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
         "overfit_one_batch": False,
         "convert_nan": False,
         "nan_value": -1,
+        "drop_feat_nan_pct": -1,
         # Model config
         "hb_model": False,
         "hb_temp": 1e-8,
@@ -328,7 +342,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
         # Get tensors
         all_tensors = get_tensors(splits['X_train'], splits['y_train'], splits['X_val'], splits['y_val'],
                                   splits['X_test'], splits['y_test'], convert_nan=hyp['convert_nan'],
-                                  nan_val=hyp['nan_value'])
+                                  nan_val=hyp['nan_value'], drop_feat_nan_pct=hyp['drop_feat_nan_pct'])
         X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor = all_tensors
         del splits
 
