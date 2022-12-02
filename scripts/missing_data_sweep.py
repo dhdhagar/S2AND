@@ -144,7 +144,7 @@ class NeuMissVanilla(torch.nn.Module):
 
 
 # Function to re-init weights using xavier initialization (tanh); should use He init for relu
-def init_weights(model, activation="tanh", vanilla=False):
+def init_weights(model, activation, vanilla):
     if vanilla:
         for p in model.named_parameters():
             if 'weight' in p[0]:
@@ -165,6 +165,21 @@ def init_weights(model, activation="tanh", vanilla=False):
                         torch.nn.init.xavier_uniform_(p.data, gain=nn.init.calculate_gain("tanh"))
                     else:
                         torch.nn.init.kaiming_uniform_(p.data, nonlinearity=activation)  # "relu" / "leaky_relu"
+
+
+def zero_dropped_feat_weights(model, keep_feat_mask, vanilla):
+    if vanilla:
+        for p in model.named_parameters():
+            if 'weight' in p[0]:
+                if len(p[1].data.size()) > 1:
+                    p[1].data[~keep_feat_mask, :] = torch.zeros_like(p[1].data[~keep_feat_mask, :])
+                    break
+    else:
+        for p in model.parameters():
+            if len(p.size()) > 0:
+                if p.size(-1) > 1:
+                    p.data[:, ~keep_feat_mask] = torch.zeros_like(p.data[:, ~keep_feat_mask])
+                    break
 
 
 # Count parameters in the model
@@ -194,13 +209,13 @@ def convert_gbdt_to_torch(classifier_model, test_input=None, dropout=0.1,
 def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test,
                 convert_nan=True, nan_val=-1, drop_feat_nan_pct=-1):
     if 0 <= drop_feat_nan_pct <= 1:
-        # Drop features with missing data above the specified threshold
+        # Zero-impute features where missing data is above a specified threshold
         missing_per_feat = (np.sum(np.isnan(X_train), axis=0) / len(X_train))
         keep_feat_mask = missing_per_feat < drop_feat_nan_pct
-        X_train = X_train[:, keep_feat_mask]
-        X_val = X_val[:, keep_feat_mask]
-        X_test = X_test[:, keep_feat_mask]
-        logger.info(f"Dropped {sum(~keep_feat_mask)} features with missing data >= {drop_feat_nan_pct*100}%")
+        X_train[:, ~keep_feat_mask] = np.zeros_like(X_train[:, ~keep_feat_mask])
+        X_val[:, ~keep_feat_mask] = np.zeros_like(X_val[:, ~keep_feat_mask])
+        X_test[:, ~keep_feat_mask] = np.zeros_like(X_test[:, ~keep_feat_mask])
+        logger.info(f"Zeroed {sum(~keep_feat_mask)} features with missing data >= {drop_feat_nan_pct*100}%")
 
     X_train_tensor = torch.tensor(X_train)
     y_train_tensor = torch.tensor(y_train)
@@ -337,9 +352,10 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
             splits = pickle.load(out_fh)
 
         # Get tensors
-        all_tensors = get_tensors(splits['X_train'], splits['y_train'], splits['X_val'], splits['y_val'],
-                                  splits['X_test'], splits['y_test'], convert_nan=hyp['convert_nan'],
-                                  nan_val=hyp['nan_value'], drop_feat_nan_pct=hyp['drop_feat_nan_pct'])
+        all_tensors = get_tensors(splits['X_train'], splits['y_train'], splits['X_val'],
+                                                  splits['y_val'], splits['X_test'], splits['y_test'],
+                                                  convert_nan=hyp['convert_nan'], nan_val=hyp['nan_value'],
+                                                  drop_feat_nan_pct=hyp['drop_feat_nan_pct'])
         X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor = all_tensors
         del splits
 
