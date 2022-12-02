@@ -198,11 +198,8 @@ def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test,
         missing_per_feat = (np.sum(np.isnan(X_train), axis=0) / len(X_train))
         keep_feat_mask = missing_per_feat < drop_feat_nan_pct
         X_train = X_train[:, keep_feat_mask]
-        y_train = y_train[:, keep_feat_mask]
         X_val = X_val[:, keep_feat_mask]
-        y_val = y_val[:, keep_feat_mask]
         X_test = X_test[:, keep_feat_mask]
-        y_test = y_test[:, keep_feat_mask]
         logger.info(f"Dropped {sum(~keep_feat_mask)} features with missing data >= {drop_feat_nan_pct*100}%")
 
     X_train_tensor = torch.tensor(X_train)
