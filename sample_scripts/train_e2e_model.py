@@ -1,9 +1,8 @@
 from typing import Dict
 from typing import Tuple
+import math
 
-import hummingbird
 import torch
-from hummingbird.ml import constants
 from torch.utils.data import DataLoader
 
 from pipeline.model import model
@@ -23,21 +22,15 @@ def read_blockwise_features(pkl):
     print("Total num of blocks:", len(blockwise_data.keys()))
     return blockwise_data
 
+def uncompress_target_tensor(compressed_targets):
+    n = round(math.sqrt(2 * compressed_targets.size(dim=0))) + 1
+    # Convert the 1D pairwise-similarities list to nxn upper triangular matrix
+    ind = torch.triu_indices(n, n, offset=1)
+    # TODO: try size [n,n]
+    output = (torch.sparse_coo_tensor(ind, compressed_targets, [n, n])).to_dense()
+    symm_mat = output + torch.transpose(output, 0, 1)
+    return symm_mat
 
-
-def load_pretrained_model_to_torch():
-    with open(f"{DATA_HOME_DIR}/production_model.pickle", "rb") as _pkl_file:
-        chckpt = pickle.load(_pkl_file)
-        clusterer = chckpt['clusterer']
-
-    # Get Classifier to convert to torch model
-    lgbm = clusterer.classifier
-    print(lgbm)
-    torch_model = hummingbird.ml.convert(clusterer.classifier, "torch", None,
-                                             extra_config=
-                                             {constants.FINE_TUNE: True,
-                                              constants.FINE_TUNE_DROPOUT_PROB: 0.1})
-    return torch_model.model
 
 
 if __name__=='__main__':
@@ -63,10 +56,7 @@ if __name__=='__main__':
         if(parameter.requires_grad):
             print(name)
 
-    parameters_to_be_optimized = [e2e_model.parameters(),
-                                  e2e_model.uncompress_layer.uncompressed_matrix,
-                                  e2e_model.sdp_layer.W_val]
-    optimizer = torch.optim.SGD(parameters_to_be_optimized, lr=0.001, momentum=0.9)
+    optimizer = torch.optim.SGD(e2e_model.parameters(), lr=0.001, momentum=0.9)
 
     # Only train for first block picked up by dataloader:
     # Get the first block size
@@ -94,7 +84,8 @@ if __name__=='__main__':
         print(output)
 
         # Calculate the loss and its gradients
-        gold_output = torch.ones(output.size())
+        # TODO: pairwise labels
+        gold_output = uncompress_target_tensor(target)
         loss = torch.norm(gold_output - output)
         loss.backward()
         print(e2e_model.sdp_layer.W_val.grad)

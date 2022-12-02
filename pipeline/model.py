@@ -17,6 +17,7 @@ class model(torch.nn.Module):
     def forward(self, x):
         edge_weights = self.mlp_layer(x)
         # Take only the probabilities of belonging to class 1 as output from mlp
+        # TODO: move this transform out of here, maybe a separate hummingbird class
         edge_weights = edge_weights[1][:, 1:]
         print(edge_weights)
         print("Size of OP of mlp layer is", edge_weights.size())
@@ -27,7 +28,6 @@ class model(torch.nn.Module):
         output_probs = self.sdp_layer(edge_weights_uncompressed)
         print("Size of OP of sdp layer is", output_probs.size())
 
-        #TODO: First fix TrellisCut Helper functions error
         pred_clustering = self.trellis_cut_estimator(edge_weights_uncompressed, output_probs)
         print("Size of OP of Trellis Cut layer is", pred_clustering.size())
         return pred_clustering
