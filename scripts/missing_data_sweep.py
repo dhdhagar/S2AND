@@ -10,6 +10,7 @@ import numpy as np
 import wandb
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import precision_recall_fscore_support
+from sklearn.preprocessing import StandardScaler
 
 import hummingbird.ml
 from hummingbird.ml import constants
@@ -207,7 +208,8 @@ def convert_gbdt_to_torch(classifier_model, test_input=None, dropout=0.1,
 
 # Get data tensors and optionally convert NANs
 def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test,
-                convert_nan=True, nan_val=-1, drop_feat_nan_pct=-1):
+                convert_nan=True, nan_val=-1, drop_feat_nan_pct=-1,
+                normalize=False):
     if 0 <= drop_feat_nan_pct <= 1:
         # Zero-impute features where missing data is above a specified threshold
         missing_per_feat = (np.sum(np.isnan(X_train), axis=0) / len(X_train))
@@ -216,6 +218,13 @@ def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test,
         X_val[:, ~keep_feat_mask] = np.zeros_like(X_val[:, ~keep_feat_mask])
         X_test[:, ~keep_feat_mask] = np.zeros_like(X_test[:, ~keep_feat_mask])
         logger.info(f"Zeroed {sum(~keep_feat_mask)} features with missing data >= {drop_feat_nan_pct*100}%")
+
+    if normalize:
+        scaler = StandardScaler()
+        scaler.fit(X_train)
+        X_train = scaler.transform(X_train)
+        X_val = scaler.transform(X_val)
+        X_test = scaler.transform(X_test)
 
     X_train_tensor = torch.tensor(X_train)
     y_train_tensor = torch.tensor(y_train)
@@ -305,12 +314,17 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
     return roc_auc, np.round(f1, 3)
 
 
-def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
+def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}):
     # Default hyperparameters
     hyperparams = {
         # Dataset
         "dataset": dataset_name,
         "dataset_random_seed": dataset_random_seed,
+        # Data config
+        "convert_nan": False,
+        "nan_value": -1,
+        "drop_feat_nan_pct": -1,
+        "normalize_data": False,
         # Training config
         "lr": 1e-4,
         "n_epochs": 200,
@@ -323,9 +337,6 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
         "weight_decay": 0.,
         "dev_opt_metric": 'auroc',
         "overfit_one_batch": False,
-        "convert_nan": False,
-        "nan_value": -1,
-        "drop_feat_nan_pct": -1,
         # Model config
         "hb_model": False,
         "hb_temp": 1e-8,
@@ -340,6 +351,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
         "vanilla_activation": "leaky_relu",
         "reinit_model": False
     }
+    hyperparams.update(hp)
 
     # Start wandb run
     with wandb.init(config=hyperparams):
@@ -353,9 +365,10 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False):
 
         # Get tensors
         all_tensors = get_tensors(splits['X_train'], splits['y_train'], splits['X_val'],
-                                                  splits['y_val'], splits['X_test'], splits['y_test'],
-                                                  convert_nan=hyp['convert_nan'], nan_val=hyp['nan_value'],
-                                                  drop_feat_nan_pct=hyp['drop_feat_nan_pct'])
+                                  splits['y_val'], splits['X_test'], splits['y_test'],
+                                  convert_nan=hyp['convert_nan'], nan_val=hyp['nan_value'],
+                                  drop_feat_nan_pct=hyp['drop_feat_nan_pct'],
+                                  normalize=hyp['normalize_data'])
         X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor = all_tensors
         del splits
 
@@ -587,37 +600,48 @@ if __name__ == '__main__':
 
     wandb.login()
 
-    with open(args['wandb_sweep_params'], 'r') as fh:
-        sweep_params = json.load(fh)
+    if args['wandb_run_params'] is not None:
+        logger.info("Single-run mode")
+        with open(args['wandb_run_params'], 'r') as fh:
+            run_params = json.load(fh)
+        train(dataset_name=args['dataset'],
+              dataset_random_seed=args['dataset_random_seed'],
+              hp=run_params,
+              verbose=True)
+        logger.info("End of run")
+    else:
+        logger.info("Sweep mode")
+        with open(args['wandb_sweep_params'], 'r') as fh:
+            sweep_params = json.load(fh)
 
-    sweep_config = {
-        'method': args['wandb_sweep_method'],
-        'name': args['wandb_sweep_name'],
-        'metric': {
-            'name': args['wandb_sweep_metric_name'],
-            'goal': args['wandb_sweep_metric_goal'],
-        },
-        'parameters': sweep_params,
-    }
-    if not args['wandb_no_early_terminate']:
-        sweep_config.update({
-            'early_terminate': {
-                'type': 'hyperband',
-                'min_iter': 5
-            }
-        })
+        sweep_config = {
+            'method': args['wandb_sweep_method'],
+            'name': args['wandb_sweep_name'],
+            'metric': {
+                'name': args['wandb_sweep_metric_name'],
+                'goal': args['wandb_sweep_metric_goal'],
+            },
+            'parameters': sweep_params,
+        }
+        if not args['wandb_no_early_terminate']:
+            sweep_config.update({
+                'early_terminate': {
+                    'type': 'hyperband',
+                    'min_iter': 5
+                }
+            })
 
-    # Init sweep
-    sweep_id = args["wandb_sweep_id"]
-    if sweep_id is None:
-        sweep_id = wandb.sweep(sweep=sweep_config,
-                               project=args['wandb_project'],
-                               entity=args['wandb_entity'])
+        # Init sweep
+        sweep_id = args["wandb_sweep_id"]
+        if sweep_id is None:
+            sweep_id = wandb.sweep(sweep=sweep_config,
+                                   project=args['wandb_project'],
+                                   entity=args['wandb_entity'])
 
-    # Start sweep job
-    wandb.agent(sweep_id,
-                function=lambda: train(dataset_name=args['dataset'],
-                                       dataset_random_seed=args['dataset_random_seed']),
-                count=args['wandb_max_runs'])
+        # Start sweep job
+        wandb.agent(sweep_id,
+                    function=lambda: train(dataset_name=args['dataset'],
+                                           dataset_random_seed=args['dataset_random_seed']),
+                    count=args['wandb_max_runs'])
 
-    logger.info("End of sweep script")
+        logger.info("End of sweep")

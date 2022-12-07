@@ -1,0 +1,23 @@
+{
+  "convert_nan": false,
+  "normalize_data": true,
+  "lr": 7e-3,
+  "n_epochs": 200,
+  "weighted_loss": true,
+  "batch_size": 10000,
+  "use_lr_scheduler": true,
+  "lr_factor": 0.7,
+  "lr_min": 1e-6,
+  "lr_scheduler_patience": 10,
+  "hb_model": true,
+  "hb_temp": 100,
+  "hb_activation": "tanh",
+  "neumiss_deq": false,
+  "neumiss_depth": 20,
+  "vanilla_hidden_dim": 512,
+  "vanilla_n_hidden_layers": 2,
+  "vanilla_dropout": 0.1,
+  "vanilla_batchnorm": true,
+  "vanilla_activation": "leaky_relu",
+  "reinit_model": true
+}
