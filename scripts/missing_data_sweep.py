@@ -93,6 +93,10 @@ class ArgParser(argparse.ArgumentParser):
             "--s2and_model", type=str, default="production_model",
             help="S2AND model to use for hummingbird conversion (production_model/full_union_seed_*)",
         )
+        self.add_argument(
+            "--cpu", action='store_true',
+            help="Run on CPU regardless of CUDA-availability",
+        )
 
 
 class NeuMissHB(torch.nn.Module):
@@ -616,6 +620,10 @@ if __name__ == '__main__':
     logger.info("Script arguments:")
     logger.info(args)
     logger.info(f"Using device={device}")
+
+    if args['cpu']:
+        global device
+        device = "cpu"
 
     wandb.login()
 
