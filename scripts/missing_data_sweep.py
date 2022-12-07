@@ -42,7 +42,7 @@ class ArgParser(argparse.ArgumentParser):
             help="S2AND random seed for dataset splits (1/2/3/4/5)",
         )
         self.add_argument(
-            "--wandb_sweep_name", type=str, required=True,
+            "--wandb_sweep_name", type=str,
             help="Wandb sweep name",
         )
         self.add_argument(
@@ -62,7 +62,7 @@ class ArgParser(argparse.ArgumentParser):
             help="Wandb entity name",
         )
         self.add_argument(
-            "--wandb_sweep_params", type=str, required=True,
+            "--wandb_sweep_params", type=str,
             help="Path to wandb sweep parameters JSON",
         )
         self.add_argument(
