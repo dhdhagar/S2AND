@@ -62,6 +62,10 @@ class ArgParser(argparse.ArgumentParser):
             help="Wandb entity name",
         )
         self.add_argument(
+            "--wandb_tags", type=str,
+            help="Comma-separated list of tags to add to a wandb run"
+        )
+        self.add_argument(
             "--wandb_sweep_params", type=str,
             help="Path to wandb sweep parameters JSON",
         )
@@ -318,7 +322,8 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
     return roc_auc, np.round(f1, 3)
 
 
-def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, project=None, entity=None):
+def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, project=None, entity=None,
+          tags=None):
     # Default hyperparameters
     hyperparams = {
         # Dataset
@@ -363,6 +368,9 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
         init_args.update({'project': project})
     if entity is not None:
         init_args.update({'entity': entity})
+    if tags is not None:
+        tags = tags.replace(", ", ",").split(",")
+        init_args.update({'tags': tags})
 
     # Start wandb run
     with wandb.init(**init_args):
@@ -620,7 +628,8 @@ if __name__ == '__main__':
               hp=run_params,
               verbose=True,
               project=args['wandb_project'],
-              entity=args['wandb_entity'])
+              entity=args['wandb_entity'],
+              tags=args['wandb_tags'])
         logger.info("End of run")
     else:
         logger.info("Sweep mode")
