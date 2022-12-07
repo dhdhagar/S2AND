@@ -465,9 +465,9 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
 
             if verbose:
                 logger.info(f"Initial model evaluation:")
-                logger.info("Train AUROC, F1:", init_eval_train)
-                logger.info("Dev AUROC, F1:", init_eval_dev)
-                logger.info("Test AUROC, F1:", init_eval_test)
+                logger.info(f"Train AUROC, F1: {init_eval_train}")
+                logger.info(f"Dev AUROC, F1: {init_eval_dev}")
+                logger.info(f"Test AUROC, F1: {init_eval_test}")
 
             wandb.log({
                 'train_auroc': init_eval_train[0],
@@ -512,7 +512,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
 
                 # Print batch loss
                 if verbose:
-                    logger.info("\tBatch", f"[{j}:{j + batch_size}]", ":", running_loss[-1])
+                    logger.info(f"\tBatch [{j}:{j + batch_size}] : {running_loss[-1]}")
                 wandb.log({'train_loss_batch': running_loss[-1]})
 
             # Print epoch validation accuracy
@@ -521,7 +521,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
                 dev_auroc_f1_loss = evaluate(model, X_val_tensor.to(device), y_val_tensor,
                                              loss_fn=loss_fn, pos_weight=pos_weight)
                 if verbose:
-                    logger.info("Epoch", i + 1, ":", "Dev AUROC,F1,loss:", dev_auroc_f1_loss)
+                    logger.info(f"Epoch {i + 1} : Dev AUROC,F1,loss: {dev_auroc_f1_loss}")
                 if dev_auroc_f1_loss[metric_to_idx[dev_opt_metric]] > best_metric:
                     if verbose:
                         logger.info(f"New best dev {dev_opt_metric}; storing model")
@@ -554,9 +554,9 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
             best_model_on_dev.eval()
             if verbose:
                 logger.info(f"Initial model evaluation:")
-                logger.info("Train AUROC, F1:", init_eval_train)
-                logger.info("Dev AUROC, F1:", init_eval_dev)
-                logger.info("Test AUROC, F1:", init_eval_test)
+                logger.info(f"Train AUROC, F1: {init_eval_train}")
+                logger.info(f"Dev AUROC, F1: {init_eval_dev}")
+                logger.info(f"Test AUROC, F1: {init_eval_test}")
 
             best_eval_train = evaluate(best_model_on_dev, X_train_tensor, y_train_tensor,
                                        batch_size=batch_size, overfit_one_batch=overfit_one_batch)
@@ -564,9 +564,9 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
             best_eval_test = evaluate(best_model_on_dev, X_test_tensor.to(device), y_test_tensor)
             if verbose:
                 logger.info(f"Best dev eval on Epoch {best_epoch}:")
-                logger.info("Train AUROC, F1:", best_eval_train)
-                logger.info("Dev AUROC, F1:", best_eval_dev)
-                logger.info("Test AUROC, F1:", best_eval_test)
+                logger.info(f"Train AUROC, F1: {best_eval_train}")
+                logger.info(f"Dev AUROC, F1: {best_eval_dev}")
+                logger.info(f"Test AUROC, F1: {best_eval_test}")
                 logger.info(f"Time taken: {end_time - start_time}")
             wandb.log({
                 'best_train_auroc': best_eval_train[0],
@@ -584,9 +584,9 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
             final_eval_test = evaluate(model, X_test_tensor.to(device), y_test_tensor)
             if verbose:
                 logger.info(f"Final model eval on Epoch {n_epochs}:")
-                logger.info("Train AUROC, F1:", final_eval_train)
-                logger.info("Dev AUROC, F1:", final_eval_dev)
-                logger.info("Test AUROC, F1:", final_eval_test)
+                logger.info(f"Train AUROC, F1: {final_eval_train}")
+                logger.info(f"Dev AUROC, F1: {final_eval_dev}")
+                logger.info(f"Test AUROC, F1: {final_eval_test}")
             wandb.log({
                 'train_auroc': final_eval_train[0],
                 'train_f1': final_eval_train[1],
