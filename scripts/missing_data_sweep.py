@@ -66,6 +66,10 @@ class ArgParser(argparse.ArgumentParser):
             help="Path to wandb sweep parameters JSON",
         )
         self.add_argument(
+            "--wandb_run_params", type=str,
+            help="Path to wandb single-run parameters JSON",
+        )
+        self.add_argument(
             "--wandb_sweep_metric_name", type=str, default="dev_auroc",
             help="Wandb sweep metric to optimize (dev_auroc/dev_loss/dev_f1)",
         )
