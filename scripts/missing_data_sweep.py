@@ -66,6 +66,10 @@ class ArgParser(argparse.ArgumentParser):
             help="Comma-separated list of tags to add to a wandb run"
         )
         self.add_argument(
+            "--wandb_group", type=str,
+            help="Group name to add the wandb run to"
+        )
+        self.add_argument(
             "--wandb_sweep_params", type=str,
             help="Path to wandb sweep parameters JSON",
         )
@@ -327,7 +331,7 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
 
 
 def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, project=None, entity=None,
-          tags=None):
+          tags=None, group=None):
     # Default hyperparameters
     hyperparams = {
         # Dataset
@@ -375,6 +379,8 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
     if tags is not None:
         tags = tags.replace(", ", ",").split(",")
         init_args.update({'tags': tags})
+    if group is not None:
+        init_args.update({'group': group})
 
     # Start wandb run
     with wandb.init(**init_args):
@@ -637,7 +643,8 @@ if __name__ == '__main__':
               verbose=True,
               project=args['wandb_project'],
               entity=args['wandb_entity'],
-              tags=args['wandb_tags'])
+              tags=args['wandb_tags'],
+              group=args['wandb_group'])
         logger.info("End of run")
     else:
         logger.info("Sweep mode")
