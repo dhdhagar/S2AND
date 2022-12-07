@@ -383,7 +383,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
         init_args.update({'group': group})
 
     # Start wandb run
-    with wandb.init(**init_args):
+    with wandb.init(**init_args) as run:
         hyp = wandb.config
 
         # Load data
@@ -614,6 +614,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
                 'test_f1': final_eval_test[1]
             })
         logger.info("End of wandb block in train()")
+        run.summary["model_parameters"] = count_parameters(model)
     logger.info("End of train() call")
 
 needs_sigmoid = [NeuMissVanilla]
