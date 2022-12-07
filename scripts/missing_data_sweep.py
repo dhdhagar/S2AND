@@ -630,7 +630,7 @@ if __name__ == '__main__':
 
     if args['cpu']:
         global device
-        device = "cpu"
+        device = torch.device("cpu")
 
     wandb.login()
 
