@@ -628,7 +628,6 @@ if __name__ == '__main__':
     logger.info(args)
 
     if args['cpu']:
-        global device
         device = torch.device("cpu")
     logger.info(f"Using device={device}")
 
