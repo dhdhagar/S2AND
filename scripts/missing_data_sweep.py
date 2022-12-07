@@ -318,7 +318,7 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
     return roc_auc, np.round(f1, 3)
 
 
-def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}):
+def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, project=None, entity=None):
     # Default hyperparameters
     hyperparams = {
         # Dataset
@@ -356,9 +356,16 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}):
         "reinit_model": False
     }
     hyperparams.update(hp)
+    init_args = {
+        'config': hyperparams
+    }
+    if project is not None:
+        init_args.update({'project': project})
+    if entity is not None:
+        init_args.update({'entity': entity})
 
     # Start wandb run
-    with wandb.init(config=hyperparams):
+    with wandb.init(**init_args):
         hyp = wandb.config
 
         # Load data
@@ -611,7 +618,9 @@ if __name__ == '__main__':
         train(dataset_name=args['dataset'],
               dataset_random_seed=args['dataset_random_seed'],
               hp=run_params,
-              verbose=True)
+              verbose=True,
+              project=args['wandb_project'],
+              entity=args['wandb_entity'])
         logger.info("End of run")
     else:
         logger.info("Sweep mode")
