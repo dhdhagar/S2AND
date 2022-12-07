@@ -626,11 +626,11 @@ if __name__ == '__main__':
     args = parser.parse_args().__dict__
     logger.info("Script arguments:")
     logger.info(args)
-    logger.info(f"Using device={device}")
 
     if args['cpu']:
         global device
         device = torch.device("cpu")
+    logger.info(f"Using device={device}")
 
     wandb.login()
 
