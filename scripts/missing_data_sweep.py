@@ -630,8 +630,8 @@ if __name__ == '__main__':
     for arg in unknown:
         if arg.startswith("--"):
             argument_name = arg.split('=')[0]
-            if argument_name in DEFAULT_HYPERPARAMS:
-                argument_type = type(DEFAULT_HYPERPARAMS[argument_name])
+            if argument_name[2:] in DEFAULT_HYPERPARAMS:
+                argument_type = type(DEFAULT_HYPERPARAMS[argument_name[2:]])
                 if argument_type == bool:
                     parser.add_argument(argument_name, action='store_true')
                 else:
