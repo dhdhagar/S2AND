@@ -235,13 +235,6 @@ def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test,
         X_test[:, ~keep_feat_mask] = np.zeros_like(X_test[:, ~keep_feat_mask])
         logger.info(f"Zeroed {sum(~keep_feat_mask)} features with missing data >= {drop_feat_nan_pct*100}%")
 
-    if normalize:
-        scaler = StandardScaler()
-        scaler.fit(X_train)
-        X_train = scaler.transform(X_train)
-        X_val = scaler.transform(X_val)
-        X_test = scaler.transform(X_test)
-
     X_train_tensor = torch.tensor(X_train)
     y_train_tensor = torch.tensor(y_train)
 
@@ -273,6 +266,13 @@ def get_tensors(X_train, y_train, X_val, y_val, X_test, y_test,
             X_train_tensor = torch.nan_to_num(X_train_tensor, nan_val)
             X_val_tensor = torch.nan_to_num(X_val_tensor, nan_val)
             X_test_tensor = torch.nan_to_num(X_test_tensor, nan_val)
+
+    if normalize:
+        scaler = StandardScaler()
+        scaler.fit(X_train_tensor.numpy())
+        X_train_tensor = torch.from_numpy(scaler.transform(X_train_tensor.numpy()))
+        X_val_tensor = torch.from_numpy(scaler.transform(X_val_tensor.numpy()))
+        X_test_tensor = torch.from_numpy(scaler.transform(X_test_tensor.numpy()))
 
     return X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor
 
@@ -352,6 +352,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
         "lr_min": 1e-6,
         "lr_scheduler_patience": 10,
         "weight_decay": 0.,
+        "dropout": 0.,
         "dev_opt_metric": 'auroc',
         "overfit_one_batch": False,
         # Model config
@@ -363,7 +364,6 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
         "vanilla_hidden_config": None,
         "vanilla_hidden_dim": 1024,
         "vanilla_n_hidden_layers": 1,
-        "vanilla_dropout": 0.,
         "vanilla_batchnorm": True,
         "vanilla_activation": "leaky_relu",
         "reinit_model": False
@@ -412,7 +412,8 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
             hb_model = convert_gbdt_to_torch(s2and_classifier, fine_tune=True, force_gemm=True,
                                              fine_tune_temp={'train': hyp['hb_temp'], 'eval': hyp['hb_temp'],
                                                              'requires_grad': False},
-                                             fine_tune_activation=hyp['hb_activation'])
+                                             fine_tune_activation=hyp['hb_activation'],
+                                             dropout=hyp['dropout'])
             if hyp['convert_nan']:
                 model = hb_model
             else:
@@ -421,7 +422,7 @@ def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, pr
         else:
             model = NeuMissVanilla(n_features=X_train_tensor.shape[1], neumiss_depth=hyp['neumiss_depth'],
                                    hidden_dim=hyp['vanilla_hidden_dim'], n_hidden_layers=hyp['vanilla_n_hidden_layers'],
-                                   dropout_p=hyp['vanilla_dropout'], add_neumiss=not hyp['convert_nan'],
+                                   dropout_p=hyp['dropout'], add_neumiss=not hyp['convert_nan'],
                                    add_batchnorm=hyp['vanilla_batchnorm'], neumiss_deq=hyp['neumiss_deq'],
                                    activation=hyp['vanilla_activation'], hidden_config=hyp['vanilla_hidden_config'])
 

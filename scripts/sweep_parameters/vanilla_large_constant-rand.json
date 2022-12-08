@@ -6,7 +6,7 @@
     "convert_nan": {"value": true},
     "nan_value": {"value": "rand"},
     "vanilla_hidden_config": {"value":  [13986, 55]},
-    "vanilla_dropout": {"values": [0, 0.1, 0.2, 0.3, 0.4, 0.5]},
+    "dropout": {"values": [0, 0.1, 0.2, 0.3, 0.4, 0.5]},
     "vanilla_batchnorm": {"values": [true, false]},
     "reinit_model": {"values": [false, true]}
 }

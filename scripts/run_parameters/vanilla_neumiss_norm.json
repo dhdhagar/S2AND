@@ -16,7 +16,7 @@
   "neumiss_depth": 20,
   "vanilla_hidden_dim": 512,
   "vanilla_n_hidden_layers": 2,
-  "vanilla_dropout": 0.1,
+  "dropout": 0.1,
   "vanilla_batchnorm": true,
   "vanilla_activation": "leaky_relu",
   "reinit_model": false

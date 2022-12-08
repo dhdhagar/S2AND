@@ -6,7 +6,7 @@
     "neumiss_depth": {"values": [5, 10, 20]},
     "vanilla_hidden_dim": {"values": [128, 256, 512, 1024, 2048]},
     "vanilla_n_hidden_layers": {"values": [1, 2, 3]},
-    "vanilla_dropout": {"values": [0, 0.1, 0.2, 0.3, 0.4, 0.5]},
+    "dropout": {"values": [0, 0.1, 0.2, 0.3, 0.4, 0.5]},
     "vanilla_batchnorm": {"values": [true, false]},
     "reinit_model": {"values": [false, true]}
 }
