@@ -368,11 +368,8 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
 
 def train(hyperparams={}, verbose=False, project=None, entity=None,
           tags=None, group=None, default_hyperparams=DEFAULT_HYPERPARAMS):
-
-    config_hyperparams = {k:v for k,v in default_hyperparams.items()}
-    config_hyperparams.update(hyperparams)
     init_args = {
-        'config': config_hyperparams
+        'config': default_hyperparams
     }
     if project is not None:
         init_args.update({'project': project})
@@ -386,6 +383,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
 
     # Start wandb run
     with wandb.init(**init_args) as run:
+        wandb.config.update(hyperparams)
         hyp = wandb.config
 
         # Load data
@@ -639,6 +637,7 @@ if __name__ == '__main__':
                     parser.add_argument(argument_name, type=argument_type)
 
     args = parser.parse_args().__dict__
+    hyp_args = {k: v for k, v in args.items() if k in DEFAULT_HYPERPARAMS}
     logger.info("Script arguments:")
     logger.info(args)
 
@@ -652,10 +651,7 @@ if __name__ == '__main__':
         logger.info("Single-run mode")
         with open(args['wandb_run_params'], 'r') as fh:
             run_params = json.load(fh)
-        run_params.update({
-            'dataset': args['dataset'],
-            'dataset_random_seed': args['dataset_random_seed']
-        })
+        run_params.update(hyp_args)
         train(hyperparams=run_params,
               verbose=True,
               project=args['wandb_project'],
@@ -694,10 +690,7 @@ if __name__ == '__main__':
 
         # Start sweep job
         wandb.agent(sweep_id,
-                    function=lambda: train(hyperparams={
-                        'dataset': args['dataset'],
-                        'dataset_random_seed': args['dataset_random_seed']
-                    }),
+                    function=lambda: train(hyperparams=hyp_args),
                     count=args['wandb_max_runs'])
 
         logger.info("End of sweep")
