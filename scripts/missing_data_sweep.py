@@ -370,7 +370,8 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
 def train(hyperparams={}, verbose=False, project=None, entity=None,
           tags=None, group=None, default_hyperparams=DEFAULT_HYPERPARAMS):
     init_args = {
-        'config': default_hyperparams
+        'config': default_hyperparams,
+        'allow_val_change': True
     }
     if project is not None:
         init_args.update({'project': project})
