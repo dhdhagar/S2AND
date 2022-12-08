@@ -370,8 +370,7 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
 def train(hyperparams={}, verbose=False, project=None, entity=None,
           tags=None, group=None, default_hyperparams=DEFAULT_HYPERPARAMS):
     init_args = {
-        'config': default_hyperparams,
-        'allow_val_change': True
+        'config': default_hyperparams
     }
     if project is not None:
         init_args.update({'project': project})
@@ -385,7 +384,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
 
     # Start wandb run
     with wandb.init(**init_args) as run:
-        wandb.config.update(hyperparams)
+        wandb.config.update(hyperparams, allow_val_change=True)
         hyp = wandb.config
 
         # Load data
