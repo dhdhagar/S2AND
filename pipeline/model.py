@@ -16,10 +16,6 @@ class model(torch.nn.Module):
 
     def forward(self, x):
         edge_weights = self.mlp_layer(x)
-        # Take only the probabilities of belonging to class 1 as output from mlp
-        # TODO: move this transform out of here, maybe a separate hummingbird class
-        edge_weights = edge_weights[1][:, 1:]
-        print(edge_weights)
         print("Size of OP of mlp layer is", edge_weights.size())
 
         edge_weights_uncompressed = self.uncompress_layer(edge_weights)

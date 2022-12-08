@@ -8,4 +8,8 @@ class MLPLayer(torch.nn.Module):
         self.mlp_model = convert_pretrained_model(dropout_prob)
 
     def forward(self, x):
-        return self.mlp_model(x)
+        y = self.mlp_model(x)
+        # Since output is from hummingbird model, need to extract only the probabilities of class label 1
+        edge_weights = y[1][:, 1:]
+        edge_weights = torch.reshape(edge_weights, (-1,))
+        return edge_weights
