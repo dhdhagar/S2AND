@@ -64,6 +64,8 @@ def evaluate_e2e_model(model, val_dataloader, eval_metric):
             f1_score += v_measure_score(torch.flatten(output), torch.flatten(gold_output))
             print("Cumulative f1 score", f1_score)
 
+        break
+
 
 
 def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
@@ -79,7 +81,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         "lr_scheduler_patience": 10,
         "weight_decay": 0.,
         "dev_opt_metric": 'v_measure_score',
-        "overfit_one_batch": False
+        "overfit_one_batch": True
     }
 
     # Start wandb run
@@ -91,8 +93,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         n_epochs = hyp['n_epochs']
         use_lr_scheduler = hyp['use_lr_scheduler']
 
-        model.to(device)
-        wandb.watch(model)
+        e2e_model.to(device)
+        wandb.watch(e2e_model)
 
         optimizer = torch.optim.SGD(e2e_model.parameters(), lr=hyp['lr'], weight_decay=0.9)
 
@@ -139,32 +141,33 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3.grad)
                 # Gather data and report
                 print("loss is ", loss.item())
+                break
 
             # Print epoch validation accuracy
             with torch.no_grad():
                 e2e_model.eval()
-                dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
-                logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
-                if dev_f1_metric > best_metric:
-                    logger.info(f"New best dev {dev_opt_metric}; storing model")
-                    best_epoch = i
-                    best_metric = dev_f1_metric
-                    best_model_on_dev = copy.deepcopy(model)
+                # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
+                # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
+                # if dev_f1_metric > best_metric:
+                #     logger.info(f"New best dev {dev_opt_metric}; storing model")
+                #     best_epoch = i
+                #     best_metric = dev_f1_metric
+                #     best_model_on_dev = copy.deepcopy(model)
                 if overfit_one_batch:
                     train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
                     print("training f1 cluster measure is "+train_f1_metric)
             e2e_model.train()
 
-            wandb.log({
-                'train_loss_epoch': np.mean(running_loss),
-                'dev_vmeasure': dev_f1_metric,
-            })
+            # wandb.log({
+            #     'train_loss_epoch': np.mean(running_loss),
+            #     'dev_vmeasure': dev_f1_metric,
+            # })
             if overfit_one_batch:
-                wandb.log({'train_vmeasure': train_f1_metric})
+                wandb.log({'train_loss_epoch': np.mean(running_loss), 'train_vmeasure': train_f1_metric})
 
             # Update lr schedule
             if use_lr_scheduler:
-                scheduler.step(dev_f1_metric)  # running_loss
+                scheduler.step(train_f1_metric)  # running_loss
 
 
 
