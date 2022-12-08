@@ -616,7 +616,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
                 'test_f1': final_eval_test[1]
             })
         logger.info("End of wandb block in train()")
-        run.summary["model_parameters"] = count_parameters(model)
+        run.summary["_model_parameters"] = count_parameters(model)
+        run.summary["_runtime"] = round(end_time - start_time)
     logger.info("End of train() call")
 
 needs_sigmoid = [NeuMissVanilla]
