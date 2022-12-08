@@ -29,6 +29,42 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+DEFAULT_HYPERPARAMS = {
+    # Dataset
+    "dataset": "pubmed",
+    "dataset_random_seed": 1,
+    # Data config
+    "convert_nan": False,
+    "nan_value": -1,
+    "drop_feat_nan_pct": -1,
+    "normalize_data": False,
+    # Training config
+    "lr": 1e-4,
+    "n_epochs": 200,
+    "weighted_loss": True,
+    "batch_size": 10000,
+    "use_lr_scheduler": True,
+    "lr_factor": 0.6,
+    "lr_min": 1e-6,
+    "lr_scheduler_patience": 10,
+    "weight_decay": 0.,
+    "dropout": 0.,
+    "dev_opt_metric": 'auroc',
+    "overfit_one_batch": False,
+    # Model config
+    "hb_model": False,
+    "hb_temp": 1e-8,
+    "hb_activation": 'tanh',
+    "neumiss_deq": False,
+    "neumiss_depth": 20,
+    "vanilla_hidden_config": None,
+    "vanilla_hidden_dim": 1024,
+    "vanilla_n_hidden_layers": 1,
+    "vanilla_batchnorm": True,
+    "vanilla_activation": "leaky_relu",
+    "reinit_model": False
+}
+
 
 class ArgParser(argparse.ArgumentParser):
     def __init__(self):
@@ -330,47 +366,13 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
     return roc_auc, np.round(f1, 3)
 
 
-def train(dataset_name="pubmed", dataset_random_seed=1, verbose=False, hp={}, project=None, entity=None,
-          tags=None, group=None):
-    # Default hyperparameters
-    hyperparams = {
-        # Dataset
-        "dataset": dataset_name,
-        "dataset_random_seed": dataset_random_seed,
-        # Data config
-        "convert_nan": False,
-        "nan_value": -1,
-        "drop_feat_nan_pct": -1,
-        "normalize_data": False,
-        # Training config
-        "lr": 1e-4,
-        "n_epochs": 200,
-        "weighted_loss": True,
-        "batch_size": 10000,
-        "use_lr_scheduler": True,
-        "lr_factor": 0.6,
-        "lr_min": 1e-6,
-        "lr_scheduler_patience": 10,
-        "weight_decay": 0.,
-        "dropout": 0.,
-        "dev_opt_metric": 'auroc',
-        "overfit_one_batch": False,
-        # Model config
-        "hb_model": False,
-        "hb_temp": 1e-8,
-        "hb_activation": 'tanh',
-        "neumiss_deq": False,
-        "neumiss_depth": 20,
-        "vanilla_hidden_config": None,
-        "vanilla_hidden_dim": 1024,
-        "vanilla_n_hidden_layers": 1,
-        "vanilla_batchnorm": True,
-        "vanilla_activation": "leaky_relu",
-        "reinit_model": False
-    }
-    hyperparams.update(hp)
+def train(hyperparams={}, verbose=False, project=None, entity=None,
+          tags=None, group=None, default_hyperparams=DEFAULT_HYPERPARAMS):
+
+    config_hyperparams = {k:v for k,v in default_hyperparams.items()}
+    config_hyperparams.update(hyperparams)
     init_args = {
-        'config': hyperparams
+        'config': config_hyperparams
     }
     if project is not None:
         init_args.update({'project': project})
@@ -624,6 +626,18 @@ metric_to_idx = {'auroc': 0, 'f1': 1}
 
 if __name__ == '__main__':
     parser = ArgParser()
+    # Handle additional arbitrary arguments
+    _, unknown = parser.parse_known_args()
+    for arg in unknown:
+        if arg.startswith("--"):
+            argument_name = arg.split('=')[0]
+            if argument_name in DEFAULT_HYPERPARAMS:
+                argument_type = type(DEFAULT_HYPERPARAMS[argument_name])
+                if type == bool:
+                    parser.add_argument(argument_name, action='store_true')
+                else:
+                    parser.add_argument(argument_name, type=argument_type)
+
     args = parser.parse_args().__dict__
     logger.info("Script arguments:")
     logger.info(args)
@@ -638,9 +652,11 @@ if __name__ == '__main__':
         logger.info("Single-run mode")
         with open(args['wandb_run_params'], 'r') as fh:
             run_params = json.load(fh)
-        train(dataset_name=args['dataset'],
-              dataset_random_seed=args['dataset_random_seed'],
-              hp=run_params,
+        run_params.update({
+            'dataset': args['dataset'],
+            'dataset_random_seed': args['dataset_random_seed']
+        })
+        train(hyperparams=run_params,
               verbose=True,
               project=args['wandb_project'],
               entity=args['wandb_entity'],
@@ -678,8 +694,10 @@ if __name__ == '__main__':
 
         # Start sweep job
         wandb.agent(sweep_id,
-                    function=lambda: train(dataset_name=args['dataset'],
-                                           dataset_random_seed=args['dataset_random_seed']),
+                    function=lambda: train(hyperparams={
+                        'dataset': args['dataset'],
+                        'dataset_random_seed': args['dataset_random_seed']
+                    }),
                     count=args['wandb_max_runs'])
 
         logger.info("End of sweep")
