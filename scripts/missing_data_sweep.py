@@ -20,6 +20,7 @@ from torch import nn
 from s2and.model import PairwiseModeler
 from neumiss import NeuMissBlock, NeuMissDEQBlock
 
+from IPython import embed
 
 device = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
@@ -631,7 +632,7 @@ if __name__ == '__main__':
             argument_name = arg.split('=')[0]
             if argument_name in DEFAULT_HYPERPARAMS:
                 argument_type = type(DEFAULT_HYPERPARAMS[argument_name])
-                if type == bool:
+                if argument_type == bool:
                     parser.add_argument(argument_name, action='store_true')
                 else:
                     parser.add_argument(argument_name, type=argument_type)
