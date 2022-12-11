@@ -40,9 +40,9 @@ def uncompress_target_tensor(compressed_targets):
     symm_mat = output + torch.transpose(output, 0, 1)
     return symm_mat
 
-def evaluate_e2e_model(model, val_dataloader, eval_metric):
+def evaluate_e2e_model(model, dataloader, eval_metric):
     f1_score = 0
-    for (idx, batch) in enumerate(val_dataloader):
+    for (idx, batch) in enumerate(dataloader):
         data, target = batch
 
         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
@@ -96,7 +96,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         e2e_model.to(device)
         wandb.watch(e2e_model)
 
-        optimizer = torch.optim.SGD(e2e_model.parameters(), lr=hyp['lr'], weight_decay=0.9)
+        optimizer = torch.optim.AdamW(e2e_model.parameters(), lr=hyp['lr'], weight_decay=0.9)
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                                mode='min',
@@ -137,10 +137,11 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 gold_output = uncompress_target_tensor(target)
                 loss = torch.norm(gold_output - output)
                 loss.backward()
-                # print(e2e_model.sdp_layer.W_val.grad)
-                # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3.grad)
+                print(e2e_model.sdp_layer.W_val.grad)
+                print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3.grad)
                 # Gather data and report
                 print("loss is ", loss.item())
+                running_loss.append(loss.item())
                 break
 
             # Print epoch validation accuracy
@@ -155,7 +156,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 #     best_model_on_dev = copy.deepcopy(model)
                 if overfit_one_batch:
                     train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
-                    print("training f1 cluster measure is "+train_f1_metric)
+                    print("training f1 cluster measure is ", train_f1_metric)
             e2e_model.train()
 
             # wandb.log({
@@ -166,8 +167,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 wandb.log({'train_loss_epoch': np.mean(running_loss), 'train_vmeasure': train_f1_metric})
 
             # Update lr schedule
-            if use_lr_scheduler:
-                scheduler.step(train_f1_metric)  # running_loss
+            # if use_lr_scheduler:
+            #     scheduler.step(train_f1_metric)  # running_loss
 
 
 
