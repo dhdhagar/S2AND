@@ -132,12 +132,15 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 # Forward pass through the e2e model
                 output = e2e_model(data)
                 # print(output)
+                print("weights of mlp:")
+                print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3)
 
                 # Calculate the loss and its gradients
                 gold_output = uncompress_target_tensor(target)
-                loss = torch.norm(gold_output - output)
+                loss = torch.norm(gold_output - output)/2
                 loss.backward()
                 print(e2e_model.sdp_layer.W_val.grad)
+                print(e2e_model.uncompress_layer.uncompressed_matrix.grad)
                 print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3.grad)
                 # Gather data and report
                 print("loss is ", loss.item())

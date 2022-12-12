@@ -93,6 +93,8 @@ class SDPLayer(torch.nn.Module):
         logging.info('Constructing optimization problem')
         self.num_points = edge_weights_uncompressed.size(dim=0)
         self.W_val = edge_weights_uncompressed
+        if self.training:
+            self.W_val.retain_grad()
 
         # Solve the SDP and return result
         sdp_obj_value, pw_probs = self.build_and_solve_sdp()
