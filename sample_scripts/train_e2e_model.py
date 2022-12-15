@@ -150,7 +150,10 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 # Gather data and report
                 print("loss is ", loss.item())
                 running_loss.append(loss.item())
-                print("training f1 cluster measure is ", v_measure_score(torch.flatten(output), torch.flatten(gold_output)))
+                train_f1_metric = v_measure_score(
+                    torch.flatten(output).detach().numpy(),
+                    torch.flatten(gold_output).detach().numpy())
+                print("training f1 cluster measure is ", )
                 break
 
             # Print epoch validation accuracy
