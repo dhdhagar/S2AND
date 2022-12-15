@@ -64,6 +64,7 @@ def evaluate_e2e_model(model, dataloader, eval_metric):
             f1_score += v_measure_score(torch.flatten(output), torch.flatten(gold_output))
             print("Cumulative f1 score", f1_score)
 
+        return f1_score
         break
 
 
@@ -132,38 +133,40 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
 
                 # Forward pass through the e2e model
                 output = e2e_model(data)
-                # print(output)
-                print("weights of mlp:")
-                print(e2e_model.mlp_layer.mlp_model._operators[0].weight_1)
-                print(e2e_model.mlp_layer.mlp_model._operators[0].weight_2)
-                print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3)
+                print("output is", output)
+                # print("weights of mlp:")
+                # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_1)
+                # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_2)
+                # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3)
 
                 # Calculate the loss and its gradients
                 gold_output = uncompress_target_tensor(target)
                 loss = torch.norm(gold_output - output)/2
                 loss.backward()
+                print("Grad values")
                 print(e2e_model.sdp_layer.W_val.grad)
                 print(e2e_model.uncompress_layer.uncompressed_matrix.grad)
-                print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3.grad)
+
                 # Gather data and report
                 print("loss is ", loss.item())
                 running_loss.append(loss.item())
+                print("training f1 cluster measure is ", v_measure_score(torch.flatten(output), torch.flatten(gold_output)))
                 break
 
             # Print epoch validation accuracy
-            with torch.no_grad():
-                e2e_model.eval()
-                # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
-                # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
-                # if dev_f1_metric > best_metric:
-                #     logger.info(f"New best dev {dev_opt_metric}; storing model")
-                #     best_epoch = i
-                #     best_metric = dev_f1_metric
-                #     best_model_on_dev = copy.deepcopy(model)
-                if overfit_one_batch:
-                    train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
-                    print("training f1 cluster measure is ", train_f1_metric)
-            e2e_model.train()
+            # with torch.no_grad():
+            #     e2e_model.eval()
+            #     # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
+            #     # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
+            #     # if dev_f1_metric > best_metric:
+            #     #     logger.info(f"New best dev {dev_opt_metric}; storing model")
+            #     #     best_epoch = i
+            #     #     best_metric = dev_f1_metric
+            #     #     best_model_on_dev = copy.deepcopy(model)
+            #     if overfit_one_batch:
+            #         train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
+            #         print("training f1 cluster measure is ", train_f1_metric)
+            # e2e_model.train()
 
             # wandb.log({
             #     'train_loss_epoch': np.mean(running_loss),
