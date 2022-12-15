@@ -125,6 +125,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 data = torch.reshape(data, (n, f))
                 target = torch.reshape(target, (n,))
                 print("Data read, Uncompressed Batch size is: ", target.size())
+                print("target is ", target)
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
@@ -133,6 +134,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 output = e2e_model(data)
                 # print(output)
                 print("weights of mlp:")
+                print(e2e_model.mlp_layer.mlp_model._operators[0].weight_1)
+                print(e2e_model.mlp_layer.mlp_model._operators[0].weight_2)
                 print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3)
 
                 # Calculate the loss and its gradients

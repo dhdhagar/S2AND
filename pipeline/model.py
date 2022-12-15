@@ -9,7 +9,7 @@ from pipeline.uncompress_layer import UncompressTransformLayer
 class model(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.mlp_layer = MLPLayer()
+        self.mlp_layer = MLPLayer(n_features=39)
         self.uncompress_layer = UncompressTransformLayer()
         self.sdp_layer = SDPLayer(max_sdp_iters=50000)
         self.trellis_cut_estimator = TrellisCutLayer()
@@ -17,6 +17,7 @@ class model(torch.nn.Module):
     def forward(self, x):
         edge_weights = self.mlp_layer(x)
         print("Size of OP of mlp layer is", edge_weights.size())
+        print(edge_weights)
 
         edge_weights_uncompressed = self.uncompress_layer(edge_weights)
         print("Size of Uncompressed similarity matrix is", edge_weights_uncompressed.size())
