@@ -15,7 +15,7 @@ class model(torch.nn.Module):
         self.trellis_cut_estimator = TrellisCutLayer()
 
     def forward(self, x):
-        edge_weights = self.mlp_layer(x)
+        edge_weights = self.mlp_layer(x.float())
         print("Size of OP of mlp layer is", edge_weights.size())
         print(edge_weights)
 
