@@ -16,6 +16,7 @@ class model(torch.nn.Module):
 
     def forward(self, x):
         edge_weights = self.mlp_layer(x.float())
+        edge_weights = torch.reshape(edge_weights, (-1,))
         print("Size of OP of mlp layer is", edge_weights.size())
         print(edge_weights)
 
@@ -23,6 +24,8 @@ class model(torch.nn.Module):
         print("Size of Uncompressed similarity matrix is", edge_weights_uncompressed.size())
 
         output_probs = self.sdp_layer(edge_weights_uncompressed)
+        # Convert to a symmetric matrix
+        output_probs = output_probs + torch.transpose(output_probs, 0, 1)
         print("Size of OP of sdp layer is", output_probs.size())
 
         # pred_clustering = self.trellis_cut_estimator(edge_weights_uncompressed, output_probs)

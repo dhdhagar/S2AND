@@ -35,8 +35,8 @@ def uncompress_target_tensor(compressed_targets):
     n = round(math.sqrt(2 * compressed_targets.size(dim=0))) + 1
     # Convert the 1D pairwise-similarities list to nxn upper triangular matrix
     ind = torch.triu_indices(n, n, offset=1)
-    # TODO: try size [n,n]
     output = (torch.sparse_coo_tensor(ind, compressed_targets, [n, n])).to_dense()
+    # Convert the upper triangular matrix to a symmetric matrix
     symm_mat = output + torch.transpose(output, 0, 1)
     return symm_mat
 
@@ -128,9 +128,6 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 print("Data read, Uncompressed Batch size is: ", target.size())
                 print("target is ", target)
 
-                # Zero your gradients for every batch!
-                optimizer.zero_grad()
-
                 # Forward pass through the e2e model
                 output = e2e_model(data)
                 print("output is", output)
@@ -141,8 +138,14 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
 
                 # Calculate the loss and its gradients
                 gold_output = uncompress_target_tensor(target)
+
                 loss = torch.norm(gold_output - output)/2
+
+                # Zero your gradients for every batch!
+                optimizer.zero_grad()
                 loss.backward()
+                optimizer.step()
+
                 print("Grad values")
                 print(e2e_model.sdp_layer.W_val.grad)
                 print(e2e_model.uncompress_layer.uncompressed_matrix.grad)
@@ -153,7 +156,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 train_f1_metric = v_measure_score(
                     torch.flatten(output).detach().numpy(),
                     torch.flatten(gold_output).detach().numpy())
-                print("training f1 cluster measure is ", )
+                print("training f1 cluster measure is ", train_f1_metric)
                 break
 
             # Print epoch validation accuracy
