@@ -67,6 +67,17 @@ def evaluate_e2e_model(model, dataloader, eval_metric):
         return f1_score
         break
 
+def get_vmeasure_score(outputs, gold_labels):
+    # takes as input model output (nxn matrix) and target labels to find cluster v_measure_score
+    # Convert outputs to upper triangular matrices
+    outputs_triu = np.triu(outputs, 1)
+    idxs = np.triu_indices(outputs.size()[0], 1)
+    outputs_1d = outputs_triu[idxs]
+    print("compressed output" + outputs_1d)
+
+    f1_score = v_measure_score(outputs_1d, gold_labels)
+
+    return f1_score
 
 
 def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
@@ -153,9 +164,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 # Gather data and report
                 print("loss is ", loss.item())
                 running_loss.append(loss.item())
-                train_f1_metric = v_measure_score(
-                    torch.flatten(output).detach().numpy(),
-                    torch.flatten(gold_output).detach().numpy())
+
+                train_f1_metric = get_vmeasure_score(output.detach().numpy(), target.detach().numpy())
                 print("training f1 cluster measure is ", train_f1_metric)
                 break
 
