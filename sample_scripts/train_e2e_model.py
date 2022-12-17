@@ -72,9 +72,9 @@ def get_vmeasure_score(outputs, gold_labels):
     # takes as input model output (nxn matrix) and target labels to find cluster v_measure_score
     # Convert outputs to upper triangular matrices
     outputs_triu = np.triu(outputs, 1)
-    idxs = np.triu_indices(outputs.size()[0], 1)
+    idxs = np.triu_indices(np.shape(outputs)[0], 1)
     outputs_1d = outputs_triu[idxs]
-    print("compressed output" + outputs_1d)
+    print("compressed output", outputs_1d, "max op", np.max(outputs_1d), "targets", gold_labels)
 
     f1_score = v_measure_score(outputs_1d, gold_labels)
 
