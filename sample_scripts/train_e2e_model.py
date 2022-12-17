@@ -9,6 +9,7 @@ import copy
 from torch.utils.data import DataLoader
 
 from pipeline.model import model
+from pipeline.trellis_cut_layer import TrellisCutLayer
 from s2and.consts import PREPROCESSED_DATA_DIR
 import pickle
 import numpy as np
@@ -85,7 +86,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
     # Default hyperparameters
     hyperparams = {
         # Training config
-        "lr": 1e-4,
+        "lr": 1e-2,
         "n_epochs": 200,
         "weighted_loss": True,
         "use_lr_scheduler": True,
@@ -96,6 +97,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         "dev_opt_metric": 'v_measure_score',
         "overfit_one_batch": True
     }
+
+    trellis_cut_estimator = TrellisCutLayer()
 
     # Start wandb run
     with wandb.init(config=hyperparams):
@@ -166,8 +169,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 print("loss is ", loss.item())
                 running_loss.append(loss.item())
 
-                train_f1_metric = get_vmeasure_score(output.detach().numpy(), target.detach().numpy())
-                print("training f1 cluster measure is ", train_f1_metric)
+                # train_f1_metric = get_vmeasure_score(output.detach().numpy(), target.detach().numpy())
+                # print("training f1 cluster measure is ", train_f1_metric)
                 break
 
             # Print epoch validation accuracy
@@ -190,7 +193,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
             #     'dev_vmeasure': dev_f1_metric,
             # })
             if overfit_one_batch:
-                wandb.log({'train_loss_epoch': np.mean(running_loss), 'train_vmeasure': train_f1_metric})
+                wandb.log({'train_loss_epoch': np.mean(running_loss)})#, 'train_vmeasure': train_f1_metric})
 
             # Update lr schedule
             # if use_lr_scheduler:

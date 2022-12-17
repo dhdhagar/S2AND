@@ -26,7 +26,7 @@ class model(torch.nn.Module):
 
         output_probs = self.sdp_layer(edge_weights_uncompressed)
         # Convert upper triangular output to a symmetric matrix
-        output_probs = output_probs + torch.transpose(output_probs, 0, 1) - torch.diag(output_probs)
+        #output_probs = output_probs + torch.transpose(output_probs, 0, 1) - torch.diag(output_probs)
         print("Size of OP of sdp layer is", output_probs.size())
 
         pred_clustering = self.trellis_cut_estimator(edge_weights_uncompressed, output_probs)
