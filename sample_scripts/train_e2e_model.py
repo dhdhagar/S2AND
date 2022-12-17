@@ -38,6 +38,7 @@ def uncompress_target_tensor(compressed_targets):
     output = (torch.sparse_coo_tensor(ind, compressed_targets, [n, n])).to_dense()
     # Convert the upper triangular matrix to a symmetric matrix
     symm_mat = output + torch.transpose(output, 0, 1)
+    symm_mat += torch.eye(n) # Set all 1s on the diagonal
     return symm_mat
 
 def evaluate_e2e_model(model, dataloader, eval_metric):
@@ -137,7 +138,6 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 data = torch.reshape(data, (n, f))
                 target = torch.reshape(target, (n,))
                 print("Data read, Uncompressed Batch size is: ", target.size())
-                print("target is ", target)
 
                 # Forward pass through the e2e model
                 output = e2e_model(data)
@@ -149,6 +149,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
 
                 # Calculate the loss and its gradients
                 gold_output = uncompress_target_tensor(target)
+                print("gold output is", gold_output)
 
                 loss = torch.norm(gold_output - output)/2
 
@@ -157,9 +158,9 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 loss.backward()
                 optimizer.step()
 
-                print("Grad values")
-                print(e2e_model.sdp_layer.W_val.grad)
-                print(e2e_model.uncompress_layer.uncompressed_matrix.grad)
+                # print("Grad values")
+                # print(e2e_model.sdp_layer.W_val.grad)
+                # print(e2e_model.uncompress_layer.uncompressed_matrix.grad)
 
                 # Gather data and report
                 print("loss is ", loss.item())
