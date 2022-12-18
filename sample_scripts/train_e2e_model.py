@@ -127,9 +127,13 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         for i in range(n_epochs):
             running_loss = []
             wandb.log({'epoch': i + 1})
-            for idx in [33]:
+            for (idx, batch) in enumerate(train_Dataloader):
+                if(idx != 33):
+                    continue
+                if(idx > 33):
+                    break
                 # LOADING THE DATA IN A BATCH
-                data, target = train_Dataloader[idx]
+                data, target = batch
 
                 # MOVING THE TENSORS TO THE CONFIGURED DEVICE
                 data, target = data.to(device), target.to(device)
@@ -140,11 +144,11 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 batch_size = n
                 data = torch.reshape(data, (n, f))
                 target = torch.reshape(target, (n,))
-                logging.info("Data read, Uncompressed Batch size is: ", target.size())
+                logging.info("Data read, Uncompressed Batch size is: %s", target.size())
 
                 # Forward pass through the e2e model
                 output = e2e_model(data)
-                Xr = TrellisCutLayer(e2e_model.uncompress_layer.uncompressed_matrix, output)
+                Xr = trellis_cut_estimator(e2e_model.uncompress_layer.uncompressed_matrix, output)
                 logging.info("Rounding Layer OP")
                 logging.info(Xr)
                 # print("weights of mlp:")
@@ -169,7 +173,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 logging.info(e2e_model.uncompress_layer.uncompressed_matrix.grad)
 
                 # Gather data and report
-                logging.info("loss is ", loss.item())
+                logging.info("loss is %s", loss.item())
                 running_loss.append(loss.item())
 
                 # train_f1_metric = get_vmeasure_score(output.detach().numpy(), target.detach().numpy())
@@ -226,7 +230,7 @@ if __name__=='__main__':
     val_Dataloader = DataLoader(val_Dataset, shuffle=False)
 
     e2e_model = model()
-    logging.info("model loaded", e2e_model)
+    logging.info("model loaded: %s", e2e_model)
     logging.info("Learnable parameters:")
     for name, parameter in e2e_model.named_parameters():
         if(parameter.requires_grad):

@@ -22,18 +22,18 @@ class model(torch.nn.Module):
         edge_weights = self.mlp_layer(x.float())
         # Reshape to the size required by uncompress layer, viz 1d list
         edge_weights = torch.reshape(edge_weights, (-1,))
-        logging.info("Size of W is", edge_weights.size())
+        logging.info("Size of W is %s", edge_weights.size())
         logging.info("W")
         logging.info(edge_weights)
 
         edge_weights_uncompressed = self.uncompress_layer(edge_weights)
-        logging.info("Size of Uncompressed W is", edge_weights_uncompressed.size())
+        logging.info("Size of Uncompressed W is %s", edge_weights_uncompressed.size())
         logging.info(edge_weights)
 
         output_probs = self.sdp_layer(edge_weights_uncompressed)
         # Convert upper triangular output to a symmetric matrix
         output_probs = output_probs + torch.transpose(output_probs, 0, 1) - torch.diag(output_probs)
-        logging.info("Size of X is", output_probs.size())
+        logging.info("Size of X is %s", output_probs.size())
         logging.info("X")
         logging.info(output_probs)
 
