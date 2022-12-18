@@ -42,44 +42,44 @@ def uncompress_target_tensor(compressed_targets):
     symm_mat += torch.eye(n) # Set all 1s on the diagonal
     return symm_mat
 
-def evaluate_e2e_model(model, dataloader, eval_metric):
-    f1_score = 0
-    for (idx, batch) in enumerate(dataloader):
-        data, target = batch
-
-        # MOVING THE TENSORS TO THE CONFIGURED DEVICE
-        data, target = data.to(device), target.to(device)
-        # Reshape data to 2-D matrix, and target to 1D
-        n = np.shape(data)[1]
-        f = np.shape(data)[2]
-
-        batch_size = n
-        data = torch.reshape(data, (n, f))
-        target = torch.reshape(target, (n,))
-
-        output = model(data)
-        # print(output)
-
-        # Calculate the loss and its gradients
-        gold_output = uncompress_target_tensor(target)
-        if(eval_metric == "v_measure_score"):
-            f1_score += v_measure_score(torch.flatten(output), torch.flatten(gold_output))
-            print("Cumulative f1 score", f1_score)
-
-        return f1_score
-        break
-
-def get_vmeasure_score(outputs, gold_labels):
-    # takes as input model output (nxn matrix) and target labels to find cluster v_measure_score
-    # Convert outputs to upper triangular matrices
-    outputs_triu = np.triu(outputs, 1)
-    idxs = np.triu_indices(np.shape(outputs)[0], 1)
-    outputs_1d = outputs_triu[idxs]
-    print("compressed output", outputs_1d, "max op", np.max(outputs_1d), "targets", gold_labels)
-
-    f1_score = v_measure_score(outputs_1d, gold_labels)
-
-    return f1_score
+# def evaluate_e2e_model(model, dataloader, eval_metric):
+#     f1_score = 0
+#     for (idx, batch) in enumerate(dataloader):
+#         data, target = batch
+#
+#         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
+#         data, target = data.to(device), target.to(device)
+#         # Reshape data to 2-D matrix, and target to 1D
+#         n = np.shape(data)[1]
+#         f = np.shape(data)[2]
+#
+#         batch_size = n
+#         data = torch.reshape(data, (n, f))
+#         target = torch.reshape(target, (n,))
+#
+#         output = model(data)
+#         # print(output)
+#
+#         # Calculate the loss and its gradients
+#         gold_output = uncompress_target_tensor(target)
+#         if(eval_metric == "v_measure_score"):
+#             f1_score += v_measure_score(torch.flatten(output), torch.flatten(gold_output))
+#             print("Cumulative f1 score", f1_score)
+#
+#         return f1_score
+#         break
+#
+# def get_vmeasure_score(outputs, gold_labels):
+#     # takes as input model output (nxn matrix) and target labels to find cluster v_measure_score
+#     # Convert outputs to upper triangular matrices
+#     outputs_triu = np.triu(outputs, 1)
+#     idxs = np.triu_indices(np.shape(outputs)[0], 1)
+#     outputs_1d = outputs_triu[idxs]
+#     print("compressed output", outputs_1d, "max op", np.max(outputs_1d), "targets", gold_labels)
+#
+#     f1_score = v_measure_score(outputs_1d, gold_labels)
+#
+#     return f1_score
 
 
 def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
@@ -127,9 +127,9 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         for i in range(n_epochs):
             running_loss = []
             wandb.log({'epoch': i + 1})
-            for (idx, batch) in enumerate(train_Dataloader):
+            for idx in [33]:
                 # LOADING THE DATA IN A BATCH
-                data, target = batch
+                data, target = train_Dataloader[idx]
 
                 # MOVING THE TENSORS TO THE CONFIGURED DEVICE
                 data, target = data.to(device), target.to(device)
@@ -140,11 +140,13 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 batch_size = n
                 data = torch.reshape(data, (n, f))
                 target = torch.reshape(target, (n,))
-                print("Data read, Uncompressed Batch size is: ", target.size())
+                logging.info("Data read, Uncompressed Batch size is: ", target.size())
 
                 # Forward pass through the e2e model
                 output = e2e_model(data)
-                print("output is", output)
+                Xr = TrellisCutLayer(e2e_model.uncompress_layer.uncompressed_matrix, output)
+                logging.info("Rounding Layer OP")
+                logging.info(Xr)
                 # print("weights of mlp:")
                 # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_1)
                 # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_2)
@@ -152,21 +154,22 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
 
                 # Calculate the loss and its gradients
                 gold_output = uncompress_target_tensor(target)
-                print("gold output is", gold_output)
+                logging.info("gold output")
+                logging.info(gold_output)
 
-                loss = torch.norm(gold_output - output)/2
+                loss = torch.norm(gold_output - Xr)/2
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-                # print("Grad values")
-                # print(e2e_model.sdp_layer.W_val.grad)
-                # print(e2e_model.uncompress_layer.uncompressed_matrix.grad)
+                logging.info("Grad values")
+                logging.info(e2e_model.sdp_layer.W_val.grad)
+                logging.info(e2e_model.uncompress_layer.uncompressed_matrix.grad)
 
                 # Gather data and report
-                print("loss is ", loss.item())
+                logging.info("loss is ", loss.item())
                 running_loss.append(loss.item())
 
                 # train_f1_metric = get_vmeasure_score(output.detach().numpy(), target.detach().numpy())
@@ -223,10 +226,10 @@ if __name__=='__main__':
     val_Dataloader = DataLoader(val_Dataset, shuffle=False)
 
     e2e_model = model()
-    print("model loaded", e2e_model)
-    print("Learnable parameters:")
+    logging.info("model loaded", e2e_model)
+    logging.info("Learnable parameters:")
     for name, parameter in e2e_model.named_parameters():
         if(parameter.requires_grad):
-            print(name)
+            logging.info(name)
 
     train_e2e_model(e2e_model, train_Dataloader, val_Dataloader)
