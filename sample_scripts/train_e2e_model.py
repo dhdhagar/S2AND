@@ -86,7 +86,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
     # Default hyperparameters
     hyperparams = {
         # Training config
-        "lr": 1e-2,
+        "lr": 1e-4,
         "n_epochs": 200,
         "weighted_loss": True,
         "use_lr_scheduler": True,
@@ -167,6 +167,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                scheduler.step(loss.item())
 
                 logging.info("Grad values")
                 logging.info(e2e_model.sdp_layer.W_val.grad)
