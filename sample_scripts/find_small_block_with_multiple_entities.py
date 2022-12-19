@@ -27,6 +27,15 @@ def read_blockwise_metadata():
 
 if __name__=='__main__':
     blockwise_metadata = read_blockwise_metadata()
-    for idx, block in enumerate(blockwise_metadata):
-        block_id, sign = block
-        print(block_id, sign.signature)
+    for idx, block_id in enumerate(blockwise_metadata):
+        sign_list = blockwise_metadata[block_id]
+        curr_sigId = None
+        for sign in sign_list:
+            print(block_id, sign.signature_id)
+            if(curr_sigId is None):
+                curr_sigId = sign.signature_id
+            elif(curr_sigId!=sign.cluster_id):
+                print("found block_id with multiple signatures")
+                print(block_id)
+                print("n is", len(sign_list))
+                break

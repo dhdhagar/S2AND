@@ -43,8 +43,8 @@ class MLPLayer(torch.nn.Module):
 
     def forward(self, x):
         y = self.mlp_model(x)
-        edge_weights = y
+        self.edge_weights = y
         if(self.use_hb):
             # Since output is from hummingbird model, need to extract only the probabilities of class label 1
-            edge_weights = y[1][:, 1:]
-        return edge_weights
+            self.edge_weights = y[1][:, 1:]
+        return self.edge_weights

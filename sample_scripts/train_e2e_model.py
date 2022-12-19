@@ -171,7 +171,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
 
                 logging.info("Grad values")
                 logging.info(e2e_model.sdp_layer.W_val.grad)
-                logging.info(e2e_model.uncompress_layer.uncompressed_matrix.grad)
+                mlp_grad = e2e_model.mlp_layer.edge_weights.grad
+                logging.info(uncompress_target_tensor(torch.reshape(mlp_grad.detach(), (-1,))))
 
                 # Gather data and report
                 logging.info("loss is %s", loss.item())
