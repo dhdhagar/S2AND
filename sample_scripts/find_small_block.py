@@ -42,9 +42,10 @@ if __name__=='__main__':
     train_Dataset = S2BlocksDataset(blockwise_features)
     train_Dataloader = DataLoader(train_Dataset, shuffle=False)
 
-    for (idx, batch) in enumerate(train_Dataloader):
-        # LOADING THE DATA IN A BATCH
-        data, target = batch
+    for idx, block_id in enumerate(blockwise_features.keys()):
+        X, y, cluster_ids = blockwise_features[block_id]
+        data = torch.from_numpy(X)
+        target = torch.from_numpy(y)
 
         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
         data, target = data.to(device), target.to(device)
@@ -63,8 +64,7 @@ if __name__=='__main__':
 
         if(block_size<=30) :
             #check if it has multiple clusters
-            print("index is", idx)
+            print("block_id is", block_id)
+            print("idx is", idx)
             print(gold_output)
-            block_id = blockwise_features.keys()[idx]
-            _, _, clusterIds = blockwise_features[block_id]
-            print(clusterIds)
+            print(np.unique(cluster_ids))

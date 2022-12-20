@@ -1,3 +1,7 @@
+"""
+Run from command line:
+    python pipeline/preprocess_s2and_data.py --data_home_dir="./data" --dataset_name="pubmed"
+"""
 from typing import Union, Dict
 from typing import Tuple
 
