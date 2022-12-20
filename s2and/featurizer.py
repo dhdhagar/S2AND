@@ -904,14 +904,14 @@ def store_featurized_pickles(
                 ) = dataset.split_cluster_signatures()  # this is called for getting blockwise signature pairs
             # Modify method call to store blockwise signature pairs as pickle so that dataloader can load from these idxs
             # After this call block id is lost
-            train_blockwise_pairs, val_blockwise_pairs, test_blockwise_pairs = dataset.split_pairs_to_store(
+            train_blockwise_pairs, train_blockwise_clusterIds, val_blockwise_pairs, test_blockwise_pairs = dataset.split_pairs_to_store(
                 train_signatures, val_signatures, test_signatures)
 
         else:
             train_pairs, val_pairs, test_pairs = dataset.fixed_pairs()
 
         logger.info("featurizing train")
-        train_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        train_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
         for block_id in list(train_blockwise_pairs.keys()):
             sigPairsList: List[Tuple[str, str, Union[int, float]]] = train_blockwise_pairs[block_id]
             train_features, train_labels, _ = many_pairs_featurize(
@@ -925,7 +925,8 @@ def store_featurized_pickles(
                 nan_value,
                 delete_training_data,
             )
-            train_blockwise_features[block_id] = [train_features, train_labels]
+            cluster_ids = train_blockwise_clusterIds[block_id]
+            train_blockwise_features[block_id] = [train_features, train_labels, cluster_ids]
         logger.info("featurized train, featurizing val")
         val_blockwise_features: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
         for block_id, signature_pair_list in val_blockwise_pairs.items():

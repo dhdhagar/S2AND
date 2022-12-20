@@ -115,14 +115,15 @@ class S2BlocksDataset(Dataset):
     """
     Class to define a Torch Dataset that can be leveraged by a Dataloader
     Requires as Input:
-        blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]] which represents:
+        blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]] which represents:
             Key: Block Id
             Value: Tuple of
                 X (feature array, 2D matrix of size [n*(n-1)/2, f]),
-                Y (Binary Class labels, 1D array of size [n(n-1)/2,]) where
-                n is the number of signatures in a S2 block and f is the number of pairwise features
+                Y (Binary Class labels, 1D array of size [n(n-1)/2,])
+                cluster_ids (cluster ids, 1D array of size [n]), where
+            n is the number of signatures in a S2 block and f is the number of pairwise features
     """
-    def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]):
+    def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]):
         self.blockwise_data = blockwise_data
 
     def __len__(self):
@@ -131,7 +132,7 @@ class S2BlocksDataset(Dataset):
     def __getitem__(self, idx):
         # returns all pairwise-features for a specified Block
         dict_key = list(self.blockwise_data.keys())[idx]
-        X, y = self.blockwise_data[dict_key]
+        X, y, clusterIds = self.blockwise_data[dict_key]
         # Convert NaNs to -1 for now, TODO: remove when imputation layer is added
         np.nan_to_num(X, copy=False, nan=-1)
         # TODO: Add subsampling logic here, if required
@@ -1162,12 +1163,12 @@ class ANDData:
             and isinstance(val_signatures, dict)
             and isinstance(test_signatures, dict)
         )
-        train_blockwise_pairs = self.pair_sampling_to_store(
+        train_blockwise_pairs, train_blockwise_clusterIds = self.pair_sampling_to_store(
             self.train_pairs_size,
             [],
             train_signatures,
         )
-        val_blockwise_pairs = (
+        val_blockwise_pairs, val_blockwise_clusterIds = (
             self.pair_sampling_to_store(
                 self.val_pairs_size,
                 [],
@@ -1177,9 +1178,14 @@ class ANDData:
             else []
         )
 
-        test_blockwise_pairs = self.pair_sampling_to_store(self.test_pairs_size, [], test_signatures, self.all_test_pairs_flag)
+        test_blockwise_pairs, test_blockwise_clusterIds = self.pair_sampling_to_store(
+            self.test_pairs_size,
+            [],
+            test_signatures,
+            self.all_test_pairs_flag
+        )
 
-        return train_blockwise_pairs, val_blockwise_pairs, test_blockwise_pairs
+        return train_blockwise_pairs, train_blockwise_clusterIds, val_blockwise_pairs, test_blockwise_pairs
 
     def construct_cluster_to_signatures(
         self,
@@ -1459,6 +1465,8 @@ class ANDData:
 
         # Return block-wise Signature pairs in a dict
         blockwise_sig_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]] = {}
+        # Return block-wise cluster_ids
+        blockwise_cluster_ids: Dict[str, List[str]] = {}
 
         if not self.pair_sampling_block: #Ignored for s2 Block featurization
             for i, s1 in enumerate(signature_ids):
@@ -1480,10 +1488,12 @@ class ANDData:
         elif not self.pair_sampling_balanced_homonym_synonym and not self.pair_sampling_balanced_classes: #Important for Blockwise featurization
             for block_id, signatures in blocks.items():
                 sig_pairs: List[Tuple[str, str, Union[int, float]]] = []
+                cluster_ids: List[str]
                 for i, s1 in enumerate(signatures):
+                    s1_cluster = self.signature_to_cluster_id[s1]
+                    cluster_ids.append(s1_cluster)
                     for s2 in signatures[i + 1 :]:
                         if self.signature_to_cluster_id is not None:
-                            s1_cluster = self.signature_to_cluster_id[s1]
                             s2_cluster = self.signature_to_cluster_id[s2]
                             if s1_cluster == s2_cluster:
                                 possible.append((s1, s2, 1))
@@ -1495,6 +1505,7 @@ class ANDData:
                             possible.append((s1, s2, NUMPY_NAN))
                             sig_pairs.append((s1, s2, NUMPY_NAN))
                 blockwise_sig_pairs[block_id] = sig_pairs
+                blockwise_cluster_ids[block_id] = cluster_ids
 
         else:
             for _, signatures in blocks.items():
@@ -1546,14 +1557,14 @@ class ANDData:
                 and not self.pair_sampling_balanced_homonym_synonym
             ):
                 # Take samples from each block weighted by their len of total samples
-                sample_size = min(len(possible), sample_size)
-                blockwise_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]] = {}
-                for k in blockwise_sig_pairs.keys():
-                    block_sample_size = int(sample_size * len(blockwise_sig_pairs[k])/len(possible))
-                    samples = random_sampling(blockwise_sig_pairs[k], block_sample_size, self.random_seed)
-                    if(len(samples)>0):
-                        blockwise_pairs[k] = samples
-                return blockwise_pairs
+                # sample_size = min(len(possible), sample_size)
+                # blockwise_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]] = {}
+                # for k in blockwise_sig_pairs.keys():
+                #     block_sample_size = int(sample_size * len(blockwise_sig_pairs[k])/len(possible))
+                #     samples = random_sampling(blockwise_sig_pairs[k], block_sample_size, self.random_seed)
+                #     if(len(samples)>0):
+                #         blockwise_pairs[k] = samples
+                return blockwise_sig_pairs, blockwise_cluster_ids
 
             return pairs
 

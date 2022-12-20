@@ -63,5 +63,8 @@ if __name__=='__main__':
 
         if(block_size<=30) :
             #check if it has multiple clusters
+            print("index is", idx)
             print(gold_output)
-            print(idx)
+            block_id = blockwise_features.keys()[idx]
+            _, _, clusterIds = blockwise_features[block_id]
+            print(clusterIds)
