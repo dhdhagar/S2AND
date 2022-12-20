@@ -1488,7 +1488,7 @@ class ANDData:
         elif not self.pair_sampling_balanced_homonym_synonym and not self.pair_sampling_balanced_classes: #Important for Blockwise featurization
             for block_id, signatures in blocks.items():
                 sig_pairs: List[Tuple[str, str, Union[int, float]]] = []
-                cluster_ids: List[str]
+                cluster_ids: List[str] = []
                 for i, s1 in enumerate(signatures):
                     s1_cluster = self.signature_to_cluster_id[s1]
                     cluster_ids.append(s1_cluster)

@@ -86,8 +86,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
     # Default hyperparameters
     hyperparams = {
         # Training config
-        "lr": 1e-4,
-        "n_epochs": 200,
+        "lr": 1e-5,
+        "n_epochs": 400,
         "weighted_loss": True,
         "use_lr_scheduler": True,
         "lr_factor": 0.6,
@@ -112,13 +112,14 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         e2e_model.to(device)
         wandb.watch(e2e_model)
 
-        optimizer = torch.optim.AdamW(e2e_model.parameters(), lr=hyp['lr'], weight_decay=0.9)
+        optimizer = torch.optim.AdamW(e2e_model.parameters(), lr=hyp['lr'])
 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                                                               mode='min',
-                                                               factor=hyp['lr_factor'],
-                                                               min_lr=hyp['lr_min'],
-                                                               patience=hyp['lr_scheduler_patience'])
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+        #                                                        mode='min',
+        #                                                        factor=hyp['lr_factor'],
+        #                                                        min_lr=hyp['lr_min'],
+        #                                                        patience=hyp['lr_scheduler_patience'])
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.1)
 
         batch_size = 0
         best_metric = 0
@@ -161,13 +162,13 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 logging.info("gold output")
                 logging.info(gold_output)
 
-                loss = torch.norm(gold_output - Xr)/2
+                loss = torch.norm(gold_output - output)/2
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                scheduler.step(loss.item())
+                scheduler.step()
 
                 logging.info("Grad values")
                 logging.info(e2e_model.sdp_layer.W_val.grad)
