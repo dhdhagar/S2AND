@@ -32,7 +32,7 @@ class model(torch.nn.Module):
 
         output_probs = self.sdp_layer(edge_weights_uncompressed)
         # Convert upper triangular output to a symmetric matrix
-        #output_probs = output_probs + torch.transpose(output_probs, 0, 1) - torch.diag(output_probs)
+        output_probs = output_probs + torch.transpose(output_probs, 0, 1) + torch.eye(output_probs.size(0))
         logging.info("Size of X is %s", output_probs.size())
         logging.info("X")
         logging.info(output_probs)

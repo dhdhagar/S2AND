@@ -46,7 +46,7 @@ class SDPLayer(torch.nn.Module):
         })
 
         # Perform the necessary transforms to get final upper triangular matrix of clustering probabilities
-        # pw_probs = torch.triu(pw_probs[0], diagonal=1)
+        pw_probs = torch.triu(pw_probs[0], diagonal=1)
         with torch.no_grad():
             sdp_obj_value = torch.sum(self.W_val * pw_probs).item()
 
