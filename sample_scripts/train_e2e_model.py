@@ -87,7 +87,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
     hyperparams = {
         # Training config
         "lr": 1e-5,
-        "n_epochs": 400,
+        "n_epochs": 1000,
         "weighted_loss": True,
         "use_lr_scheduler": True,
         "lr_factor": 0.6,
@@ -129,9 +129,9 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
             running_loss = []
             wandb.log({'epoch': i + 1})
             for (idx, batch) in enumerate(train_Dataloader):
-                if(idx != 33):
+                if(idx != 35):
                     continue
-                if(idx > 33):
+                if(idx > 35):
                     break
                 # LOADING THE DATA IN A BATCH
                 data, target = batch

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class model(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.mlp_layer = MLPLayer(n_features=39)
+        self.mlp_layer = MLPLayer(n_features=39, dropout_p=0, add_batchnorm=False)
         self.uncompress_layer = UncompressTransformLayer()
         self.sdp_layer = SDPLayer(max_sdp_iters=50000)
         self.trellis_cut_estimator = TrellisCutLayer()
@@ -32,7 +32,7 @@ class model(torch.nn.Module):
 
         output_probs = self.sdp_layer(edge_weights_uncompressed)
         # Convert upper triangular output to a symmetric matrix
-        output_probs = output_probs + torch.transpose(output_probs, 0, 1) - torch.diag(output_probs)
+        #output_probs = output_probs + torch.transpose(output_probs, 0, 1) - torch.diag(output_probs)
         logging.info("Size of X is %s", output_probs.size())
         logging.info("X")
         logging.info(output_probs)

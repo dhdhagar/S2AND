@@ -50,8 +50,8 @@ if __name__=='__main__':
         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
         data, target = data.to(device), target.to(device)
         # Reshape data to 2-D matrix, and target to 1D
-        n = np.shape(data)[1]
-        f = np.shape(data)[2]
+        n = np.shape(data)[0]
+        f = np.shape(data)[1]
 
         batch_size = n
         data = torch.reshape(data, (n, f))

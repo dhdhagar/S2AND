@@ -33,11 +33,11 @@ class MLPLayer(torch.nn.Module):
                 self.mlp_model = nn.Sequential(
                     *(([]) +
                       [nn.Linear(n_features, hidden_dim)] +
-                      (([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
-                       [activation_fn(**activation_args), nn.Dropout(p=dropout_p),
+                      ([activation_fn(**activation_args)] + ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
+                       [nn.Dropout(p=dropout_p),
                         nn.Linear(hidden_dim, hidden_dim)]) * (n_hidden_layers - 1) +
-                      ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) + [activation_fn(**activation_args),
-                                                                                 nn.Dropout(p=dropout_p),
+                      ([activation_fn(**activation_args)] + [nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
+                                                                                 [nn.Dropout(p=dropout_p),
                                                                                  nn.Linear(hidden_dim, 1)])
                 )
 
