@@ -28,7 +28,7 @@ class model(torch.nn.Module):
 
         edge_weights_uncompressed = self.uncompress_layer(edge_weights)
         logging.info("Size of Uncompressed W is %s", edge_weights_uncompressed.size())
-        logging.info(edge_weights)
+        logging.info(edge_weights_uncompressed)
 
         output_probs = self.sdp_layer(edge_weights_uncompressed)
         # Convert upper triangular output to a symmetric matrix
