@@ -62,6 +62,7 @@ DEFAULT_HYPERPARAMS = {
     "vanilla_hidden_dim": 1024,
     "vanilla_n_hidden_layers": 1,
     "vanilla_batchnorm": True,
+    "vanilla_dropout_only_once": True,
     "vanilla_activation": "leaky_relu",
     "reinit_model": False
 }
@@ -158,7 +159,7 @@ class NeuMissHB(torch.nn.Module):
 class NeuMissVanilla(torch.nn.Module):
     def __init__(self, n_features, neumiss_depth=10, hidden_dim=1024, n_hidden_layers=1, dropout_p=0.1,
                  add_neumiss=True, add_batchnorm=True, neumiss_deq=False, activation="leaky_relu", negative_slope=0.01,
-                 hidden_config=None):
+                 dropout_only_once=False, hidden_config=None):
         super().__init__()
         neumiss_layer = NeuMissDEQBlock if neumiss_deq else NeuMissBlock
         neumiss_args = {"n_features": n_features}
@@ -175,9 +176,10 @@ class NeuMissVanilla(torch.nn.Module):
             for out_dim in hidden_config:
                 network += [nn.Linear(in_dim, out_dim)] + \
                            [activation_fn(**activation_args)] + \
-                           ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + [nn.Dropout(p=dropout_p)]
+                           ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + \
+                           ([nn.Dropout(p=dropout_p)] if not dropout_only_once else [])
                 in_dim = out_dim
-            network += [nn.Linear(in_dim, 1)]
+            network += ([nn.Dropout(p=dropout_p)] if dropout_only_once else []) + [nn.Linear(in_dim, 1)]
             self.linear_layer = nn.Sequential(*network)
         else:
             if n_hidden_layers < 1:
@@ -187,8 +189,8 @@ class NeuMissVanilla(torch.nn.Module):
                   [nn.Linear(n_features, hidden_dim)] +
                   ([activation_fn(**activation_args)] +
                    ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
-                   [nn.Dropout(p=dropout_p),
-                    nn.Linear(hidden_dim, hidden_dim)]) * (n_hidden_layers - 1) +
+                   ([nn.Dropout(p=dropout_p)] if not dropout_only_once else []) +
+                   [nn.Linear(hidden_dim, hidden_dim)]) * (n_hidden_layers - 1) +
                   [activation_fn(**activation_args)] + ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
                   [nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
             )
@@ -425,7 +427,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
                                    hidden_dim=hyp['vanilla_hidden_dim'], n_hidden_layers=hyp['vanilla_n_hidden_layers'],
                                    dropout_p=hyp['dropout'], add_neumiss=not hyp['convert_nan'],
                                    add_batchnorm=hyp['vanilla_batchnorm'], neumiss_deq=hyp['neumiss_deq'],
-                                   activation=hyp['vanilla_activation'], hidden_config=hyp['vanilla_hidden_config'])
+                                   activation=hyp['vanilla_activation'], hidden_config=hyp['vanilla_hidden_config'],
+                                   dropout_only_once=hyp['vanilla_dropout_only_once'])
 
         if hyp['reinit_model']:
             if hyp['hb_model']:
