@@ -1185,7 +1185,9 @@ class ANDData:
             self.all_test_pairs_flag
         )
 
-        return train_blockwise_pairs, train_blockwise_clusterIds, val_blockwise_pairs, test_blockwise_pairs
+        return train_blockwise_pairs, train_blockwise_clusterIds, \
+               val_blockwise_pairs, val_blockwise_clusterIds, \
+               test_blockwise_pairs, test_blockwise_clusterIds
 
     def construct_cluster_to_signatures(
         self,

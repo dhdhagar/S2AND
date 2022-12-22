@@ -119,7 +119,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         #                                                        factor=hyp['lr_factor'],
         #                                                        min_lr=hyp['lr_min'],
         #                                                        patience=hyp['lr_scheduler_patience'])
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.1)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.1)
 
         batch_size = 0
         best_metric = 0
@@ -149,13 +149,11 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
 
                 # Forward pass through the e2e model
                 output = e2e_model(data)
-                Xr = trellis_cut_estimator(e2e_model.uncompress_layer.uncompressed_matrix, output)
-                logging.info("Rounding Layer OP")
+                # Xr = trellis_cut_estimator(e2e_model.uncompress_layer.uncompressed_matrix, output)
+                # logging.info("Rounding Layer OP")
+                Xr = torch.where(output > 0.5, 1, 0)
+                logging.info("Thresholding sdp OP")
                 logging.info(Xr)
-                # print("weights of mlp:")
-                # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_1)
-                # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_2)
-                # print(e2e_model.mlp_layer.mlp_model._operators[0].weight_3)
 
                 # Calculate the loss and its gradients
                 gold_output = uncompress_target_tensor(target)

@@ -45,10 +45,12 @@ class SDPLayer(torch.nn.Module):
             "eps": 1e-3
         })
 
+        pw_probs = pw_probs[0]
+
         # Perform the necessary transforms to get final upper triangular matrix of clustering probabilities
-        pw_probs = torch.triu(pw_probs[0], diagonal=1)
+        pw_probs_ut = torch.triu(pw_probs, diagonal=1)
         with torch.no_grad():
-            sdp_obj_value = torch.sum(self.W_val * pw_probs).item()
+            sdp_obj_value = torch.sum(self.W_val * pw_probs_ut).item()
 
         # number of active graph nodes we are clustering
         active_n = self.num_points
@@ -72,7 +74,7 @@ class SDPLayer(torch.nn.Module):
                 self.L.value[ecc_idx, point_idx] = 0.0
         else:
             # pw_probs = self.X.value[:active_n, :active_n]
-            pw_probs = pw_probs[:active_n, :active_n]
+            pw_probs_ut = pw_probs_ut[:active_n, :active_n]
 
         # if self.incompat_mx is not None:
         #     # discourage incompatible nodes from clustering together
