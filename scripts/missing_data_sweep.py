@@ -174,8 +174,8 @@ class NeuMissVanilla(torch.nn.Module):
             in_dim = n_features
             for out_dim in hidden_config:
                 network += [nn.Linear(in_dim, out_dim)] + \
-                           ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + [activation_fn(**activation_args),
-                                                                                   nn.Dropout(p=dropout_p)]
+                           [activation_fn(**activation_args)] + \
+                           ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + [nn.Dropout(p=dropout_p)]
                 in_dim = out_dim
             network += [nn.Linear(in_dim, 1)]
             self.linear_layer = nn.Sequential(*network)
@@ -185,12 +185,12 @@ class NeuMissVanilla(torch.nn.Module):
             self.linear_layer = nn.Sequential(
                 *(([neumiss_layer(**neumiss_args)] if add_neumiss else []) +
                   [nn.Linear(n_features, hidden_dim)] +
-                  (([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
-                   [activation_fn(**activation_args), nn.Dropout(p=dropout_p),
+                  ([activation_fn(**activation_args)] +
+                   ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
+                   [nn.Dropout(p=dropout_p),
                     nn.Linear(hidden_dim, hidden_dim)]) * (n_hidden_layers - 1) +
-                  ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) + [activation_fn(**activation_args),
-                                                                             nn.Dropout(p=dropout_p),
-                                                                             nn.Linear(hidden_dim, 1)])
+                  [activation_fn(**activation_args)] + ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
+                  [nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
             )
 
     def forward(self, x):
