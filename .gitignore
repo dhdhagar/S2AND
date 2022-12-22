@@ -136,4 +136,4 @@ foo-*
 *.cpp
 
 .idea
-data
+data/

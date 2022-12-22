@@ -1,12 +1,9 @@
+"""
+Run from command line:
+    python pipeline/preprocess_s2and_data.py --data_home_dir="./data" --dataset_name="pubmed"
+"""
 from typing import Union, Dict
-from typing import List
 from typing import Tuple
-
-import hummingbird
-import torch
-from hummingbird.ml import constants
-from torch.optim import optimizer
-from torch.utils.data import Dataset, DataLoader
 
 from s2and.consts import PREPROCESSED_DATA_DIR
 from s2and.featurizer import FeaturizationInfo, store_featurized_pickles, many_pairs_featurize
@@ -67,13 +64,13 @@ if __name__=='__main__':
     print(args)
 
     params = args.__dict__
-    if(params["data_home_dir"] is None):
+    if(params["data_home_dir"] is not None):
         DATA_HOME_DIR = params["data_home_dir"]
     else:
-        # DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
-        DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
+        DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+        #DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
-    if(params["dataset_name"] is None):
+    if(params["dataset_name"] is not None):
         dataset = params["dataset_name"]
     else:
         dataset = "arnetminer"
@@ -82,7 +79,7 @@ if __name__=='__main__':
 
     random_seeds = {1, 2, 3, 4, 5}
     for seed in random_seeds:
-
+        print("Preprocessing started for seed value", seed)
         save_blockwise_featurized_data(dataset, seed)
 
         # Check the pickles are created OK
