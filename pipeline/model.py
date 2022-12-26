@@ -24,21 +24,22 @@ class model(torch.nn.Module):
         edge_weights = self.mlp_layer(x.float())
         # Reshape to the size required by uncompress layer, viz 1d list
         edge_weights = torch.reshape(edge_weights, (-1,))
+        edge_weights = torch.sigmoid(edge_weights)
         logging.info("Size of W is %s", edge_weights.size())
         logging.info("W")
         logging.info(edge_weights)
 
-        edge_weights_uncompressed = self.uncompress_layer(edge_weights)
-        logging.info("Size of Uncompressed W is %s", edge_weights_uncompressed.size())
-        logging.info(edge_weights_uncompressed)
-
-        output_probs = self.sdp_layer(edge_weights_uncompressed)
-        logging.info("Size of X is %s", output_probs.size())
-        logging.info("X")
-        logging.info(output_probs)
-
-        pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
-        logging.info("Size of HAC Cut OP is %s", pred_clustering.size())
-        logging.info("HAC Cut OP")
-        logging.info(pred_clustering)
-        return pred_clustering
+        # edge_weights_uncompressed = self.uncompress_layer(edge_weights)
+        # logging.info("Size of Uncompressed W is %s", edge_weights_uncompressed.size())
+        # logging.info(edge_weights_uncompressed)
+        #
+        # output_probs = self.sdp_layer(edge_weights_uncompressed)
+        # logging.info("Size of X is %s", output_probs.size())
+        # logging.info("X")
+        # logging.info(output_probs)
+        #
+        # pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
+        # logging.info("Size of HAC Cut OP is %s", pred_clustering.size())
+        # logging.info("HAC Cut OP")
+        # logging.info(pred_clustering)
+        return edge_weights

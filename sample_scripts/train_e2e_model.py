@@ -156,7 +156,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 # logging.info(Xr)
 
                 # Calculate the loss and its gradients
-                gold_output = uncompress_target_tensor(target)
+                #gold_output = uncompress_target_tensor(target)
+                gold_output = target
                 logging.info("gold output")
                 logging.info(gold_output)
 
