@@ -77,7 +77,7 @@ if __name__=='__main__':
 
     # TODO: Create a loop to perform preprocessing for all Datasets
 
-    random_seeds = {1, 2, 3, 4, 5}
+    random_seeds = {1}
     for seed in random_seeds:
         print("Preprocessing started for seed value", seed)
         save_blockwise_featurized_data(dataset, seed)

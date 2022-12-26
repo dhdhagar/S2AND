@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from utils.convert_lgbm_to_torch import convert_pretrained_model
+#from utils.convert_lgbm_to_torch import convert_pretrained_model
 
 
 class MLPLayer(torch.nn.Module):
@@ -9,9 +9,9 @@ class MLPLayer(torch.nn.Module):
                  activation="leaky_relu", negative_slope=0.01, hidden_config=None):
         super().__init__()
         self.use_hb = use_hb
-        if(self.use_hb):
-            self.mlp_model = convert_pretrained_model(dropout_p)
-        else:
+        if not self.use_hb:
+            #self.mlp_model = convert_pretrained_model(dropout_p)
+        #else:
             activation_fn = nn.ReLU if activation == "relu" else nn.LeakyReLU
             activation_args = {}
             if activation == "leaky_relu":

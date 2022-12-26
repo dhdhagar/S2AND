@@ -2,6 +2,7 @@ import torch
 
 from pipeline.mlp_layer import MLPLayer
 from pipeline.sdp_layer import SDPLayer
+from pipeline.hac_cut_layer import HACCutLayer
 from pipeline.trellis_cut_layer import TrellisCutLayer
 from pipeline.uncompress_layer import UncompressTransformLayer
 import logging
@@ -16,7 +17,8 @@ class model(torch.nn.Module):
         self.mlp_layer = MLPLayer(n_features=39, dropout_p=0, add_batchnorm=True)
         self.uncompress_layer = UncompressTransformLayer()
         self.sdp_layer = SDPLayer(max_sdp_iters=50000)
-        self.trellis_cut_estimator = TrellisCutLayer()
+        self.hac_cut_layer = HACCutLayer()
+        #self.trellis_cut_estimator = TrellisCutLayer()
 
     def forward(self, x):
         edge_weights = self.mlp_layer(x.float())
@@ -35,6 +37,8 @@ class model(torch.nn.Module):
         logging.info("X")
         logging.info(output_probs)
 
-        # pred_clustering = self.trellis_cut_estimator(edge_weights_uncompressed, output_probs)
-        # print("Size of OP of Trellis Cut layer is", pred_clustering.size())
-        return output_probs
+        pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
+        logging.info("Size of HAC Cut OP is %s", pred_clustering.size())
+        logging.info("HAC Cut OP")
+        logging.info(pred_clustering)
+        return pred_clustering

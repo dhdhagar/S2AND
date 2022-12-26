@@ -47,7 +47,8 @@ Run the Preprocessing step for each dataset, this step creates the following dir
 this naming convention: train_features.pkl, train_signatures.pkl.
 
 The features pickle contains a dictionary of type: 
-```Dict[block_id: str, Tuple[features: np.ndarray, labels: np.ndarray, cluste_ids: np.ndarray]]```.
+```Dict[block_id: str, Tuple[features: np.ndarray, labels: np.ndarray, cluste_ids: np.ndarray]]```. 
+NOTE: The pairwise features are compressed in order to be stored as a n(n-1)/2 matrix rather than an nxn symmetric matrix.
 The signatures pickle contains all the metadata for each signature in a block.
 
 Sample command:
@@ -58,3 +59,4 @@ python pipeline/preprocess_s2and_data.py --data_home_dir="./data" --dataset_name
 ## End-to-end model training
 The end-to-end model is defined in file pipeline/model.py. For training of this model, run python script
 sample_scripts/train_e2e_model.py
+

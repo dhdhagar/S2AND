@@ -17,8 +17,8 @@ from s2and.data import S2BlocksDataset
 
 from sklearn.metrics.cluster import v_measure_score
 
-#DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
-DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
+DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
+#DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
@@ -151,9 +151,9 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 output = e2e_model(data)
                 # Xr = trellis_cut_estimator(e2e_model.uncompress_layer.uncompressed_matrix, output)
                 # logging.info("Rounding Layer OP")
-                Xr = torch.where(output > 0.5, 1, 0)
-                logging.info("Thresholding sdp OP")
-                logging.info(Xr)
+                # Xr = torch.where(output > 0.5, 1, 0)
+                # logging.info("Thresholding sdp OP")
+                # logging.info(Xr)
 
                 # Calculate the loss and its gradients
                 gold_output = uncompress_target_tensor(target)
