@@ -16,6 +16,7 @@ import numpy as np
 from s2and.data import S2BlocksDataset
 
 from sklearn.metrics.cluster import v_measure_score
+from torchmetrics.classification import BinaryAUROC
 
 DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
 #DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
@@ -35,11 +36,11 @@ def read_blockwise_features(pkl):
 def uncompress_target_tensor(compressed_targets):
     n = round(math.sqrt(2 * compressed_targets.size(dim=0))) + 1
     # Convert the 1D pairwise-similarities list to nxn upper triangular matrix
-    ind = torch.triu_indices(n, n, offset=1)
+    ind = torch.triu_indices(n, n, offset=1, device=device)
     output = (torch.sparse_coo_tensor(ind, compressed_targets, [n, n])).to_dense()
     # Convert the upper triangular matrix to a symmetric matrix
     symm_mat = output + torch.transpose(output, 0, 1)
-    symm_mat += torch.eye(n) # Set all 1s on the diagonal
+    symm_mat += torch.eye(n, device=device) # Set all 1s on the diagonal
     return symm_mat
 
 # def evaluate_e2e_model(model, dataloader, eval_metric):
@@ -98,8 +99,6 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         "overfit_one_batch": True
     }
 
-    trellis_cut_estimator = TrellisCutLayer()
-
     # Start wandb run
     with wandb.init(config=hyperparams):
         hyp = wandb.config
@@ -125,6 +124,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         best_metric = 0
         best_model_on_dev = None
         best_epoch = 0
+        loss_fn = torch.nn.BCELoss()
+        metric = BinaryAUROC(thresholds=None)
         for i in range(n_epochs):
             running_loss = []
             wandb.log({'epoch': i + 1})
@@ -161,7 +162,8 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 logging.info("gold output")
                 logging.info(gold_output)
 
-                loss = torch.norm(gold_output - output)/2
+                #loss = torch.norm(gold_output - output)/2
+                loss = loss_fn(output.float(), gold_output.float())
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
@@ -170,13 +172,16 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 scheduler.step()
 
                 logging.info("Grad values")
-                logging.info(e2e_model.sdp_layer.W_val.grad)
+                #logging.info(e2e_model.sdp_layer.W_val.grad)
                 mlp_grad = e2e_model.mlp_layer.edge_weights.grad
                 logging.info(uncompress_target_tensor(torch.reshape(mlp_grad.detach(), (-1,))))
 
                 # Gather data and report
                 logging.info("loss is %s", loss.item())
                 running_loss.append(loss.item())
+
+                train_f1_metric = metric(output, gold_output)
+                print("training AUROC is ", train_f1_metric)
 
                 # train_f1_metric = get_vmeasure_score(output.detach().numpy(), target.detach().numpy())
                 # print("training f1 cluster measure is ", train_f1_metric)
@@ -202,7 +207,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
             #     'dev_vmeasure': dev_f1_metric,
             # })
             if overfit_one_batch:
-                wandb.log({'train_loss_epoch': np.mean(running_loss)})#, 'train_vmeasure': train_f1_metric})
+                wandb.log({'train_loss_epoch': np.mean(running_loss), 'train_vmeasure': train_f1_metric})
 
             # Update lr schedule
             # if use_lr_scheduler:
