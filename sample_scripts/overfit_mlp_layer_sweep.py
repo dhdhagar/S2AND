@@ -43,49 +43,15 @@ def uncompress_target_tensor(compressed_targets):
     symm_mat += torch.eye(n, device=device) # Set all 1s on the diagonal
     return symm_mat
 
-# def evaluate_e2e_model(model, dataloader, eval_metric):
-#     f1_score = 0
-#     for (idx, batch) in enumerate(dataloader):
-#         data, target = batch
-#
-#         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
-#         data, target = data.to(device), target.to(device)
-#         # Reshape data to 2-D matrix, and target to 1D
-#         n = np.shape(data)[1]
-#         f = np.shape(data)[2]
-#
-#         batch_size = n
-#         data = torch.reshape(data, (n, f))
-#         target = torch.reshape(target, (n,))
-#
-#         output = model(data)
-#         # print(output)
-#
-#         # Calculate the loss and its gradients
-#         gold_output = uncompress_target_tensor(target)
-#         if(eval_metric == "v_measure_score"):
-#             f1_score += v_measure_score(torch.flatten(output), torch.flatten(gold_output))
-#             print("Cumulative f1 score", f1_score)
-#
-#         return f1_score
-#         break
-#
-# def get_vmeasure_score(outputs, gold_labels):
-#     # takes as input model output (nxn matrix) and target labels to find cluster v_measure_score
-#     # Convert outputs to upper triangular matrices
-#     outputs_triu = np.triu(outputs, 1)
-#     idxs = np.triu_indices(np.shape(outputs)[0], 1)
-#     outputs_1d = outputs_triu[idxs]
-#     print("compressed output", outputs_1d, "max op", np.max(outputs_1d), "targets", gold_labels)
-#
-#     f1_score = v_measure_score(outputs_1d, gold_labels)
-#
-#     return f1_score
-
-
-def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
+def train_e2e_model(train_Dataloader, val_Dataloader):
     # Default hyperparameters
     hyperparams = {
+        # model config
+        "hidden_dim": 1024,
+        "n_hidden_layers": 1,
+        "dropout_p": 0.1,
+        "hidden_config": None,
+        "activation": "leaky_relu",
         # Training config
         "lr": 1e-5,
         "n_epochs": 1000,
@@ -95,7 +61,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         "lr_min": 1e-6,
         "lr_scheduler_patience": 10,
         "weight_decay": 0.,
-        "dev_opt_metric": 'v_measure_score',
+        "dev_opt_metric": 'auroc',
         "overfit_one_batch": True
     }
 
@@ -107,6 +73,26 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         dev_opt_metric = hyp['dev_opt_metric']
         n_epochs = hyp['n_epochs']
         use_lr_scheduler = hyp['use_lr_scheduler']
+        hidden_dim = hyp["hidden_dim"]
+        n_hidden_layers = hyp["n_hidden_layers"]
+        dropout_p = hyp["dropout_p"]
+        hidden_config = hyp["hidden_config"]
+        activation = hyp["activation"]
+
+        # pos_weight = None
+        # if weighted_loss:
+        #     if overfit_one_batch:
+        #         pos_weight = (batch_size - y_train_tensor[:batch_size].sum()) / y_train_tensor[:batch_size].sum()
+        e2e_model = model(hidden_dim,
+                          n_hidden_layers,
+                          dropout_p,
+                          hidden_config,
+                          activation)
+        logging.info("model loaded: %s", e2e_model)
+        logging.info("Learnable parameters:")
+        for name, parameter in e2e_model.named_parameters():
+            if (parameter.requires_grad):
+                logging.info(name)
 
         e2e_model.to(device)
         wandb.watch(e2e_model)
@@ -124,7 +110,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         best_metric = 0
         best_model_on_dev = None
         best_epoch = 0
-        loss_fn = torch.nn.BCELoss()
+        loss_fn = torch.nn.BCEWithLogitsLoss()
         metric = BinaryAUROC(thresholds=None)
         for i in range(n_epochs):
             running_loss = []
@@ -146,23 +132,18 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 batch_size = n
                 data = torch.reshape(data, (n, f))
                 target = torch.reshape(target, (n,))
-                logging.info("Data read, Uncompressed Batch size is: %s", target.size())
+                logging.info("Data read, Uncompressed Batch size is: %s", n)
 
                 # Forward pass through the e2e model
                 output = e2e_model(data)
-                # Xr = trellis_cut_estimator(e2e_model.uncompress_layer.uncompressed_matrix, output)
-                # logging.info("Rounding Layer OP")
-                # Xr = torch.where(output > 0.5, 1, 0)
-                # logging.info("Thresholding sdp OP")
-                # logging.info(Xr)
 
                 # Calculate the loss and its gradients
-                gold_output = uncompress_target_tensor(target)
+                gold_output = target
                 logging.info("gold output")
                 logging.info(gold_output)
 
-                loss = torch.norm(gold_output - output)/2
-                #loss = loss_fn(output.float(), gold_output.float())
+                # BCE Loss for binary classification
+                loss = loss_fn(output.float(), gold_output.float())
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
@@ -171,7 +152,7 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 scheduler.step()
 
                 logging.info("Grad values")
-                logging.info(e2e_model.sdp_layer.W_val.grad)
+                #logging.info(e2e_model.sdp_layer.W_val.grad)
                 mlp_grad = e2e_model.mlp_layer.edge_weights.grad
                 logging.info(uncompress_target_tensor(torch.reshape(mlp_grad.detach(), (-1,))))
 
@@ -179,34 +160,23 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
                 logging.info("loss is %s", loss.item())
                 running_loss.append(loss.item())
 
-                # train_f1_metric = metric(output, gold_output)
-                # print("training AUROC is ", train_f1_metric)
+                train_f1_metric = metric(output, gold_output)
+                print("training AUROC is ", train_f1_metric)
 
                 # train_f1_metric = get_vmeasure_score(output.detach().numpy(), target.detach().numpy())
                 # print("training f1 cluster measure is ", train_f1_metric)
                 break
 
-            # Print epoch validation accuracy
-            # with torch.no_grad():
-            #     e2e_model.eval()
-            #     # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
-            #     # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
-            #     # if dev_f1_metric > best_metric:
-            #     #     logger.info(f"New best dev {dev_opt_metric}; storing model")
-            #     #     best_epoch = i
-            #     #     best_metric = dev_f1_metric
-            #     #     best_model_on_dev = copy.deepcopy(model)
-            #     if overfit_one_batch:
-            #         train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
-            #         print("training f1 cluster measure is ", train_f1_metric)
-            # e2e_model.train()
-
-            # wandb.log({
-            #     'train_loss_epoch': np.mean(running_loss),
-            #     'dev_vmeasure': dev_f1_metric,
-            # })
             if overfit_one_batch:
-                wandb.log({'train_loss_epoch': np.mean(running_loss)})#, 'train_vmeasure': train_f1_metric})
+                wandb.log({'train_loss': np.mean(running_loss), 'train_auroc': train_f1_metric})
+
+            if train_f1_metric > best_metric:
+                best_metric = train_f1_metric
+                best_epoch = i
+                best_hyperparameters = {"hidden_dim ": hidden_dim,
+        n_hidden_layers = hyp["n_hidden_layers"]
+        dropout_p = hyp["dropout_p"]
+        hidden_config"}
 
             # Update lr schedule
             # if use_lr_scheduler:
@@ -235,11 +205,4 @@ if __name__=='__main__':
     val_Dataset = S2BlocksDataset(blockwise_features)
     val_Dataloader = DataLoader(val_Dataset, shuffle=False)
 
-    e2e_model = model()
-    logging.info("model loaded: %s", e2e_model)
-    logging.info("Learnable parameters:")
-    for name, parameter in e2e_model.named_parameters():
-        if(parameter.requires_grad):
-            logging.info(name)
-
-    train_e2e_model(e2e_model, train_Dataloader, val_Dataloader)
+    train_e2e_model(train_Dataloader, val_Dataloader)

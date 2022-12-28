@@ -22,8 +22,8 @@ class MLPLayer(torch.nn.Module):
                 in_dim = n_features
                 for out_dim in hidden_config:
                     network += [nn.Linear(in_dim, out_dim)] + \
-                               ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + [activation_fn(**activation_args),
-                                                                                       nn.Dropout(p=dropout_p)]
+                               ([activation_fn(**activation_args)]) + \
+                               ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + [nn.Dropout(p=dropout_p)]
                     in_dim = out_dim
                 network += [nn.Linear(in_dim, 1)]
                 self.mlp_model = nn.Sequential(*network)
