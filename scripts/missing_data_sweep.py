@@ -409,7 +409,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
         hyp = wandb.config
         # Save hyperparameters as a json file and store in wandb run
         with open(os.path.join(run.dir, 'hyperparameters.json'), 'w') as fh:
-            json.dump(hyp, fh)
+            json.dump(dict(hyp), fh)
         wandb.save('hyperparameters.json')
 
         # Load data
