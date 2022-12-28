@@ -473,6 +473,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
             state_dict = torch.load(load_model_from_fpath)
         if state_dict is not None:
             model.load_state_dict(state_dict)
+            logger.info(f'Loaded stored model.')
 
         # TODO: Implement flag and code to run only inference
 
