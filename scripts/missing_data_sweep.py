@@ -145,6 +145,18 @@ class ArgParser(argparse.ArgumentParser):
             "--cpu", action='store_true',
             help="Run on CPU regardless of CUDA-availability",
         )
+        self.add_argument(
+            "--save_model", action='store_true',
+            help="Whether to save the model (locally in the wandb run dir & in wandb cloud storage)",
+        )
+        self.add_argument(
+            "--load_model_from_wandb_run", type=str,
+            help="Load model state_dict from a previous wandb run",
+        )
+        self.add_argument(
+            "--load_model_from_fpath", type=str,
+            help="Load model state_dict from a local file path",
+        )
 
 
 class NeuMissHB(torch.nn.Module):
@@ -376,7 +388,8 @@ def evaluate(model, x, output, mode="macro", return_pred_only=False,
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None,
-          tags=None, group=None, default_hyperparams=DEFAULT_HYPERPARAMS):
+          tags=None, group=None, default_hyperparams=DEFAULT_HYPERPARAMS,
+          save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None):
     init_args = {
         'config': default_hyperparams
     }
@@ -451,6 +464,17 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
                              vanilla=False)
             else:
                 init_weights(model.linear_layer, activation=hyp['vanilla_activation'], vanilla=True)
+
+        # Load stored model, if available
+        state_dict = None
+        if load_model_from_wandb_run is not None:
+            state_dict = wandb.restore('model_state_dict_best.pt', run_path=load_model_from_wandb_run)
+        elif load_model_from_fpath is not None:
+            state_dict = torch.load(load_model_from_fpath)
+        if state_dict is not None:
+            model.load_state_dict(state_dict)
+
+        # TODO: Implement flag and code to run only inference
 
         # Training code
         batch_size = hyp['batch_size']
@@ -636,6 +660,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
         logger.info("End of wandb block in train()")
         run.summary["z_model_parameters"] = count_parameters(model)
         run.summary["z_run_time"] = round(end_time - start_time)
+
+        # Save models
+        if save_model:
+            torch.save(best_model_on_dev.state_dict(), os.path.join(run.dir, 'model_state_dict_best.pt'))
+            wandb.save('model_state_dict_best.pt')
+            # torch.save(model.state_dict(), os.path.join(run.dir, 'model_state_dict_final.pt'))
+            # wandb.save('model_state_dict_final.pt')
     logger.info("End of train() call")
 
 needs_sigmoid = [NeuMissVanilla]
@@ -677,7 +708,10 @@ if __name__ == '__main__':
               project=args['wandb_project'],
               entity=args['wandb_entity'],
               tags=args['wandb_tags'],
-              group=args['wandb_group'])
+              group=args['wandb_group'],
+              save_model=args['save_model'],
+              load_model_from_wandb_run=args['load_model_from_wandb_run'],
+              load_model_from_fpath=args['load_model_from_fpath'])
         logger.info("End of run")
     else:
         logger.info("Sweep mode")
