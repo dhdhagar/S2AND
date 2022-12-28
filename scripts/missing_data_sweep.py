@@ -394,6 +394,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
     with wandb.init(**init_args) as run:
         wandb.config.update(hyperparams, allow_val_change=True)
         hyp = wandb.config
+        # Save hyperparameters as a json file and store in wandb run
+        with open(os.path.join(run.dir, 'hyperparameters.json'), 'w') as fh:
+            json.dump(hyp, fh)
+        wandb.save('hyperparameters.json')
 
         # Load data
         out_dir = os.path.join("data", hyp["dataset"], "clf_random_splits")
