@@ -468,9 +468,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
         # Load stored model, if available
         state_dict = None
         if load_model_from_wandb_run is not None:
-            state_dict = wandb.restore('model_state_dict_best.pt', run_path=load_model_from_wandb_run)
+            state_dict_fpath = wandb.restore('model_state_dict_best.pt', run_path=load_model_from_wandb_run).name
+            state_dict = torch.load(state_dict_fpath, device)
         elif load_model_from_fpath is not None:
-            state_dict = torch.load(load_model_from_fpath)
+            state_dict = torch.load(load_model_from_fpath, device)
         if state_dict is not None:
             model.load_state_dict(state_dict)
             logger.info(f'Loaded stored model.')
