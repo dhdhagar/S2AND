@@ -1,4 +1,5 @@
 import json
+import random
 import time
 import copy
 import os
@@ -34,6 +35,7 @@ DEFAULT_HYPERPARAMS = {
     # Dataset
     "dataset": "pubmed",
     "dataset_random_seed": 1,
+    "run_random_seed": 17,
     # Data config
     "convert_nan": False,
     "nan_value": -1,
@@ -78,6 +80,10 @@ class ArgParser(argparse.ArgumentParser):
         self.add_argument(
             "--dataset_random_seed", type=int, default=1,
             help="S2AND random seed for dataset splits (1/2/3/4/5)",
+        )
+        self.add_argument(
+            "--run_random_seed", type=int, default=17,
+            help="Random seed for everything except the dataset",
         )
         self.add_argument(
             "--wandb_sweep_name", type=str,
@@ -394,6 +400,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None,
         out_fname = os.path.join(out_dir, f"splits_rand{hyp['dataset_random_seed']}.pkl")
         with open(out_fname, 'rb') as out_fh:
             splits = pickle.load(out_fh)
+
+        # Seed everything
+        torch.manual_seed(hyp['run_random_seed'])
+        random.seed(hyp['run_random_seed'])
+        np.random.seed(hyp['run_random_seed'])
 
         # Get tensors
         all_tensors = get_tensors(splits['X_train'], splits['y_train'], splits['X_val'],
