@@ -83,9 +83,15 @@ def uncompress_target_tensor(compressed_targets):
 #     return f1_score
 
 
-def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
+def train_e2e_model(train_Dataloader, val_Dataloader):
     # Default hyperparameters
     hyperparams = {
+        # model config
+        "hidden_dim": 1024,
+        "n_hidden_layers": 1,
+        "dropout_p": 0.1,
+        "hidden_config": None,
+        "activation": "leaky_relu",
         # Training config
         "lr": 1e-5,
         "n_epochs": 1000,
@@ -107,6 +113,22 @@ def train_e2e_model(e2e_model, train_Dataloader, val_Dataloader):
         dev_opt_metric = hyp['dev_opt_metric']
         n_epochs = hyp['n_epochs']
         use_lr_scheduler = hyp['use_lr_scheduler']
+        hidden_dim = hyp["hidden_dim"]
+        n_hidden_layers = hyp["n_hidden_layers"]
+        dropout_p = hyp["dropout_p"]
+        hidden_config = hyp["hidden_config"]
+        activation = hyp["activation"]
+
+        e2e_model = model(hidden_dim,
+                          n_hidden_layers,
+                          dropout_p,
+                          hidden_config,
+                          activation)
+        logging.info("model loaded: %s", e2e_model)
+        logging.info("Learnable parameters:")
+        for name, parameter in e2e_model.named_parameters():
+            if (parameter.requires_grad):
+                logging.info(name)
 
         e2e_model.to(device)
         wandb.watch(e2e_model)
@@ -235,11 +257,4 @@ if __name__=='__main__':
     val_Dataset = S2BlocksDataset(blockwise_features)
     val_Dataloader = DataLoader(val_Dataset, shuffle=False)
 
-    e2e_model = model()
-    logging.info("model loaded: %s", e2e_model)
-    logging.info("Learnable parameters:")
-    for name, parameter in e2e_model.named_parameters():
-        if(parameter.requires_grad):
-            logging.info(name)
-
-    train_e2e_model(e2e_model, train_Dataloader, val_Dataloader)
+    train_e2e_model(train_Dataloader, val_Dataloader)
