@@ -150,11 +150,10 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
         metric = BinaryAUROC(thresholds=None)
         for i in range(n_epochs):
             running_loss = []
-            wandb.log({'epoch': i + 1})
             for (idx, batch) in enumerate(train_Dataloader):
-                if(idx != 35):
+                if(idx != 27):
                     continue
-                if(idx > 35):
+                if(idx > 27):
                     break
                 # LOADING THE DATA IN A BATCH
                 data, target = batch
@@ -168,7 +167,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 batch_size = n
                 data = torch.reshape(data, (n, f))
                 target = torch.reshape(target, (n,))
-                logging.info("Data read, Uncompressed Batch size is: %s", target.size())
+                logging.info("Data read, Uncompressed Batch size is: %s", n)
 
                 # Forward pass through the e2e model
                 output = e2e_model(data)
@@ -228,7 +227,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
             #     'dev_vmeasure': dev_f1_metric,
             # })
             if overfit_one_batch:
-                wandb.log({'train_loss_epoch': np.mean(running_loss)})#, 'train_vmeasure': train_f1_metric})
+                wandb.log({'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss)})#, 'train_vmeasure': train_f1_metric})
 
             # Update lr schedule
             # if use_lr_scheduler:
