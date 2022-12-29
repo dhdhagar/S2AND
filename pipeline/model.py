@@ -47,4 +47,4 @@ class model(torch.nn.Module):
         logging.info("Size of HAC Cut OP is %s", pred_clustering.size())
         logging.info("HAC Cut OP")
         logging.info(pred_clustering)
-        return edge_weights
+        return pred_clustering
