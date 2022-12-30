@@ -86,13 +86,13 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
     # Default hyperparameters
     hyperparams = {
         # model config
-        "hidden_dim": 1024,
-        "n_hidden_layers": 1,
+        "hidden_dim": 512,
+        "n_hidden_layers": 2,
         "dropout_p": 0.1,
         "hidden_config": None,
         "activation": "leaky_relu",
         # Training config
-        "lr": 4e-4,
+        "lr": 4e-3,
         "n_epochs": 1000,
         "weighted_loss": False,
         "use_lr_scheduler": False,
@@ -113,7 +113,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                                 hyp['dropout_p'],
                                 hyp['hidden_config'],
                                 hyp['activation'],
-                                N_max=110)  # TODO: Set this based on the max. N in the dataset
+                                N_max=120)  # TODO: Set this based on the max. N in the dataset
 
         e2e_model.to(device)
         wandb.watch(e2e_model)
@@ -145,7 +145,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
 
                 # Compute loss
                 gold_output = uncompress_target_tensor(target)
-                loss = torch.norm(gold_output - output) / (2 * N)
+                loss = torch.norm(gold_output - output) / 2
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
