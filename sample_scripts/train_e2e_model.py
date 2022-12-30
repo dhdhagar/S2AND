@@ -86,22 +86,22 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
     # Default hyperparameters
     hyperparams = {
         # model config
-        "hidden_dim": 1024,
-        "n_hidden_layers": 1,
+        "hidden_dim": 512,
+        "n_hidden_layers": 2,
         "dropout_p": 0.1,
         "hidden_config": None,
         "activation": "leaky_relu",
         # Training config
-        "lr": 4e-4,
+        "lr": 1e-4,
         "n_epochs": 1000,
         "weighted_loss": True,
-        "use_lr_scheduler": False,
+        "use_lr_scheduler": True,
         "lr_factor": 0.6,
         "lr_min": 1e-6,
         "lr_scheduler_patience": 10,
-        "weight_decay": 0.,
+        "weight_decay": 0.01,
         "dev_opt_metric": 'v_measure_score',
-        "overfit_one_batch": True
+        "overfit_one_batch": False
     }
 
     # Start wandb run
@@ -124,14 +124,16 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                                                                    min_lr=hyp['lr_min'],
                                                                    patience=hyp['lr_scheduler_patience'])
 
-        batch_idx_to_select = 27
+        batch_idx_to_select = 27  # Based on manual inspection; batch with large size
         start_time = time.time()
         for i in range(hyp['n_epochs']):
+            epoch_start_time = time.time()
             running_loss = []
             for (idx, batch) in enumerate(train_Dataloader):
-                if idx < batch_idx_to_select:
-                    continue
-
+                if hyp['overfit_one_batch']:
+                    if idx < batch_idx_to_select:
+                        continue
+                batch_start_time = time.time()
                 data, target, _ = batch
                 data = torch.squeeze(data).float()
                 N = get_matrix_size_from_triu(data)
@@ -146,7 +148,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
 
                 # Compute loss
                 gold_output = uncompress_target_tensor(target)
-                loss = torch.norm(gold_output - output)/2
+                loss = torch.norm(gold_output - output) / (2 * N)
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
@@ -161,13 +163,19 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 logger.info("loss is %s", loss.item())
                 running_loss.append(loss.item())
 
+                batch_end_time = time.time()
+                logger.info(f'Batch runtime = {round(batch_end_time - batch_start_time)}')
+
                 if hyp['overfit_one_batch']:
-                    wandb.log({'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss)})
+                    wandb.log({'epoch': i + 1, 'train_loss': np.mean(running_loss)})
                     break
 
             # Update lr schedule
             if hyp['use_lr_scheduler']:
                 scheduler.step(np.mean(running_loss))
+
+            epoch_end_time = time.time()
+            logger.info(f'Epoch runtime = {round(epoch_end_time - epoch_start_time)}')
 
         run.summary["z_run_time"] = round(time.time() - start_time)
 
