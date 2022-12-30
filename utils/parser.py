@@ -54,6 +54,18 @@ class Parser(argparse.ArgumentParser):
 
     def add_training_args(self, args=None):
         self.add_argument(
+            "--dataset", type=str, default="pubmed",
+            help="Dataset name (pubmed/qian/zbmath/arnetminer)",
+        )
+        self.add_argument(
+            "--dataset_random_seed", type=int, default=1,
+            help="S2AND random seed for dataset splits (1/2/3/4/5)",
+        )
+        self.add_argument(
+            "--run_random_seed", type=int, default=17,
+            help="Random seed for everything except the dataset",
+        )
+        self.add_argument(
             "--wandb_sweep_name", type=str, required=True,
             help="Wandb sweep name",
         )
@@ -92,4 +104,20 @@ class Parser(argparse.ArgumentParser):
         self.add_argument(
             "--wandb_max_runs", type=int, default=600,
             help="Maximum number of runs to try in the sweep",
+        )
+        self.add_argument(
+            "--cpu", action='store_true',
+            help="Run on CPU regardless of CUDA-availability",
+        )
+        self.add_argument(
+            "--save_model", action='store_true',
+            help="Whether to save the model (locally in the wandb run dir & in wandb cloud storage)",
+        )
+        self.add_argument(
+            "--load_model_from_wandb_run", type=str,
+            help="Load model state_dict from a previous wandb run",
+        )
+        self.add_argument(
+            "--load_model_from_fpath", type=str,
+            help="Load model state_dict from a local file path",
         )

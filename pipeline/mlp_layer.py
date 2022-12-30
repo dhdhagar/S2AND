@@ -1,13 +1,18 @@
 import torch
 import torch.nn as nn
+from neumiss import NeuMissBlock, NeuMissDEQBlock
 #from utils.convert_lgbm_to_torch import convert_pretrained_model
 
 
 class MLPLayer(torch.nn.Module):
-    def __init__(self, n_features, use_hb=False, dropout_p=0.1,
-                 hidden_dim=1024, n_hidden_layers=1, add_batchnorm=True,
+    def __init__(self, n_features, neumiss_depth=10, use_hb=False, dropout_p=0.1,
+                 add_neumiss=True, neumiss_deq=False, hidden_dim=1024, n_hidden_layers=1, add_batchnorm=True,
                  activation="leaky_relu", negative_slope=0.01, hidden_config=None):
         super().__init__()
+        neumiss_layer = NeuMissDEQBlock if neumiss_deq else NeuMissBlock
+        neumiss_args = {"n_features": n_features}
+        if not neumiss_deq:
+            neumiss_args.update({"depth": neumiss_depth})
         self.use_hb = use_hb
         if not self.use_hb:
             #self.mlp_model = convert_pretrained_model(dropout_p)
@@ -18,7 +23,7 @@ class MLPLayer(torch.nn.Module):
                 activation_args.update({"negative_slope": negative_slope})
 
             if hidden_config is not None:
-                network = []
+                network = [neumiss_layer(**neumiss_args)] if add_neumiss else []
                 in_dim = n_features
                 for out_dim in hidden_config:
                     network += [nn.Linear(in_dim, out_dim)] + \
@@ -31,7 +36,7 @@ class MLPLayer(torch.nn.Module):
                 if n_hidden_layers < 1:
                     raise ValueError("NeuMissVanilla requires a minimum of one hidden layer.")
                 self.mlp_model = nn.Sequential(
-                    *(([]) +
+                    *(([neumiss_layer(**neumiss_args)] if add_neumiss else []) +
                       [nn.Linear(n_features, hidden_dim)] +
                       ([activation_fn(**activation_args)] + ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
                        [nn.Dropout(p=dropout_p),
