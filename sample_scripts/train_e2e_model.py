@@ -93,7 +93,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
         "activation": "leaky_relu",
         # Training config
         "lr": 1e-4,
-        "n_epochs": 1000,
+        "n_epochs": 100,
         "weighted_loss": True,
         "use_lr_scheduler": True,
         "lr_factor": 0.6,
@@ -129,6 +129,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
         for i in range(hyp['n_epochs']):
             epoch_start_time = time.time()
             running_loss = []
+            wandb.log({'epoch': i+1})
             for (idx, batch) in enumerate(train_Dataloader):
                 if hyp['overfit_one_batch']:
                     if idx < batch_idx_to_select:
@@ -166,8 +167,8 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 batch_end_time = time.time()
                 logger.info(f'Batch runtime = {round(batch_end_time - batch_start_time)}')
 
+                wandb.log({'train_loss': np.mean(running_loss)})
                 if hyp['overfit_one_batch']:
-                    wandb.log({'epoch': i + 1, 'train_loss': np.mean(running_loss)})
                     break
 
             # Update lr schedule
