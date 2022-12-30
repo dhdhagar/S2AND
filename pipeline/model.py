@@ -13,22 +13,23 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 class EntResModel(torch.nn.Module):
-    def __init__(self, hidden_dim, n_hidden_layers, dropout_p, hidden_config, activation):
+    def __init__(self, n_features, hidden_dim, n_hidden_layers, dropout_p, hidden_config, activation,
+                 N_max):
         super().__init__()
-        self.mlp_layer = MLPLayer(n_features=39,
+        self.mlp_layer = MLPLayer(n_features=n_features,
                                   dropout_p=dropout_p,
                                   add_batchnorm=True,
                                   hidden_dim=hidden_dim,
                                   n_hidden_layers=n_hidden_layers,
                                   activation=activation,
                                   hidden_config=hidden_config)
-        self.uncompress_layer = UncompressTransformLayer()
-        self.sdp_layer = SDPLayer(max_sdp_iters=50000)
+        self.uncompress_layer = UncompressTransformLayer(N_max=N_max)
+        self.sdp_layer = SDPLayer(max_sdp_iters=50000, N_max=N_max)
         self.hac_cut_layer = HACCutLayer()
 
     def forward(self, x, N):
         edge_weights = torch.squeeze(self.mlp_layer(x))
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
-        output_probs = self.sdp_layer(edge_weights_uncompressed, N)
+        output_probs, _ = self.sdp_layer(edge_weights_uncompressed, N)
         pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
         return pred_clustering

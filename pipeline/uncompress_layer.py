@@ -3,11 +3,12 @@ import math
 
 from IPython import embed
 class UncompressTransformLayer(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, N_max):
         super().__init__()
         self.uncompressed_matrix = None
+        self.N_max = N_max
 
-    def forward(self, compressed_matrix, N, make_symmetric=False, ones_diagonal=False):
+    def forward(self, compressed_matrix, N, make_symmetric=False, ones_diagonal=False,):
         device = compressed_matrix.get_device()
         # Convert the 1D pairwise-similarities list to nxn upper triangular matrix
         triu_indices = torch.triu_indices(N, N, offset=1, device=device)
@@ -17,11 +18,12 @@ class UncompressTransformLayer(torch.nn.Module):
                                        torch.cat((triu_indices[1], triu_indices[0]))))
             self.uncompressed_matrix = (
                 torch.sparse_coo_tensor(sym_indices, torch.cat((compressed_matrix, compressed_matrix)),
-                                        [N, N])).to_dense()
+                                        [self.N_max, self.N_max])).to_dense()
         else:
-            self.uncompressed_matrix = (torch.sparse_coo_tensor(triu_indices, compressed_matrix, [N, N])).to_dense()
+            self.uncompressed_matrix = (
+                torch.sparse_coo_tensor(triu_indices, compressed_matrix, [self.N_max, self.N_max])).to_dense()
 
         if ones_diagonal:
-            self.uncompressed_matrix += torch.eye(N, device=device)
+            self.uncompressed_matrix += torch.eye(self.N_max, device=device)
 
         return self.uncompressed_matrix

@@ -107,11 +107,13 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
     # Start wandb run
     with wandb.init(config=hyperparams) as run:
         hyp = wandb.config
-        e2e_model = EntResModel(hyp['hidden_dim'],
+        e2e_model = EntResModel(39,  # TODO: Set this based on the shape of the data in the dataset
+                                hyp['hidden_dim'],
                                 hyp['n_hidden_layers'],
                                 hyp['dropout_p'],
                                 hyp['hidden_config'],
-                                hyp['activation'])
+                                hyp['activation'],
+                                N_max=150)  # TODO: Set this based on the max. N in the dataset
 
         e2e_model.to(device)
         wandb.watch(e2e_model)
@@ -136,9 +138,6 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 data = torch.squeeze(data).float()
                 N = get_matrix_size_from_triu(data)
                 target = torch.squeeze(target).float()
-                logger.info(f"input shape: {data.shape}")
-                logger.info(f"input matrix size: {N}")
-                logger.info(f"target shape: {target.shape}")
 
                 # Forward pass
                 data, target = data.to(device), target.to(device)
@@ -146,7 +145,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
 
                 # Compute loss
                 gold_output = uncompress_target_tensor(target)
-                loss = torch.norm(gold_output - output)/2
+                loss = torch.norm(gold_output - output) / (2 * N)
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
