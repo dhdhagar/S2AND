@@ -123,8 +123,11 @@ class S2BlocksDataset(Dataset):
                 cluster_ids (cluster ids, 1D array of size [n]), where
             n is the number of signatures in a S2 block and f is the number of pairwise features
     """
-    def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]):
+    def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
+                 convert_nan=True, nan_value=-1):
         self.blockwise_data = blockwise_data
+        self.convert_nan = convert_nan
+        self.nan_value = nan_value
 
     def __len__(self):
         return len(self.blockwise_data.keys())
@@ -133,10 +136,20 @@ class S2BlocksDataset(Dataset):
         # returns all pairwise-features for a specified Block
         dict_key = list(self.blockwise_data.keys())[idx]
         X, y, clusterIds = self.blockwise_data[dict_key]
-        # Convert NaNs to -1 for now, TODO: remove when imputation layer is added
-        np.nan_to_num(X, copy=False, nan=-1)
-        # TODO: Add subsampling logic here, if required
-        return (X, y)
+
+        # # Map cluster IDs to numeric cluster IDs
+        # id_to_numid = {}
+        # numid = 0
+        # for i in range(len(clusterIds)):
+        #     if clusterIds[i] not in id_to_numid:
+        #         id_to_numid[clusterIds[i]] = numid
+        #         numid += 1
+        #     clusterIds[i] = id_to_numid[clusterIds[i]]
+
+        if self.convert_nan:
+            np.nan_to_num(X, copy=False, nan=self.nan_value)
+
+        return X, y, clusterIds
 
 class ANDData:
     """
