@@ -31,5 +31,5 @@ class EntResModel(torch.nn.Module):
         edge_weights = torch.squeeze(self.mlp_layer(x))
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
         output_probs, _ = self.sdp_layer(edge_weights_uncompressed, N)
-        pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
+        pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed[:N, :N])
         return pred_clustering

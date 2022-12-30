@@ -94,7 +94,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
         # Training config
         "lr": 4e-4,
         "n_epochs": 1000,
-        "weighted_loss": True,
+        "weighted_loss": False,
         "use_lr_scheduler": False,
         "lr_factor": 0.6,
         "lr_min": 1e-6,
@@ -113,7 +113,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                                 hyp['dropout_p'],
                                 hyp['hidden_config'],
                                 hyp['activation'],
-                                N_max=150)  # TODO: Set this based on the max. N in the dataset
+                                N_max=110)  # TODO: Set this based on the max. N in the dataset
 
         e2e_model.to(device)
         wandb.watch(e2e_model)
@@ -153,7 +153,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 backward_start_time = time.time()
                 loss.backward()
                 backward_end_time = time.time()
-                logger.info(f'Time taken for loss.backward() = {backward_end_time - backward_start_time}')
+                logger.info(f'time taken for loss.backward() = {backward_end_time - backward_start_time}')
                 optimizer.step()
                 
                 # Gather data and report
