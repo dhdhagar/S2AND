@@ -12,7 +12,7 @@ import wandb
 import copy
 from torch.utils.data import DataLoader
 
-from pipeline.model import model
+from pipeline.model import EntResModel
 from pipeline.trellis_cut_layer import TrellisCutLayer
 from s2and.consts import PREPROCESSED_DATA_DIR
 import pickle
@@ -20,9 +20,9 @@ import numpy as np
 from s2and.data import S2BlocksDataset
 
 from sklearn.metrics.cluster import v_measure_score
-from torchmetrics.classification import BinaryAUROC
 
 from utils.parser import Parser
+from IPython import embed
 
 DATA_HOME_DIR = "/Users/pprakash/PycharmProjects/prob-ent-resolution/data/S2AND"
 #DATA_HOME_DIR = "/work/pi_mccallum_umass_edu/pragyaprakas_umass_edu/prob-ent-resolution/data"
@@ -53,7 +53,7 @@ DEFAULT_HYPERPARAMS = {
     "activation": "leaky_relu",
     # Training config
     "lr": 1e-5,
-    "n_epochs": 1000,
+    "n_epochs": 3,
     "weighted_loss": True,
     "use_lr_scheduler": True,
     "lr_factor": 0.6,
@@ -72,72 +72,65 @@ def read_blockwise_features(pkl):
     print("Total num of blocks:", len(blockwise_data.keys()))
     return blockwise_data
 
-def load_training_data(dataset, dataset_seed):
+def load_training_data(dataset, dataset_seed, convert_nan, nan_value):
     train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl"
     val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl"
     #test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/test_features.pkl"
 
     blockwise_features = read_blockwise_features(train_pkl)
-    train_Dataset = S2BlocksDataset(blockwise_features)
+    train_Dataset = S2BlocksDataset(blockwise_features, convert_nan=convert_nan, nan_value=nan_value)
     train_Dataloader = DataLoader(train_Dataset, shuffle=False)
 
     blockwise_features = read_blockwise_features(val_pkl)
-    val_Dataset = S2BlocksDataset(blockwise_features)
+    val_Dataset = S2BlocksDataset(blockwise_features, convert_nan=convert_nan, nan_value=nan_value)
     val_Dataloader = DataLoader(val_Dataset, shuffle=False)
 
     return train_Dataloader, val_Dataloader
 
-def uncompress_target_tensor(compressed_targets):
+def uncompress_target_tensor(compressed_targets, make_symmetric=True):
     n = round(math.sqrt(2 * compressed_targets.size(dim=0))) + 1
     # Convert the 1D pairwise-similarities list to nxn upper triangular matrix
-    ind = torch.triu_indices(n, n, offset=1, device=device)
-    output = (torch.sparse_coo_tensor(ind, compressed_targets, [n, n])).to_dense()
-    # Convert the upper triangular matrix to a symmetric matrix
-    symm_mat = output + torch.transpose(output, 0, 1)
-    symm_mat += torch.eye(n, device=device) # Set all 1s on the diagonal
-    return symm_mat
+    ind0, ind1 = torch.triu_indices(n, n, offset=1)
+    target = torch.eye(n, device=device)
+    target[ind0, ind1] = compressed_targets
+    if make_symmetric:
+        target[ind1, ind0] = compressed_targets
+    return target
 
 # Count parameters in the model
 def count_parameters(model): return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-# def evaluate_e2e_model(model, dataloader, eval_metric):
-#     f1_score = 0
-#     for (idx, batch) in enumerate(dataloader):
-#         data, target = batch
-#
-#         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
-#         data, target = data.to(device), target.to(device)
-#         # Reshape data to 2-D matrix, and target to 1D
-#         n = np.shape(data)[1]
-#         f = np.shape(data)[2]
-#
-#         batch_size = n
-#         data = torch.reshape(data, (n, f))
-#         target = torch.reshape(target, (n,))
-#
-#         output = model(data)
-#         # print(output)
-#
-#         # Calculate the loss and its gradients
-#         gold_output = uncompress_target_tensor(target)
-#         if(eval_metric == "v_measure_score"):
-#             f1_score += v_measure_score(torch.flatten(output), torch.flatten(gold_output))
-#             print("Cumulative f1 score", f1_score)
-#
-#         return f1_score
-#         break
-#
-# def get_vmeasure_score(outputs, gold_labels):
-#     # takes as input model output (nxn matrix) and target labels to find cluster v_measure_score
-#     # Convert outputs to upper triangular matrices
-#     outputs_triu = np.triu(outputs, 1)
-#     idxs = np.triu_indices(np.shape(outputs)[0], 1)
-#     outputs_1d = outputs_triu[idxs]
-#     print("compressed output", outputs_1d, "max op", np.max(outputs_1d), "targets", gold_labels)
-#
-#     f1_score = v_measure_score(outputs_1d, gold_labels)
-#
-#     return f1_score
+def get_matrix_size_from_triu(triu):
+    return round(math.sqrt(2 * len(triu))) + 1
+
+def evaluate_e2e_model(model, dataloader, eval_metric):
+    model.eval()
+    f1_score = 0
+    for (idx, batch) in enumerate(dataloader):
+        #TODO: Remove for all batches
+        if (idx != 27):
+            continue
+        if (idx > 27):
+            break
+        data, target, clusterIds = batch
+
+        # MOVING THE TENSORS TO THE CONFIGURED DEVICE
+        data, target, clusterIds = data.to(device), target.to(device), clusterIds.to(device)
+        # Reshape data to 2-D matrix, and target to 1D
+        n = np.shape(data)[1]
+        f = np.shape(data)[2]
+        data = torch.reshape(data, (n, f))
+
+        output = model(data)
+        predicted_clusterIds = model.hac_cut_layer.cluster_labels
+
+        # Calculate the v_measure_score
+        if(eval_metric == "v_measure_score"):
+            f1_score += v_measure_score(torch.flatten(predicted_clusterIds), torch.flatten(clusterIds))
+            logger.info("Cumulative f1 score", f1_score)
+
+    return f1_score
+
 
 
 def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
@@ -166,7 +159,8 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         wandb.save('hyperparameters.json')
 
         # Load data
-        train_Dataloader, val_Dataloader = load_training_data(hyp["dataset"], hyp["dataset_random_seed"])
+        train_Dataloader, val_Dataloader = load_training_data(hyp["dataset"], hyp["dataset_random_seed"],
+                                                              hyp["convert_nan"], hyp["nan_value"])
 
         # Seed everything
         torch.manual_seed(hyp['run_random_seed'])
@@ -186,9 +180,10 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         batchnorm = hyp["batchnorm"]
         neumiss_deq = hyp["neumiss_deq"]
         neumiss_depth = hyp["neumiss_depth"]
+        n_features = train_Dataloader.dataset[0][0].shape[1]
 
         # Create model with hyperparams
-        e2e_model = model(hidden_dim,
+        e2e_model = EntResModel(hidden_dim,
                           n_hidden_layers,
                           dropout_p,
                           hidden_config,
@@ -197,11 +192,11 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                           neumiss_deq,
                           neumiss_depth,
                           add_neumiss=not hyp['convert_nan'])
-        logging.info("model loaded: %s", e2e_model)
-        logging.info("Learnable parameters:")
+        logger.info("Model loaded: %s", e2e_model)
+        logger.info("Learnable parameters:")
         for name, parameter in e2e_model.named_parameters():
             if (parameter.requires_grad):
-                logging.info(name)
+                logger.info(name)
 
         # Load stored model, if available
         state_dict = None
@@ -212,7 +207,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         elif load_model_from_fpath is not None:
             state_dict = torch.load(load_model_from_fpath, device)
         if state_dict is not None:
-            model.load_state_dict(state_dict)
+            e2e_model.load_state_dict(state_dict)
             logger.info(f'Loaded stored model.')
 
         # TODO: Implement flag and code to run only inference
@@ -230,44 +225,46 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         #                                                        patience=hyp['lr_scheduler_patience'])
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.1)
 
-        model.train()
+        e2e_model.train()
 
-        batch_size = 0
-        best_metric = -1
         best_model_on_dev = None
         best_dev_f1 = -1
         best_epoch = 0
+        batch_idx_to_select = 27  # Based on manual inspection; batch with large size
+
         start_time = time.time()
         for i in range(n_epochs):
             running_loss = []
             for (idx, batch) in enumerate(train_Dataloader):
-                if(idx != 27):
+                if hyp['overfit_one_batch']:
+                    if idx < batch_idx_to_select:
+                        continue
+                    if idx > batch_idx_to_select:
+                        break
+                data, target, _ = batch
+                data = data.reshape(-1, n_features).float()
+                block_size = get_matrix_size_from_triu(data)
+                target = target.flatten().float()
+                if verbose:
+                    logger.info(f"input shape: {data.shape}")
+                    logger.info(f"input matrix size: {block_size}")
+                    logger.info(f"target shape: {target.shape}")
+
+                if data.shape[0] == 1:
+                    embed()
+                else:
                     continue
-                if(idx > 27):
-                    break
-                # LOADING THE DATA IN A BATCH
-                data, target = batch
-
-                # MOVING THE TENSORS TO THE CONFIGURED DEVICE
-                data, target = data.to(device), target.to(device)
-                # Reshape data to 2-D matrix, and target to 1D
-                n = np.shape(data)[1]
-                f = np.shape(data)[2]
-
-                batch_size = n
-                data = torch.reshape(data, (n, f))
-                target = torch.reshape(target, (n,))
-                logging.info("Data read, Uncompressed Batch size is: %s", n)
 
                 # Forward pass through the e2e model
-                output = e2e_model(data)
+                output = e2e_model(data, block_size)
 
                 # Calculate the loss
                 gold_output = uncompress_target_tensor(target)
-                logging.info("gold output")
-                logging.info(gold_output)
+                if verbose:
+                    logger.info("gold output")
+                    logger.info(gold_output)
 
-                loss = torch.norm(gold_output - output)/(2*batch_size)
+                loss = torch.norm(gold_output - output)/(2*block_size)
 
                 # Zero your gradients for every batch!
                 optimizer.zero_grad()
@@ -278,44 +275,40 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                     scheduler.step()
 
                 # # Print grad values for debugging
-                # logging.info("Grad values")
-                # logging.info(e2e_model.sdp_layer.W_val.grad)
+                # logger.info("Grad values")
+                # logger.info(e2e_model.sdp_layer.W_val.grad)
                 # mlp_grad = e2e_model.mlp_layer.edge_weights.grad
-                # logging.info(uncompress_target_tensor(torch.reshape(mlp_grad.detach(), (-1,))))
+                # logger.info(uncompress_target_tensor(torch.reshape(mlp_grad.detach(), (-1,))))
 
                 # Gather data and report
-                logging.info("loss is %s", loss.item())
+                logger.info("loss is %s", loss.item())
                 running_loss.append(loss.item())
 
                 # train_f1_metric = get_vmeasure_score(output.detach().numpy(), target.detach().numpy())
                 # print("training f1 cluster measure is ", train_f1_metric)
-                break
 
-            # Print epoch validation accuracy
-            # with torch.no_grad():
-            #     e2e_model.eval()
-            #     # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
-            #     # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
-            #     # if dev_f1_metric > best_metric:
-            #     #     logger.info(f"New best dev {dev_opt_metric}; storing model")
-            #     #     best_epoch = i
-            #     #     best_metric = dev_f1_metric
-            #     #     best_model_on_dev = copy.deepcopy(model)
-            #     if overfit_one_batch:
-            #         train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
-            #         print("training f1 cluster measure is ", train_f1_metric)
-            # e2e_model.train()
+            # Get model performance on dev
+            with torch.no_grad():
+                e2e_model.eval()
+                # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
+                # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
+                # if dev_f1_metric > best_metric:
+                #     logger.info(f"New best dev {dev_opt_metric}; storing model")
+                #     best_epoch = i
+                #     best_metric = dev_f1_metric
+                #     best_model_on_dev = copy.deepcopy(model)
+                if overfit_one_batch:
+                    train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
+                    logger.info("training f1 cluster vmeasure is ", train_f1_metric)
+            e2e_model.train()
 
-            # wandb.log({
-            #     'train_loss_epoch': np.mean(running_loss),
-            #     'dev_vmeasure': dev_f1_metric,
-            # })
+
             if overfit_one_batch:
                 wandb.log({'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss)})#, 'train_vmeasure': train_f1_metric})
 
             end_time = time.time()
 
-            run.summary["z_model_parameters"] = count_parameters(model)
+            run.summary["z_model_parameters"] = count_parameters(e2e_model)
             run.summary["z_run_time"] = round(end_time - start_time)
 
             # Save models
