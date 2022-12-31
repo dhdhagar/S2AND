@@ -136,10 +136,12 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                         continue
                 batch_start_time = time.time()
                 data, target, _ = batch
-                data = torch.squeeze(data).float()
+                data = torch.flatten(data).float()
                 N = get_matrix_size_from_triu(data)
-                target = torch.squeeze(target).float()
+                target = torch.flatten(target).float()
                 logger.info(f"input shape: {data.shape}")
+                if data.shape[0] == 39:
+                    embed()
                 logger.info(f"input matrix size: {N}")
                 logger.info(f"target shape: {target.shape}")
 
