@@ -160,6 +160,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 
                 backward_start_time = time.time()
                 loss.backward()
+                embed()
                 backward_end_time = time.time()
                 logger.info(f'loss.backward() runtime = {backward_end_time - backward_start_time} (matrix size={N})')
                 optimizer.step()
