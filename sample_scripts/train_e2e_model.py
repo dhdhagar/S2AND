@@ -107,7 +107,9 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
     # Start wandb run
     with wandb.init(config=hyperparams) as run:
         hyp = wandb.config
-        e2e_model = EntResModel(hyp['hidden_dim'],
+        n_features = train_Dataloader.dataset[0][0].shape[1]
+        e2e_model = EntResModel(n_features,
+                                hyp['hidden_dim'],
                                 hyp['n_hidden_layers'],
                                 hyp['dropout_p'],
                                 hyp['hidden_config'],
@@ -136,14 +138,10 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                         continue
                 batch_start_time = time.time()
                 data, target, _ = batch
-                data = torch.flatten(data).float()
+                data = data.reshape(-1, n_features).float()
                 N = get_matrix_size_from_triu(data)
-                target = torch.flatten(target).float()
+                target = target.flatten().float()
                 logger.info(f"input shape: {data.shape}")
-                if data.shape[0] == 39:
-                    embed()
-                else:
-                    continue
                 logger.info(f"input matrix size: {N}")
                 logger.info(f"target shape: {target.shape}")
 
