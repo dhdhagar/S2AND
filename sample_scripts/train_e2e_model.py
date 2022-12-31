@@ -87,14 +87,14 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
     hyperparams = {
         # model config
         "hidden_dim": 512,
-        "n_hidden_layers": 2,
+        "n_hidden_layers": 1,
         "dropout_p": 0,
         "hidden_config": None,
         "activation": "leaky_relu",
         # Training config
-        "lr": 1e-5,
+        "lr": 4e-3,
         "n_epochs": 100,
-        "weighted_loss": True,
+        "weighted_loss": False,
         "use_lr_scheduler": True,
         "lr_factor": 0.6,
         "lr_min": 1e-6,
@@ -143,9 +143,6 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                         continue
 
                 target = target.flatten().float()
-                logger.info(f"input shape: {data.shape}")
-                logger.info(f"input matrix size: {N}")
-                logger.info(f"target shape: {target.shape}")
 
                 if data.shape[0] == 1:
                     continue  # skip because of batchnorm; TODO: Add a check to see if batchnorm is used; skip only then
@@ -164,7 +161,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 backward_start_time = time.time()
                 loss.backward()
                 backward_end_time = time.time()
-                logger.info(f'loss.backward() runtime = {backward_end_time - backward_start_time}')
+                logger.info(f'loss.backward() runtime = {backward_end_time - backward_start_time} (matrix size={N})')
                 optimizer.step()
                 
                 # Gather data and report
