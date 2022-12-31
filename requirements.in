@@ -25,8 +25,8 @@ wandb
 
 #############################
 # HummingBird Requirements
-awscli==1.25.90
-git+https://github.com/microsoft/hummingbird.git@mainterl/fine-tune-trees
+#awscli==1.25.90
+#git+https://github.com/microsoft/hummingbird.git@mainterl/fine-tune-trees
 
 # ECC Layer Requirements
 higra==0.6.4

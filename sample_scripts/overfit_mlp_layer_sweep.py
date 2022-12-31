@@ -8,7 +8,7 @@ import wandb
 import copy
 from torch.utils.data import DataLoader
 
-from pipeline.model import model
+from pipeline.model import EntResModel
 from pipeline.trellis_cut_layer import TrellisCutLayer
 from s2and.consts import PREPROCESSED_DATA_DIR
 import pickle
@@ -83,7 +83,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
         # if weighted_loss:
         #     if overfit_one_batch:
         #         pos_weight = (batch_size - y_train_tensor[:batch_size].sum()) / y_train_tensor[:batch_size].sum()
-        e2e_model = model(hidden_dim,
+        e2e_model = EntResModel(hidden_dim,
                           n_hidden_layers,
                           dropout_p,
                           hidden_config,
@@ -173,10 +173,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
             if train_f1_metric > best_metric:
                 best_metric = train_f1_metric
                 best_epoch = i
-                best_hyperparameters = {"hidden_dim ": hidden_dim,
-        n_hidden_layers = hyp["n_hidden_layers"]
-        dropout_p = hyp["dropout_p"]
-        hidden_config"}
+                #best_hyperparameters =
 
             # Update lr schedule
             # if use_lr_scheduler:

@@ -168,7 +168,6 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         np.random.seed(hyp['run_random_seed'])
 
         weighted_loss = hyp['weighted_loss']
-        overfit_one_batch = hyp['overfit_one_batch']
         dev_opt_metric = hyp['dev_opt_metric']
         n_epochs = hyp['n_epochs']
         use_lr_scheduler = hyp['use_lr_scheduler']
@@ -297,13 +296,13 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                 #     best_epoch = i
                 #     best_metric = dev_f1_metric
                 #     best_model_on_dev = copy.deepcopy(model)
-                if overfit_one_batch:
+                if hyp['overfit_one_batch']:
                     train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
                     logger.info("training f1 cluster vmeasure is ", train_f1_metric)
             e2e_model.train()
 
 
-            if overfit_one_batch:
+            if hyp['overfit_one_batch']:
                 wandb.log({'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss)})#, 'train_vmeasure': train_f1_metric})
 
             end_time = time.time()
