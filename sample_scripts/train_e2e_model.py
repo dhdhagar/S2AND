@@ -88,7 +88,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
         # model config
         "hidden_dim": 512,
         "n_hidden_layers": 2,
-        "dropout_p": 0.1,
+        "dropout_p": 0,
         "hidden_config": None,
         "activation": "leaky_relu",
         # Training config
@@ -99,9 +99,9 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
         "lr_factor": 0.6,
         "lr_min": 1e-6,
         "lr_scheduler_patience": 10,
-        "weight_decay": 0.01,
+        "weight_decay": 0.,
         "dev_opt_metric": 'v_measure_score',
-        "overfit_one_batch": False
+        "overfit_one_batch": True
     }
 
     # Start wandb run
@@ -126,20 +126,22 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                                                                    min_lr=hyp['lr_min'],
                                                                    patience=hyp['lr_scheduler_patience'])
 
-        batch_idx_to_select = 27  # Based on manual inspection; batch with large size
+        max_batch_sz_to_select = 50  # Based on manual inspection; batch with large size
         start_time = time.time()
         for i in range(hyp['n_epochs']):
             epoch_start_time = time.time()
             running_loss = []
             wandb.log({'epoch': i+1})
             for (idx, batch) in enumerate(train_Dataloader):
-                if hyp['overfit_one_batch']:
-                    if idx < batch_idx_to_select:
-                        continue
                 batch_start_time = time.time()
                 data, target, _ = batch
                 data = data.reshape(-1, n_features).float()
                 N = get_matrix_size_from_triu(data)
+
+                if hyp['overfit_one_batch']:
+                    if N > max_batch_sz_to_select:
+                        continue
+
                 target = target.flatten().float()
                 logger.info(f"input shape: {data.shape}")
                 logger.info(f"input matrix size: {N}")
