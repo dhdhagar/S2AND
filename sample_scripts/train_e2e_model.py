@@ -142,6 +142,8 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 logger.info(f"input shape: {data.shape}")
                 if data.shape[0] == 39:
                     embed()
+                else:
+                    continue
                 logger.info(f"input matrix size: {N}")
                 logger.info(f"target shape: {target.shape}")
 
