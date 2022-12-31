@@ -92,7 +92,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
         "hidden_config": None,
         "activation": "leaky_relu",
         # Training config
-        "lr": 1e-4,
+        "lr": 1e-5,
         "n_epochs": 100,
         "weighted_loss": True,
         "use_lr_scheduler": True,
