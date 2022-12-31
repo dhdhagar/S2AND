@@ -146,9 +146,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 logger.info(f"target shape: {target.shape}")
 
                 if data.shape[0] == 1:
-                    embed()
-                else:
-                    continue
+                    continue  # skip because of batchnorm; TODO: Add a check to see if batchnorm is used; skip only then
 
                 # Forward pass
                 data, target = data.to(device), target.to(device)
