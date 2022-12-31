@@ -70,6 +70,10 @@ class Parser(argparse.ArgumentParser):
             help="Wandb sweep name",
         )
         self.add_argument(
+            "--wandb_tags", type=str,
+            help="Comma-separated list of tags to add to a wandb run"
+        )
+        self.add_argument(
             "--wandb_sweep_id", type=str,
             help="Wandb sweep id (optional -- if run is already started)",
         )
