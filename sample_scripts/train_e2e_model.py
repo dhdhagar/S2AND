@@ -126,7 +126,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                                                                    min_lr=hyp['lr_min'],
                                                                    patience=hyp['lr_scheduler_patience'])
 
-        max_batch_sz_to_select = 50  # Based on manual inspection; batch with large size
+        batch_sz_to_select = [50, 75]  # Based on manual inspection; batch with large size
         start_time = time.time()
         for i in range(hyp['n_epochs']):
             epoch_start_time = time.time()
@@ -139,7 +139,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 N = get_matrix_size_from_triu(data)
 
                 if hyp['overfit_one_batch']:
-                    if N > max_batch_sz_to_select:
+                    if N < batch_sz_to_select[0] or N > batch_sz_to_select[1]:
                         continue
 
                 target = target.flatten().float()
