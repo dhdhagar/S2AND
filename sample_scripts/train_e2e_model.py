@@ -145,6 +145,11 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 logger.info(f"input matrix size: {N}")
                 logger.info(f"target shape: {target.shape}")
 
+                if data.shape[0] == 1:
+                    embed()
+                else:
+                    continue
+
                 # Forward pass
                 data, target = data.to(device), target.to(device)
                 output = e2e_model(data, N)
