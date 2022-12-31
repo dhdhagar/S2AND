@@ -157,7 +157,7 @@ def train_e2e_model(train_Dataloader, val_Dataloader):
                 backward_start_time = time.time()
                 loss.backward()
                 backward_end_time = time.time()
-                logger.info(f'Time taken for loss.backward() = {backward_end_time - backward_start_time}')
+                logger.info(f'loss.backward() runtime = {backward_end_time - backward_start_time}')
                 optimizer.step()
                 
                 # Gather data and report
