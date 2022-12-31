@@ -13,9 +13,9 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 class EntResModel(torch.nn.Module):
-    def __init__(self, hidden_dim, n_hidden_layers, dropout_p, hidden_config, activation):
+    def __init__(self, n_features, hidden_dim, n_hidden_layers, dropout_p, hidden_config, activation):
         super().__init__()
-        self.mlp_layer = MLPLayer(n_features=39,
+        self.mlp_layer = MLPLayer(n_features=n_features,
                                   dropout_p=dropout_p,
                                   add_batchnorm=True,
                                   hidden_dim=hidden_dim,
