@@ -183,7 +183,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         n_features = train_Dataloader.dataset[0][0].shape[1]
 
         # Create model with hyperparams
-        e2e_model = EntResModel(hidden_dim,
+        e2e_model = EntResModel(n_features, hidden_dim,
                           n_hidden_layers,
                           dropout_p,
                           hidden_config,
