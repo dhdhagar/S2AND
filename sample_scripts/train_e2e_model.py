@@ -109,20 +109,16 @@ def evaluate_e2e_model(model, dataloader, eval_metric):
     f1_score = 0
     for (idx, batch) in enumerate(dataloader):
         #TODO: Remove for all batches
-        if (idx != 27):
+        if (idx < 27):
             continue
         if (idx > 27):
             break
         data, target, clusterIds = batch
+        data = data.reshape(-1, n_features=39).float()
+        block_size = get_matrix_size_from_triu(data)
+        target = target.flatten().float()
 
-        # MOVING THE TENSORS TO THE CONFIGURED DEVICE
-        data, target = data.to(device), target.to(device)
-        # Reshape data to 2-D matrix, and target to 1D
-        n = np.shape(data)[1]
-        f = np.shape(data)[2]
-        data = torch.reshape(data, (n, f))
-
-        output = model(data, n)
+        output = model(data, block_size)
         predicted_clusterIds = model.hac_cut_layer.cluster_labels
 
         # Calculate the v_measure_score
