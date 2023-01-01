@@ -51,6 +51,7 @@ DEFAULT_HYPERPARAMS = {
     "batchnorm": True,
     "hidden_config": None,
     "activation": "leaky_relu",
+    "negative_slope": 0.01,
     # Training config
     "lr": 1e-5,
     "n_epochs": 3,
@@ -180,18 +181,13 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         neumiss_deq = hyp["neumiss_deq"]
         neumiss_depth = hyp["neumiss_depth"]
         add_neumiss = not hyp['convert_nan']
+        negative_slope=hyp["negative_slope"]
         n_features = train_Dataloader.dataset[0][0].shape[1]
 
         # Create model with hyperparams
-        e2e_model = EntResModel(n_features, hidden_dim,
-                          n_hidden_layers,
-                          dropout_p,
-                          hidden_config,
-                          activation,
-                          batchnorm,
-                          neumiss_deq,
-                          neumiss_depth,
-                          add_neumiss)
+        e2e_model = EntResModel(n_features, neumiss_depth, dropout_p, add_neumiss,
+                                neumiss_deq, hidden_dim, n_hidden_layers, batchnorm,
+                                activation, negative_slope, hidden_config)
         logger.info("Model loaded: %s", e2e_model)
         logger.info("Learnable parameters:")
         for name, parameter in e2e_model.named_parameters():

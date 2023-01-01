@@ -13,14 +13,13 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 class EntResModel(torch.nn.Module):
-    def __init__(self, n_features, hidden_dim, n_hidden_layers, dropout_p, hidden_config, activation, batchnorm,
-                 neumiss_deq, neumiss_depth, add_neumiss):
+    def __init__(self, n_features, hidden_dim, n_hidden_layers, dropout_p, hidden_config, activation, add_batchnorm,
+                 neumiss_deq, neumiss_depth, add_neumiss, negative_slope):
         super().__init__()
-        self.mlp_layer = MLPLayer(n_features=n_features,
-                                  add_neumiss=add_neumiss, neumiss_deq=neumiss_deq, neumiss_depth=neumiss_depth,
-                                  dropout_p=dropout_p, add_batchnorm=True, hidden_dim=hidden_dim,
-                                  n_hidden_layers=n_hidden_layers, activation=activation, batchnorm=batchnorm,
-                                  hidden_config=hidden_config)
+        self.mlp_layer = MLPLayer(n_features=n_features, neumiss_depth=neumiss_depth, dropout_p=dropout_p,
+                                  add_neumiss=add_neumiss, neumiss_deq=neumiss_deq, hidden_dim=hidden_dim,
+                                  n_hidden_layers=n_hidden_layers, add_batchnorm=add_batchnorm,
+                                  activation=activation, negative_slope=negative_slope, hidden_config=hidden_config)
         self.uncompress_layer = UncompressTransformLayer()
         self.sdp_layer = SDPLayer(max_sdp_iters=50000)
         self.hac_cut_layer = HACCutLayer()
