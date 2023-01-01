@@ -339,7 +339,7 @@ if __name__=='__main__':
         )
     print(f"Using device={device}")
 
-    wandb.login()
+    #wandb.login()
 
     if args['wandb_run_params'] is not None:
         logger.info("Single-run mode")

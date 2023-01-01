@@ -90,7 +90,7 @@ class Parser(argparse.ArgumentParser):
             help="Wandb project name",
         )
         self.add_argument(
-            "--wandb_entity", type=str, default="dhdhagar",
+            "--wandb_entity", type=str, default="pragyaprakas",
             help="Wandb entity name",
         )
         self.add_argument(
