@@ -116,13 +116,13 @@ def evaluate_e2e_model(model, dataloader, eval_metric):
         data, target, clusterIds = batch
 
         # MOVING THE TENSORS TO THE CONFIGURED DEVICE
-        data, target, clusterIds = data.to(device), target.to(device), clusterIds.to(device)
+        data, target = data.to(device), target.to(device)
         # Reshape data to 2-D matrix, and target to 1D
         n = np.shape(data)[1]
         f = np.shape(data)[2]
         data = torch.reshape(data, (n, f))
 
-        output = model(data)
+        output = model(data, n)
         predicted_clusterIds = model.hac_cut_layer.cluster_labels
 
         # Calculate the v_measure_score
