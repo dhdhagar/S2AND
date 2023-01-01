@@ -179,6 +179,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         batchnorm = hyp["batchnorm"]
         neumiss_deq = hyp["neumiss_deq"]
         neumiss_depth = hyp["neumiss_depth"]
+        add_neumiss = not hyp['convert_nan']
         n_features = train_Dataloader.dataset[0][0].shape[1]
 
         # Create model with hyperparams
@@ -190,7 +191,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                           batchnorm,
                           neumiss_deq,
                           neumiss_depth,
-                          add_neumiss=not hyp['convert_nan'])
+                          add_neumiss)
         logger.info("Model loaded: %s", e2e_model)
         logger.info("Learnable parameters:")
         for name, parameter in e2e_model.named_parameters():
