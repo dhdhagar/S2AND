@@ -60,3 +60,8 @@ python pipeline/preprocess_s2and_data.py --data_home_dir="./data" --dataset_name
 The end-to-end model is defined in file pipeline/model.py. For training of this model, run python script
 sample_scripts/train_e2e_model.py
 
+Sample Command:
+```commandline
+python sample_scripts/train_e2e_model.py --wandb_run_params=configs/wandb_overfit_1_batch.json
+```
+

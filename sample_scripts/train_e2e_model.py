@@ -116,23 +116,21 @@ def evaluate_e2e_model(model, dataloader, eval_metric):
         data, target, clusterIds = batch
         data = data.reshape(-1, n_features).float()
         block_size = get_matrix_size_from_triu(data)
+        clusterIds = np.reshape(clusterIds, (block_size, ))
         target = target.flatten().float()
-
-        if data.shape[0] == 1:
-            embed()
-        else:
-            continue
 
         # Forward pass through the e2e model
         data, target = data.to(device), target.to(device)
         output = model(data, block_size)
-        predicted_clusterIds = model.hac_cut_layer.cluster_labels
+        predicted_clusterIds = model.hac_cut_layer.cluster_labels.detach()
+        logger.info("true cluster ids", clusterIds)
         logger.info("predicted cluster Ids:", predicted_clusterIds)
 
         # Calculate the v_measure_score
         if(eval_metric == "v_measure_score"):
-            f1_score += v_measure_score(torch.flatten(predicted_clusterIds), torch.flatten(clusterIds))
-            logger.info("Cumulative f1 score", f1_score)
+            f1_score += v_measure_score(predicted_clusterIds, clusterIds)
+            logger.info("Cumulative f1 score:")
+            logger.info(f1_score)
 
     return f1_score
 
