@@ -107,6 +107,7 @@ def get_matrix_size_from_triu(triu):
 def evaluate_e2e_model(model, dataloader, eval_metric):
     model.eval()
     f1_score = 0
+    n_features = 39
     for (idx, batch) in enumerate(dataloader):
         #TODO: Remove for all batches
         if (idx < 27):
@@ -114,7 +115,7 @@ def evaluate_e2e_model(model, dataloader, eval_metric):
         if (idx > 27):
             break
         data, target, clusterIds = batch
-        data = data.reshape(-1, n_features=39).float()
+        data = data.reshape(-1, n_features).float()
         block_size = get_matrix_size_from_triu(data)
         target = target.flatten().float()
 
