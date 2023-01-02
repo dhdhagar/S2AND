@@ -23,7 +23,6 @@ class SDPLayer(torch.nn.Module):
 
     def build_and_solve_sdp(self, W_val, N, verbose=False):
         # Initialize the cvxpy layer
-        n = self.num_points
         self.X = cp.Variable((N, N), PSD=True)
         self.W = cp.Parameter((N, N))
 
