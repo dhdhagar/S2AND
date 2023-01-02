@@ -26,7 +26,7 @@ class EntResModel(torch.nn.Module):
         self.hac_cut_layer = HACCutLayer()
         #self.trellis_cut_estimator = TrellisCutLayer()
 
-    def forward(self, x, N, verbose=True):
+    def forward(self, x, N, verbose=False):
         edge_weights = torch.squeeze(self.mlp_layer(x))
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
         output_probs = self.sdp_layer(edge_weights_uncompressed, N)
