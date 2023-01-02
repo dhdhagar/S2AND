@@ -38,7 +38,7 @@ DEFAULT_HYPERPARAMS = {
     "dataset_random_seed": 1,
     "run_random_seed": 17,
     # Data config
-    "convert_nan": False,
+    "convert_nan": True,
     "nan_value": -1,
     "drop_feat_nan_pct": -1,
     "normalize_data": False,
@@ -118,6 +118,7 @@ def evaluate_e2e_model(model, dataloader, eval_metric):
         block_size = get_matrix_size_from_triu(data)
         target = target.flatten().float()
 
+        data, target = data.to(device), target.to(device)
         output = model(data, block_size)
         predicted_clusterIds = model.hac_cut_layer.cluster_labels
 
@@ -248,6 +249,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                     continue
 
                 # Forward pass through the e2e model
+                data, target = data.to(device), target.to(device)
                 output = e2e_model(data, block_size)
 
                 # Calculate the loss
