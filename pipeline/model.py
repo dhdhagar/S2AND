@@ -32,18 +32,19 @@ class EntResModel(torch.nn.Module):
         output_probs = self.sdp_layer(edge_weights_uncompressed, N)
         pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
 
-        # logger.info("Size of W is %s", edge_weights.size())
-        # logger.info("W")
-        # logger.info(edge_weights)
-        #
-        # logger.info("Size of Uncompressed W is %s", edge_weights_uncompressed.size())
-        # logger.info(edge_weights_uncompressed)
-        #
-        # logger.info("Size of X is %s", output_probs.size())
-        # logger.info("X")
-        # logger.info(output_probs)
-        #
-        # logger.info("Size of HAC Cut OP is %s", pred_clustering.size())
-        # logger.info("HAC Cut OP")
-        # logger.info(pred_clustering)
+        if True: # Change to VERBOSE parameter
+            logger.info("Size of W is %s", edge_weights.size())
+            logger.info("W")
+            logger.info(edge_weights)
+
+            logger.info("Size of Uncompressed W is %s", edge_weights_uncompressed.size())
+            logger.info(edge_weights_uncompressed)
+
+            logger.info("Size of X is %s", output_probs.size())
+            logger.info("X")
+            logger.info(output_probs)
+
+            logger.info("Size of HAC Cut OP is %s", pred_clustering.size())
+            logger.info("HAC Cut OP")
+            logger.info(pred_clustering)
         return pred_clustering
