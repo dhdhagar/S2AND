@@ -252,8 +252,6 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
 
                 if data.shape[0] == 1:
                     embed()
-                else:
-                    continue
 
                 # Forward pass through the e2e model
                 data, target = data.to(device), target.to(device)
