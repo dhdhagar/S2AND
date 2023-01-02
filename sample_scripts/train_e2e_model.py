@@ -104,15 +104,15 @@ def count_parameters(model): return sum(p.numel() for p in model.parameters() if
 def get_matrix_size_from_triu(triu):
     return round(math.sqrt(2 * len(triu))) + 1
 
-def evaluate_e2e_model(model, dataloader, eval_metric):
+def evaluate_e2e_model(model, dataloader, eval_metric, overfit_one_batch=False, batch_idx_to_select=-1):
     f1_score = 0
     n_features = 39
     for (idx, batch) in enumerate(dataloader):
-        #TODO: Remove for all batches
-        if idx < 27:
-            continue
-        if idx > 27:
-            break
+        if overfit_one_batch:
+            if idx < batch_idx_to_select:
+                continue
+            if idx > batch_idx_to_select:
+                break
         data, target, clusterIds = batch
         data = data.reshape(-1, n_features).float()
         block_size = get_matrix_size_from_triu(data)
@@ -272,12 +272,6 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                 if use_lr_scheduler:
                     scheduler.step()
 
-                # # Print grad values for debugging
-                # logger.info("Grad values")
-                # logger.info(e2e_model.sdp_layer.W_val.grad)
-                # mlp_grad = e2e_model.mlp_layer.edge_weights.grad
-                # logger.info(uncompress_target_tensor(torch.reshape(mlp_grad.detach(), (-1,))))
-
                 # Gather data and report
                 logger.info("loss is %s", loss.item())
                 running_loss.append(loss.item())
@@ -288,33 +282,36 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
             # Get model performance on dev
             with torch.no_grad():
                 e2e_model.eval()
-                # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
-                # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
-                # if dev_f1_metric > best_metric:
-                #     logger.info(f"New best dev {dev_opt_metric}; storing model")
-                #     best_epoch = i
-                #     best_metric = dev_f1_metric
-                #     best_model_on_dev = copy.deepcopy(model)
+                dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
+                logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
+                if dev_f1_metric > best_metric:
+                    logger.info(f"New best dev vmeasure score: {dev_opt_metric}; storing model")
+                    best_epoch = i
+                    best_metric = dev_f1_metric
+                    best_model_on_dev = copy.deepcopy(e2e_model)
                 if hyp['overfit_one_batch']:
-                    train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
+                    train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric,
+                                                         hyp['overfit_one_batch'], batch_idx_to_select)
                     logger.info(f"training f1 cluster vmeasure is {train_f1_metric}")
             e2e_model.train()
 
-
             if hyp['overfit_one_batch']:
-                wandb.log({'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss)})#, 'train_vmeasure': train_f1_metric})
+                wandb.log({'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss), 'train_vmeasure': train_f1_metric})
+            else:
+                wandb.log(
+                    {'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss), 'dev_vmeasure': dev_f1_metric})
 
-            end_time = time.time()
+        end_time = time.time()
 
-            run.summary["z_model_parameters"] = count_parameters(e2e_model)
-            run.summary["z_run_time"] = round(end_time - start_time)
+        run.summary["z_model_parameters"] = count_parameters(e2e_model)
+        run.summary["z_run_time"] = round(end_time - start_time)
 
-            # Save models
-            if save_model:
-                torch.save(best_model_on_dev.state_dict(), os.path.join(run.dir, 'model_state_dict_best.pt'))
-                wandb.save('model_state_dict_best.pt')
-                # torch.save(model.state_dict(), os.path.join(run.dir, 'model_state_dict_final.pt'))
-                # wandb.save('model_state_dict_final.pt')
+        # Save models
+        if save_model:
+            torch.save(best_model_on_dev.state_dict(), os.path.join(run.dir, 'model_state_dict_best.pt'))
+            wandb.save('model_state_dict_best.pt')
+            # torch.save(model.state_dict(), os.path.join(run.dir, 'model_state_dict_final.pt'))
+            # wandb.save('model_state_dict_final.pt')
 
         logger.info("End of train() call")
 
