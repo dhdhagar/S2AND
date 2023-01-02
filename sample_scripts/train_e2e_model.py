@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 # Default hyperparameters
 DEFAULT_HYPERPARAMS = {
-    "verbose": True,
     # Dataset
     "dataset": "pubmed",
     "dataset_random_seed": 1,
@@ -106,7 +105,6 @@ def get_matrix_size_from_triu(triu):
     return round(math.sqrt(2 * len(triu))) + 1
 
 def evaluate_e2e_model(model, dataloader, eval_metric):
-    model.eval()
     f1_score = 0
     n_features = 39
     for (idx, batch) in enumerate(dataloader):
@@ -293,19 +291,19 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                 # print("training f1 cluster measure is ", train_f1_metric)
 
             # Get model performance on dev
-            with torch.no_grad():
-                e2e_model.eval()
-                # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
-                # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
-                # if dev_f1_metric > best_metric:
-                #     logger.info(f"New best dev {dev_opt_metric}; storing model")
-                #     best_epoch = i
-                #     best_metric = dev_f1_metric
-                #     best_model_on_dev = copy.deepcopy(model)
-                if hyp['overfit_one_batch']:
-                    train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
-                    logger.info("training f1 cluster vmeasure is ", train_f1_metric)
-            e2e_model.train()
+            # with torch.no_grad():
+            #     e2e_model.eval()
+            #     # dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
+            #     # logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
+            #     # if dev_f1_metric > best_metric:
+            #     #     logger.info(f"New best dev {dev_opt_metric}; storing model")
+            #     #     best_epoch = i
+            #     #     best_metric = dev_f1_metric
+            #     #     best_model_on_dev = copy.deepcopy(model)
+            #     if hyp['overfit_one_batch']:
+            #         train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric)
+            #         logger.info("training f1 cluster vmeasure is ", train_f1_metric)
+            # e2e_model.train()
 
 
             if hyp['overfit_one_batch']:
