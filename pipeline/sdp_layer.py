@@ -49,7 +49,6 @@ class SDPLayer(torch.nn.Module):
             "eps": 1e-3,
         })[0]
 
-        sdp_obj_value = None
         with torch.no_grad():
             sdp_obj_value = torch.sum(W_val * torch.triu(pw_probs, diagonal=1)).item()
             if verbose:

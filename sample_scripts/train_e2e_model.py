@@ -63,7 +63,8 @@ DEFAULT_HYPERPARAMS = {
     "lr_scheduler_patience": 10,
     "weight_decay": 0.,
     "dev_opt_metric": 'v_measure_score',
-    "overfit_one_batch": True
+    "overfit_one_batch": True,
+    "batch_idx_to_select": -1
 }
 
 def read_blockwise_features(pkl):
@@ -229,7 +230,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         best_model_on_dev = None
         best_dev_f1 = -1
         best_epoch = 0
-        batch_idx_to_select = 27  # Based on manual inspection; batch with large size
+        batch_idx_to_select = hyp['batch_idx_to_select']  # Based on manual inspection; batch with large size
 
         start_time = time.time()
         for i in range(n_epochs):
