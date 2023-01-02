@@ -124,13 +124,13 @@ def evaluate_e2e_model(model, dataloader, eval_metric, overfit_one_batch=False, 
         data, target = data.to(device), target.to(device)
         output = model(data, block_size)
         predicted_clusterIds = model.hac_cut_layer.cluster_labels.detach()
-        logger.info(f"true cluster ids: {clusterIds}")
-        logger.info(f"predicted cluster Ids: {predicted_clusterIds}")
+        # logger.info(f"true cluster ids: {clusterIds}")
+        # logger.info(f"predicted cluster Ids: {predicted_clusterIds}")
 
         # Calculate the v_measure_score
         if(eval_metric == "v_measure_score"):
             f1_score += v_measure_score(predicted_clusterIds, clusterIds)
-            logger.info(f"Cumulative f1 score: {f1_score}")
+            # logger.info(f"Cumulative f1 score: {f1_score}")
 
     return f1_score
 
@@ -290,7 +290,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                     logger.info(f"New best dev vmeasure score: {dev_opt_metric}; storing model")
                     best_epoch = i
                     best_dev_f1 = dev_f1_metric
-                    best_model_on_dev = copy.deepcopy(e2e_model)
+                    best_model_on_dev = copy.deepcopy(e2e_model.state_dict())
                 if hyp['overfit_one_batch']:
                     train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric,
                                                          hyp['overfit_one_batch'], batch_idx_to_select)
@@ -310,7 +310,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
 
         # Save models
         if save_model:
-            torch.save(best_model_on_dev.state_dict(), os.path.join(run.dir, 'model_state_dict_best.pt'))
+            torch.save(best_model_on_dev, os.path.join(run.dir, 'model_state_dict_best.pt'))
             wandb.save('model_state_dict_best.pt')
             # torch.save(model.state_dict(), os.path.join(run.dir, 'model_state_dict_final.pt'))
             # wandb.save('model_state_dict_final.pt')
