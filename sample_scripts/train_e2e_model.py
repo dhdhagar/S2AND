@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Default hyperparameters
 DEFAULT_HYPERPARAMS = {
+    "verbose": True,
     # Dataset
     "dataset": "pubmed",
     "dataset_random_seed": 1,
@@ -54,7 +55,7 @@ DEFAULT_HYPERPARAMS = {
     "negative_slope": 0.01,
     # Training config
     "lr": 1e-5,
-    "n_epochs": 3,
+    "n_epochs": 5,
     "weighted_loss": True,
     "use_lr_scheduler": True,
     "lr_factor": 0.6,
@@ -110,18 +111,25 @@ def evaluate_e2e_model(model, dataloader, eval_metric):
     n_features = 39
     for (idx, batch) in enumerate(dataloader):
         #TODO: Remove for all batches
-        if (idx < 27):
+        if idx < 27:
             continue
-        if (idx > 27):
+        if idx > 27:
             break
         data, target, clusterIds = batch
         data = data.reshape(-1, n_features).float()
         block_size = get_matrix_size_from_triu(data)
         target = target.flatten().float()
 
+        if data.shape[0] == 1:
+            embed()
+        else:
+            continue
+
+        # Forward pass through the e2e model
         data, target = data.to(device), target.to(device)
         output = model(data, block_size)
         predicted_clusterIds = model.hac_cut_layer.cluster_labels
+        logger.info("predicted cluster Ids:", predicted_clusterIds)
 
         # Calculate the v_measure_score
         if(eval_metric == "v_measure_score"):
@@ -256,7 +264,9 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                 # Calculate the loss
                 gold_output = uncompress_target_tensor(target)
                 if verbose:
-                    logger.info("gold output")
+                    logger.info("predicted output:")
+                    logger.info(output)
+                    logger.info("gold output:")
                     logger.info(gold_output)
 
                 loss = torch.norm(gold_output - output)/(2*block_size)
