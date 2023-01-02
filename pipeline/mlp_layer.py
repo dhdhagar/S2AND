@@ -4,7 +4,7 @@ from neumiss import NeuMissBlock, NeuMissDEQBlock
 
 
 class MLPLayer(torch.nn.Module):
-    def __init__(self, n_features, neumiss_depth=10, dropout_p=0.1,
+    def __init__(self, n_features, neumiss_depth=10, dropout_p=0.1, dropout_only_once=False,
                  add_neumiss=True, neumiss_deq=False, hidden_dim=1024, n_hidden_layers=1, add_batchnorm=True,
                  activation="leaky_relu", negative_slope=0.01, hidden_config=None):
         super().__init__()
@@ -24,7 +24,8 @@ class MLPLayer(torch.nn.Module):
             for out_dim in hidden_config:
                 network += [nn.Linear(in_dim, out_dim)] + \
                            ([activation_fn(**activation_args)]) + \
-                           ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + [nn.Dropout(p=dropout_p)]
+                           ([nn.BatchNorm1d(out_dim)] if add_batchnorm else []) + \
+                           ([nn.Dropout(p=dropout_p)] if not dropout_only_once else [])
                 in_dim = out_dim
             network += [nn.Linear(in_dim, 1)]
             self.mlp_model = nn.Sequential(*network)
@@ -35,8 +36,8 @@ class MLPLayer(torch.nn.Module):
                 *(([neumiss_layer(**neumiss_args)] if add_neumiss else []) +
                   [nn.Linear(n_features, hidden_dim)] +
                   ([activation_fn(**activation_args)] + ([nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
-                   [nn.Dropout(p=dropout_p),
-                    nn.Linear(hidden_dim, hidden_dim)]) * (n_hidden_layers - 1) +
+                   ([nn.Dropout(p=dropout_p)] if not dropout_only_once else []) +
+                   [nn.Linear(hidden_dim, hidden_dim)]) * (n_hidden_layers - 1) +
                   ([activation_fn(**activation_args)] + [nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
                                                                              [nn.Dropout(p=dropout_p),
                                                                              nn.Linear(hidden_dim, 1)])

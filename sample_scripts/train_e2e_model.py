@@ -48,13 +48,14 @@ DEFAULT_HYPERPARAMS = {
     "hidden_dim": 1024,
     "n_hidden_layers": 1,
     "dropout_p": 0.1,
+    "dropout_only_once": False,
     "batchnorm": True,
     "hidden_config": None,
     "activation": "leaky_relu",
     "negative_slope": 0.01,
     # Training config
     "lr": 1e-5,
-    "n_epochs": 5,
+    "n_epochs": 2,
     "weighted_loss": True,
     "use_lr_scheduler": True,
     "lr_factor": 0.6,
@@ -176,6 +177,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         hidden_dim = hyp["hidden_dim"]
         n_hidden_layers = hyp["n_hidden_layers"]
         dropout_p = hyp["dropout_p"]
+        dropout_only_once = hyp["dropout_only_once"]
         hidden_config = hyp["hidden_config"]
         activation = hyp["activation"]
         add_batchnorm = hyp["batchnorm"]
@@ -186,7 +188,7 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
         n_features = train_Dataloader.dataset[0][0].shape[1]
 
         # Create model with hyperparams
-        e2e_model = EntResModel(n_features, neumiss_depth, dropout_p, add_neumiss,
+        e2e_model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm,
                                 activation, negative_slope, hidden_config)
         logger.info("Model loaded: %s", e2e_model)
@@ -284,10 +286,10 @@ def train_e2e_model(hyperparams={}, verbose=False, project=None, entity=None,
                 e2e_model.eval()
                 dev_f1_metric = evaluate_e2e_model(e2e_model, val_Dataloader, dev_opt_metric)
                 logger.info("Epoch", i + 1, ":", "Dev vmeasure:", dev_f1_metric)
-                if dev_f1_metric > best_metric:
+                if dev_f1_metric > best_dev_f1:
                     logger.info(f"New best dev vmeasure score: {dev_opt_metric}; storing model")
                     best_epoch = i
-                    best_metric = dev_f1_metric
+                    best_dev_f1 = dev_f1_metric
                     best_model_on_dev = copy.deepcopy(e2e_model)
                 if hyp['overfit_one_batch']:
                     train_f1_metric = evaluate_e2e_model(e2e_model, train_Dataloader, dev_opt_metric,
