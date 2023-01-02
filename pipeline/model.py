@@ -26,13 +26,13 @@ class EntResModel(torch.nn.Module):
         self.hac_cut_layer = HACCutLayer()
         #self.trellis_cut_estimator = TrellisCutLayer()
 
-    def forward(self, x, N):
+    def forward(self, x, N, verbose=True):
         edge_weights = torch.squeeze(self.mlp_layer(x))
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
         output_probs = self.sdp_layer(edge_weights_uncompressed, N)
         pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
 
-        if True: # Change to VERBOSE parameter
+        if verbose:
             logger.info("Size of W is %s", edge_weights.size())
             logger.info("W")
             logger.info(edge_weights)

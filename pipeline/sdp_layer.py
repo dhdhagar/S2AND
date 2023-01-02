@@ -50,13 +50,13 @@ class SDPLayer(torch.nn.Module):
         })[0]
 
         sdp_obj_value = None
-        if verbose:
-            with torch.no_grad():
-                sdp_obj_value = torch.sum(W_val * torch.triu(pw_probs, diagonal=1)).item()
+        with torch.no_grad():
+            sdp_obj_value = torch.sum(W_val * torch.triu(pw_probs, diagonal=1)).item()
+            if verbose:
                 logger.info(f'SDP objective = {sdp_obj_value}')
 
         return sdp_obj_value, pw_probs
 
     def forward(self, edge_weights_uncompressed, N, verbose=False):
-        pw_probs, _ = self.build_and_solve_sdp(edge_weights_uncompressed, N, verbose)
+        _, pw_probs = self.build_and_solve_sdp(edge_weights_uncompressed, N, verbose)
         return pw_probs
