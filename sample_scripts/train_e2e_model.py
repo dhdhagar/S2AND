@@ -64,7 +64,7 @@ DEFAULT_HYPERPARAMS = {
     "weight_decay": 0.,
     "dev_opt_metric": 'v_measure_score',
     "overfit_one_batch": True,
-    "batch_idx_to_select": -1
+    "batch_idx_to_select": 35
 }
 
 def read_blockwise_features(pkl):
