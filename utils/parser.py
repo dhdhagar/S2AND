@@ -77,7 +77,7 @@ class Parser(argparse.ArgumentParser):
             help="Wandb sweep method (bayes/random/grid)",
         )
         parser.add_argument(
-            "--wandb_project", type=str, default="missing-values",
+            "--wandb_project", type=str, default="prob-ent-resolution",
             help="Wandb project name",
         )
         parser.add_argument(
