@@ -39,13 +39,8 @@ class MLPLayer(torch.nn.Module):
                    ([nn.Dropout(p=dropout_p)] if not dropout_only_once else []) +
                    [nn.Linear(hidden_dim, hidden_dim)]) * (n_hidden_layers - 1) +
                   ([activation_fn(**activation_args)] + [nn.BatchNorm1d(hidden_dim)] if add_batchnorm else []) +
-                                                                             [nn.Dropout(p=dropout_p),
-                                                                             nn.Linear(hidden_dim, 1)])
+                  [nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
             )
 
     def forward(self, x):
-        y = self.mlp_model(x)
-        self.edge_weights = y
-        if self.training:
-            self.edge_weights.retain_grad()
-        return self.edge_weights
+        return self.mlp_model(x)

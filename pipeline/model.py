@@ -24,7 +24,6 @@ class EntResModel(torch.nn.Module):
         self.uncompress_layer = UncompressTransformLayer()
         self.sdp_layer = SDPLayer(max_sdp_iters=50000)
         self.hac_cut_layer = HACCutLayer()
-        #self.trellis_cut_estimator = TrellisCutLayer()
 
     def forward(self, x, N, verbose=False):
         edge_weights = torch.squeeze(self.mlp_layer(x))
@@ -47,4 +46,5 @@ class EntResModel(torch.nn.Module):
             logger.info("Size of HAC Cut OP is %s", pred_clustering.size())
             logger.info("HAC Cut OP")
             logger.info(pred_clustering)
+
         return pred_clustering

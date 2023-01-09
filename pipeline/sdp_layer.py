@@ -12,14 +12,10 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 class SDPLayer(torch.nn.Module):
-    # Taken from the ECC Clusterer class in ecc_layer.py
-    def __init__(self,
-                 max_sdp_iters: int, problem_N=None):
+    def __init__(self, max_sdp_iters: int):
         super().__init__()
         self.max_sdp_iters = max_sdp_iters
         self.num_ecc = 0
-        # TODO: Implement problem_N functionality which creates a standard large matrix once and just solves it
-        #       in the forward pass each time, rather than building it out each time
 
     def build_and_solve_sdp(self, W_val, N, verbose=False):
         # Initialize the cvxpy layer

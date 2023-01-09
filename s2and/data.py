@@ -16,6 +16,7 @@ from collections import defaultdict, Counter
 
 from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from s2and.sampling import sampling, random_sampling
 from s2and.consts import (
@@ -124,10 +125,17 @@ class S2BlocksDataset(Dataset):
             n is the number of signatures in a S2 block and f is the number of pairwise features
     """
     def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
-                 convert_nan=True, nan_value=-1):
+                 convert_nan=True, nan_value=-1, scale=False, scaler=None):
         self.blockwise_data = blockwise_data
         self.convert_nan = convert_nan
         self.nan_value = nan_value
+        self.scale = scale
+        self.scaler = scaler
+        if self.scale and self.scaler is None:
+            # Fit scaler on input data
+            all_X = np.concatenate(list(map(lambda x: x[0], self.blockwise_data.values())))
+            self.scaler = StandardScaler()
+            self.scaler.fit(all_X)
 
     def __len__(self):
         return len(self.blockwise_data.keys())
@@ -138,7 +146,8 @@ class S2BlocksDataset(Dataset):
         X, y, clusterIds = self.blockwise_data[dict_key]
         if self.convert_nan:
             np.nan_to_num(X, copy=False, nan=self.nan_value)
-
+        if self.scale and self.scaler is not None:
+            X = self.scaler.transform(X)
         return X, y, clusterIds
 
 class ANDData:
