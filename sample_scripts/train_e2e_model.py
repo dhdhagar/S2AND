@@ -218,7 +218,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         e2e_model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm,
                                 activation, negative_slope, hidden_config)
-        logger.info("Model loaded: %s", e2e_model)
+        logger.info(f"Model loaded: {e2e_model}", )
         if verbose:
             logger.info("Learnable parameters:")
             for name, parameter in e2e_model.named_parameters():
@@ -328,11 +328,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     optimizer.step()
 
                     if verbose:
-                        logger.info("loss = ", loss.item())
+                        logger.info(f"loss = {loss.item()}")
                     running_loss.append(loss.item())
 
                 if verbose:
-                    logger.info("epoch loss = ", np.mean(running_loss))
+                    logger.info(f"epoch loss = {np.mean(running_loss)}")
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 with torch.no_grad():
