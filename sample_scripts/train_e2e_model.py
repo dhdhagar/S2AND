@@ -131,7 +131,7 @@ def compute_b3_f1(true_cluster_ids, pred_cluster_ids):
     true_cluster_dict, pred_cluster_dict = defaultdict(list), defaultdict(list)
     for i in range(len(true_cluster_ids)):
         true_cluster_dict[true_cluster_ids[i]].append(i)
-        pred_cluster_dict[pred_cluster_ids[i]].append(i)
+        pred_cluster_dict[pred_cluster_ids[i].item()].append(i)
     return b3_precision_recall_fscore(true_cluster_dict, pred_cluster_dict)
 
 
