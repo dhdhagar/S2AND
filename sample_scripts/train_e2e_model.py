@@ -241,6 +241,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         if state_dict is not None:
             e2e_model.load_state_dict(state_dict)
             logger.info(f'Loaded stored model.')
+        e2e_model.to(device)
 
         if eval_only_split is not None:
             # Run inference and exit
@@ -258,7 +259,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                            f'{eval_only_split}_b3_f1': eval_scores[1]})
         else:
             # Training
-            e2e_model.to(device)
             wandb.watch(e2e_model)
 
             optimizer = torch.optim.AdamW(e2e_model.parameters(), lr=hyp['lr'])
