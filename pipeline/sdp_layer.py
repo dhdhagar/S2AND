@@ -40,7 +40,6 @@ class SDPLayer(torch.nn.Module):
         pw_probs = self.cvxpy_layer(W_val, solver_args={
             "solve_method": "SCS",
             "verbose": verbose,
-            "warm_start": True,
             "max_iters": self.max_iters,
             "eps": self.eps
         })[0]
