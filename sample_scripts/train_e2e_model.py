@@ -15,6 +15,7 @@ import wandb
 from torch.utils.data import DataLoader
 import numpy as np
 from sklearn.metrics.cluster import v_measure_score
+from tqdm import tqdm
 
 from pipeline.model import EntResModel
 from s2and.consts import PREPROCESSED_DATA_DIR
@@ -138,7 +139,7 @@ def compute_b3_f1(true_cluster_ids, pred_cluster_ids):
 def evaluate(model, dataloader, overfit_batch_idx=-1):
     n_features = dataloader.dataset[0][0].shape[1]
     v_measure, b3_f1 = [], []
-    for (idx, batch) in enumerate(dataloader):
+    for (idx, batch) in tqdm(enumerate(dataloader), desc='Evaluating'):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
                 continue
@@ -251,7 +252,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 'test': test_dataloader
             }
             with torch.no_grad():
+                start_time = time.time()
                 eval_scores = evaluate(e2e_model, dataloaders[eval_only_split])
+                end_time = time.time()
                 if verbose:
                     logger.info(
                         f"Eval: {eval_only_split}_vmeasure={eval_scores[0]}, {eval_only_split}_b3_f1={eval_scores[1]}")
