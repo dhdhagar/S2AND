@@ -430,24 +430,7 @@ if __name__ == '__main__':
     print(f"Using device={device}")
 
     wandb.login()
-
-    if args['wandb_run_params'] is not None:
-        logger.info("Single-run mode")
-        with open(args['wandb_run_params'], 'r') as fh:
-            run_params = json.load(fh)
-        run_params.update(hyp_args)
-        train(hyperparams=run_params,
-              verbose=not args['silent'],
-              project=args['wandb_project'],
-              entity=args['wandb_entity'],
-              tags=args['wandb_tags'],
-              group=args['wandb_group'],
-              save_model=args['save_model'],
-              load_model_from_wandb_run=args['load_model_from_wandb_run'],
-              load_model_from_fpath=args['load_model_from_fpath'],
-              eval_only_split=args['eval_only_split'])
-        logger.info("End of run")
-    else:
+    if args['wandb_sweep_params'] is not None:
         logger.info("Sweep mode")
         with open(args['wandb_sweep_params'], 'r') as fh:
             sweep_params = json.load(fh)
@@ -482,3 +465,23 @@ if __name__ == '__main__':
                     count=args['wandb_max_runs'])
 
         logger.info("End of sweep")
+    else:
+        logger.info("Single-run mode")
+        try:
+            with open(args['wandb_run_params'], 'r') as fh:
+                run_params = json.load(fh)
+        except:
+            logger.info("Run config could not be loaded; using defaults.")
+            run_params = {}
+        run_params.update(hyp_args)
+        train(hyperparams=run_params,
+              verbose=not args['silent'],
+              project=args['wandb_project'],
+              entity=args['wandb_entity'],
+              tags=args['wandb_tags'],
+              group=args['wandb_group'],
+              save_model=args['save_model'],
+              load_model_from_wandb_run=args['load_model_from_wandb_run'],
+              load_model_from_fpath=args['load_model_from_fpath'],
+              eval_only_split=args['eval_only_split'])
+        logger.info("End of run")
