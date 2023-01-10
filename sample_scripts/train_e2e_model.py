@@ -41,7 +41,7 @@ DEFAULT_HYPERPARAMS = {
     "nan_value": -1,
     "drop_feat_nan_pct": -1,
     "normalize_data": False,
-    # model config
+    # Model config
     "neumiss_deq": False,
     "neumiss_depth": 20,
     "hidden_dim": 1024,
@@ -52,9 +52,12 @@ DEFAULT_HYPERPARAMS = {
     "hidden_config": None,
     "activation": "leaky_relu",
     "negative_slope": 0.01,
+    # Solver config
+    "sdp_max_iters": 50000,
+    "sdp_eps": 1e-3,
     # Training config
     "lr": 1e-5,
-    "n_epochs": 2,
+    "n_epochs": 10,
     # "weighted_loss": True,
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "step"
@@ -210,14 +213,16 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         neumiss_depth = hyp["neumiss_depth"]
         add_neumiss = not hyp['convert_nan']
         negative_slope = hyp["negative_slope"]
+        sdp_max_iters = hyp["sdp_max_iters"]
+        sdp_eps = hyp["sdp_eps"]
         n_features = train_dataloader.dataset[0][0].shape[1]
         overfit_batch_idx = hyp['overfit_batch_idx']
         eval_metric_to_idx = {'v_measure': 0, 'b3_f1': 1}
 
         # Create model with hyperparams
         e2e_model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
-                                neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm,
-                                activation, negative_slope, hidden_config)
+                                neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                                negative_slope, hidden_config, sdp_max_iters, sdp_eps)
         logger.info(f"Model loaded: {e2e_model}", )
         if verbose:
             logger.info("Learnable parameters:")

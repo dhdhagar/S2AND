@@ -12,10 +12,10 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 class SDPLayer(torch.nn.Module):
-    def __init__(self, max_sdp_iters: int):
+    def __init__(self, max_iters: int = 50000, eps: float = 1e-3):
         super().__init__()
-        self.max_sdp_iters = max_sdp_iters
-        self.num_ecc = 0
+        self.max_iters = max_iters
+        self.eps = eps
 
     def build_and_solve_sdp(self, W_val, N, verbose=False):
         # Initialize the cvxpy layer
@@ -40,9 +40,9 @@ class SDPLayer(torch.nn.Module):
         pw_probs = self.cvxpy_layer(W_val, solver_args={
             "solve_method": "SCS",
             "verbose": verbose,
-            # "warm_start": True,  # Enabled by default
-            "max_iters": self.max_sdp_iters,
-            "eps": 1e-3,
+            "warm_start": True,
+            "max_iters": self.max_iters,
+            "eps": self.eps
         })[0]
 
         with torch.no_grad():
