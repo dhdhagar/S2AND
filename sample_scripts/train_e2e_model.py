@@ -313,11 +313,12 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if idx > overfit_batch_idx:
                             break
                     data, target, _ = batch
-                    if data.shape[0] != 0:
+                    if idx == 8:
+                        embed()
+                    else:
                         continue
                     if data.shape[0] == 0:
                         # Block contains only one signature
-                        logger.info('FOUND 0-batch')
                         continue
                     data = data.reshape(-1, n_features).float()
                     if add_batchnorm and data.shape[0] == 1:
