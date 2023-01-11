@@ -424,7 +424,7 @@ if __name__ == '__main__':
                 argument_type = type(DEFAULT_HYPERPARAMS[argument_name[2:]])
                 if argument_type == bool:
                     parser.add_argument(argument_name, action='store_true')
-                    if len(arg_split) > 0 and arg_split[1].lower() == 'false':
+                    if len(arg_split) > 1 and arg_split[1].lower() == 'false':
                         make_false_args.append(argument_name)
                 else:
                     parser.add_argument(argument_name, type=argument_type)
