@@ -426,7 +426,7 @@ if __name__ == '__main__':
                 if argument_type == bool:
                     if len(arg_split) > 1 and arg_split[1].lower() == 'false':
                         parser.add_argument(argument_name, type=str)
-                        make_false_args.append(argument_name)
+                        make_false_args.append(argument_name[2:])
                     else:
                         parser.add_argument(argument_name, action='store_true')
                 else:
