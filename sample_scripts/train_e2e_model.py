@@ -314,8 +314,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         logger.info(f"input matrix size: {block_size}")
                         logger.info(f"target shape: {target.shape}")
 
-                    if data.shape[0] == 1:
-                        pass  # TODO: Fix this scenario
+                    if data.shape[0] != 1:
+                        continue  # TODO: Fix this scenario
 
                     # Forward pass through the e2e model
                     data, target = data.to(device), target.to(device)
