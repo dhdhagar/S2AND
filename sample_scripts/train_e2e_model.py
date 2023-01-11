@@ -334,7 +334,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     # Calculate the loss
                     gold_output = uncompress_target_tensor(target)
                     if verbose:
-                        logger.info(f"Predicted:\n{output}")
                         logger.info(f"Gold:\n{gold_output}")
 
                     loss = torch.norm(gold_output - output) / (2 * block_size)
