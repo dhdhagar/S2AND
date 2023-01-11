@@ -316,6 +316,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     if data.shape[0] == 0:
                         # Block contains only one signature
                         continue
+                    if add_batchnorm and data.shape[0] == 1:
+                        # Block contains only one signature pair; batchnorm throws error
+                        continue
                     data = data.reshape(-1, n_features).float()
                     block_size = get_matrix_size_from_triu(data)
                     target = target.flatten().float()
