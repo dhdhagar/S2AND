@@ -132,3 +132,7 @@ class Parser(argparse.ArgumentParser):
             "--eval_only_split", type=str,
             help="Run script in inference-only mode on a particular data split (train / dev / test)",
         )
+        parser.add_argument(
+            "--skip_initial_eval", action='store_true',
+            help="Whether to skip dev evaluation before training starts",
+        )

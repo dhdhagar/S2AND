@@ -166,7 +166,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
-          eval_only_split=None):
+          eval_only_split=None, skip_initial_eval=False):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -225,11 +225,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                                 negative_slope, hidden_config, sdp_max_iters, sdp_eps)
         logger.info(f"Model loaded: {e2e_model}", )
-        if verbose:
-            logger.info("Learnable parameters:")
-            for name, parameter in e2e_model.named_parameters():
-                if parameter.requires_grad:
-                    logger.info(name)
 
         # Load stored model, if available
         state_dict = None
@@ -281,19 +276,20 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             best_dev_scores = None  # Contains scores of all metrics
             best_epoch = 0
 
-            # Get initial model performance on dev (or 'train' for overfitting runs)
-            with torch.no_grad():
-                e2e_model.eval()
-                if overfit_batch_idx > -1:
-                    train_scores = evaluate(e2e_model, train_dataloader, overfit_batch_idx)
-                    if verbose:
-                        logger.info(f"Initial: train_vmeasure={train_scores[0]}, train_b3_f1={train_scores[1]}")
-                    wandb.log({'epoch': 0, 'train_vmeasure': train_scores[0], 'train_b3_f1': train_scores[1]})
-                else:
-                    dev_scores = evaluate(e2e_model, val_dataloader)
-                    if verbose:
-                        logger.info(f"Initial: dev_vmeasure={dev_scores[0]}, dev_b3_f1={dev_scores[1]}")
-                    wandb.log({'epoch': 0, 'dev_vmeasure': dev_scores[0], 'dev_b3_f1': dev_scores[1]})
+            if not skip_initial_eval:
+                # Get initial model performance on dev (or 'train' for overfitting runs)
+                with torch.no_grad():
+                    e2e_model.eval()
+                    if overfit_batch_idx > -1:
+                        train_scores = evaluate(e2e_model, train_dataloader, overfit_batch_idx)
+                        if verbose:
+                            logger.info(f"Initial: train_vmeasure={train_scores[0]}, train_b3_f1={train_scores[1]}")
+                        wandb.log({'epoch': 0, 'train_vmeasure': train_scores[0], 'train_b3_f1': train_scores[1]})
+                    else:
+                        dev_scores = evaluate(e2e_model, val_dataloader)
+                        if verbose:
+                            logger.info(f"Initial: dev_vmeasure={dev_scores[0]}, dev_b3_f1={dev_scores[1]}")
+                        wandb.log({'epoch': 0, 'dev_vmeasure': dev_scores[0], 'dev_b3_f1': dev_scores[1]})
 
             e2e_model.train()
             start_time = time.time()  # Tracks full training runtime
@@ -486,5 +482,6 @@ if __name__ == '__main__':
               save_model=args['save_model'],
               load_model_from_wandb_run=args['load_model_from_wandb_run'],
               load_model_from_fpath=args['load_model_from_fpath'],
-              eval_only_split=args['eval_only_split'])
+              eval_only_split=args['eval_only_split'],
+              skip_initial_eval=args['skip_initial_eval'])
         logger.info("End of run")
