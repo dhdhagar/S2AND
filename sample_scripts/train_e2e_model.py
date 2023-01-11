@@ -424,9 +424,11 @@ if __name__ == '__main__':
             if argument_name[2:] in DEFAULT_HYPERPARAMS:
                 argument_type = type(DEFAULT_HYPERPARAMS[argument_name[2:]])
                 if argument_type == bool:
-                    parser.add_argument(argument_name, action='store_true')
                     if len(arg_split) > 1 and arg_split[1].lower() == 'false':
+                        parser.add_argument(argument_name, type=str)
                         make_false_args.append(argument_name)
+                    else:
+                        parser.add_argument(argument_name, action='store_true')
                 else:
                     parser.add_argument(argument_name, type=argument_type)
     args = parser.parse_args().__dict__
