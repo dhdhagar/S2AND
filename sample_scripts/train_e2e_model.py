@@ -172,7 +172,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
     b3_f1 = np.array(b3_f1)
     sigs_per_block = np.array(sigs_per_block)
 
-    return v_measure * sigs_per_block / sigs_per_block.sum(), b3_f1 * sigs_per_block / sigs_per_block.sum()
+    return np.sum(v_measure * sigs_per_block) / sigs_per_block.sum(), np.sum(b3_f1 * sigs_per_block) / sigs_per_block.sum()
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
