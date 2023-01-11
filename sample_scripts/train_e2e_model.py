@@ -138,7 +138,7 @@ def compute_b3_f1(true_cluster_ids, pred_cluster_ids):
 
 def evaluate(model, dataloader, overfit_batch_idx=-1):
     n_features = dataloader.dataset[0][0].shape[1]
-    v_measure, b3_f1 = [], []
+    v_measure, b3_f1, sigs_per_block = [], [], []
     for (idx, batch) in tqdm(enumerate(dataloader), desc='Evaluating'):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
@@ -146,22 +146,33 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
             if idx > overfit_batch_idx:
                 break
         data, target, cluster_ids = batch
-        data = data.reshape(-1, n_features).float()
-        block_size = get_matrix_size_from_triu(data)
-        cluster_ids = np.reshape(cluster_ids, (block_size, ))
-        target = target.flatten().float()
+        if data.shape[0] == 0:
+            # Only one signature in block -> predict correctly
+            v_measure.append(1.)
+            b3_f1.append(1.)
+            sigs_per_block.append(1)
+        else:
+            data = data.reshape(-1, n_features).float()
+            block_size = get_matrix_size_from_triu(data)
+            cluster_ids = np.reshape(cluster_ids, (block_size, ))
+            target = target.flatten().float()
+            sigs_per_block.append(block_size)
 
-        # Forward pass through the e2e model
-        data, target = data.to(device), target.to(device)
-        _ = model(data, block_size)
-        predicted_cluster_ids = model.hac_cut_layer.cluster_labels.detach()
+            # Forward pass through the e2e model
+            data, target = data.to(device), target.to(device)
+            _ = model(data, block_size)
+            predicted_cluster_ids = model.hac_cut_layer.cluster_labels.detach()
 
-        # Compute clustering metrics
-        v_measure.append(v_measure_score(predicted_cluster_ids, cluster_ids))
-        b3_f1_metrics = compute_b3_f1(cluster_ids, predicted_cluster_ids)
-        b3_f1.append(b3_f1_metrics[2])
+            # Compute clustering metrics
+            v_measure.append(v_measure_score(predicted_cluster_ids, cluster_ids))
+            b3_f1_metrics = compute_b3_f1(cluster_ids, predicted_cluster_ids)
+            b3_f1.append(b3_f1_metrics[2])
 
-    return np.mean(v_measure), np.mean(b3_f1)
+    v_measure = np.array(v_measure)
+    b3_f1 = np.array(b3_f1)
+    sigs_per_block = np.array(sigs_per_block)
+
+    return v_measure * sigs_per_block / sigs_per_block.sum(), b3_f1 * sigs_per_block / sigs_per_block.sum()
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
@@ -302,6 +313,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if idx > overfit_batch_idx:
                             break
                     data, target, _ = batch
+                    if data.shape[0] == 0:
+                        # Block contains only one signature
+                        continue
                     data = data.reshape(-1, n_features).float()
                     block_size = get_matrix_size_from_triu(data)
                     target = target.flatten().float()

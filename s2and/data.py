@@ -148,10 +148,8 @@ class S2BlocksDataset(Dataset):
         if self.convert_nan:
             np.nan_to_num(X, copy=False, nan=self.nan_value)
         if self.scale and self.scaler is not None:
-            try:
+            if X.shape[0] != 0:
                 X = self.scaler.transform(X)
-            except:
-                embed()
         return X, y, clusterIds
 
 class ANDData:
