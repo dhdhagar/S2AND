@@ -415,6 +415,7 @@ if __name__ == '__main__':
     parser = Parser(add_training_args=True)
     # Handle additional arbitrary arguments
     _, unknown = parser.parse_known_args()
+    make_false_args = []
     for arg in unknown:
         if arg.startswith("--"):
             argument_name = arg.split('=')[0]
@@ -422,9 +423,13 @@ if __name__ == '__main__':
                 argument_type = type(DEFAULT_HYPERPARAMS[argument_name[2:]])
                 if argument_type == bool:
                     parser.add_argument(argument_name, action='store_true')
+                    if arg.split('=')[1].lower() == 'false':
+                        make_false_args.append(argument_name)
                 else:
                     parser.add_argument(argument_name, type=argument_type)
     args = parser.parse_args().__dict__
+    for false_arg in make_false_args:
+        args[false_arg] = False
     hyp_args = {k: v for k, v in args.items() if k in DEFAULT_HYPERPARAMS}
     logger.info("Script arguments:")
     logger.info(args)
