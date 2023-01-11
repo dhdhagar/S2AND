@@ -313,8 +313,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if idx > overfit_batch_idx:
                             break
                     data, target, _ = batch
+                    if data.shape[0] != 0:
+                        continue
                     if data.shape[0] == 0:
                         # Block contains only one signature
+                        logger.info('FOUND 0-batch')
                         continue
                     data = data.reshape(-1, n_features).float()
                     if add_batchnorm and data.shape[0] == 1:
@@ -326,9 +329,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         logger.info(f"input shape: {data.shape}")
                         logger.info(f"input matrix size: {block_size}")
                         logger.info(f"target shape: {target.shape}")
-
-                    if data.shape[0] != 1:
-                        continue  # TODO: Fix this scenario
 
                     # Forward pass through the e2e model
                     data, target = data.to(device), target.to(device)
