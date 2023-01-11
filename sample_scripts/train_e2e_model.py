@@ -418,12 +418,13 @@ if __name__ == '__main__':
     make_false_args = []
     for arg in unknown:
         if arg.startswith("--"):
-            argument_name = arg.split('=')[0]
+            arg_split = arg.split('=')
+            argument_name = arg_split[0]
             if argument_name[2:] in DEFAULT_HYPERPARAMS:
                 argument_type = type(DEFAULT_HYPERPARAMS[argument_name[2:]])
                 if argument_type == bool:
                     parser.add_argument(argument_name, action='store_true')
-                    if arg.split('=')[1].lower() == 'false':
+                    if len(arg_split) > 0 and arg_split[1].lower() == 'false':
                         make_false_args.append(argument_name)
                 else:
                     parser.add_argument(argument_name, type=argument_type)
