@@ -277,10 +277,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                            mode='min',
                                                                            factor=hyp['lr_factor'],
                                                                            min_lr=hyp['lr_min'],
-                                                                           patience=hyp['lr_scheduler_patience'])
+                                                                           patience=hyp['lr_scheduler_patience'],
+                                                                           verbose=True)
                 elif hyp['lr_scheduler'] == 'step':
                     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=hyp['lr_step_size'],
-                                                                gamma=hyp['lr_gamma'])
+                                                                gamma=hyp['lr_gamma'], verbose=True)
 
             best_dev_state_dict = None
             best_dev_score = -1  # Stores the score of only the specified optimization metric
