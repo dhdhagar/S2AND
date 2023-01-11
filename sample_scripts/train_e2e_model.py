@@ -76,8 +76,6 @@ def read_blockwise_features(pkl):
     blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]
     with open(pkl,"rb") as _pkl_file:
         blockwise_data = pickle.load(_pkl_file)
-
-    print("Total num of blocks:", len(blockwise_data.keys()))
     return blockwise_data
 
 
@@ -444,7 +442,7 @@ if __name__ == '__main__':
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
-    print(f"Using device={device}")
+    logger.info(f"Using device={device}")
 
     wandb.login()
     if args['wandb_sweep_params'] is not None:
