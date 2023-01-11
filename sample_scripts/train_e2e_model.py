@@ -305,6 +305,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             e2e_model.train()
             start_time = time.time()  # Tracks full training runtime
             for i in range(n_epochs):
+                wandb.log({'epoch': i + 1})
                 running_loss = []
                 for (idx, batch) in enumerate(train_dataloader):
                     if overfit_batch_idx > -1:
@@ -323,9 +324,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     block_size = get_matrix_size_from_triu(data)
                     target = target.flatten().float()
                     if verbose:
-                        logger.info(f"input shape: {data.shape}")
-                        logger.info(f"input matrix size: {block_size}")
-                        logger.info(f"target shape: {target.shape}")
+                        logger.info(f"Batch shape: {data.shape}")
+                        logger.info(f"Batch matrix size: {block_size}")
 
                     # Forward pass through the e2e model
                     data, target = data.to(device), target.to(device)
@@ -334,10 +334,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     # Calculate the loss
                     gold_output = uncompress_target_tensor(target)
                     if verbose:
-                        logger.info("predicted output:")
-                        logger.info(output)
-                        logger.info("gold output:")
-                        logger.info(gold_output)
+                        logger.info(f"Predicted:\n{output}")
+                        logger.info(f"Gold:\n{gold_output}")
 
                     loss = torch.norm(gold_output - output) / (2 * block_size)
 
@@ -346,11 +344,12 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     optimizer.step()
 
                     if verbose:
-                        logger.info(f"loss = {loss.item()}")
+                        logger.info(f"Loss = {loss.item()}")
                     running_loss.append(loss.item())
+                    wandb.log({'train_loss_batch': np.mean(running_loss)})
 
                 if verbose:
-                    logger.info(f"epoch loss = {np.mean(running_loss)}")
+                    logger.info(f"Epoch loss = {np.mean(running_loss)}")
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 with torch.no_grad():
@@ -360,7 +359,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if verbose:
                             logger.info(f"Epoch {i + 1}: train_vmeasure={train_scores[0]}, train_b3_f1={train_scores[1]}")
                         wandb.log(
-                            {'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss), 'train_vmeasure': train_scores[0],
+                            {'train_loss_epoch': np.mean(running_loss), 'train_vmeasure': train_scores[0],
                              'train_b3_f1': train_scores[1]})
                         if use_lr_scheduler:
                             if hyp['lr_scheduler'] == 'plateau':
@@ -370,8 +369,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     else:
                         dev_scores = evaluate(e2e_model, val_dataloader)
                         if verbose:
-                            logger.info(f"Epoch {i + 1}: dev_vmeasure={dev_scores[0]}, dev_b3_f1={dev_scores[1]}")
-                        wandb.log({'epoch': i + 1, 'train_loss_epoch': np.mean(running_loss), 'dev_vmeasure': dev_scores[0],
+                            logger.info(f"epoch {i + 1}: dev_vmeasure={dev_scores[0]}, dev_b3_f1={dev_scores[1]}")
+                        wandb.log({'Epoch': i + 1, 'train_loss_epoch': np.mean(running_loss), 'dev_vmeasure': dev_scores[0],
                                    'dev_b3_f1': dev_scores[1]})
                         dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                         if dev_opt_score > best_dev_score:
