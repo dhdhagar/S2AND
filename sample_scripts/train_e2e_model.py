@@ -346,7 +346,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     if verbose:
                         logger.info(f"Loss = {loss.item()}")
                     running_loss.append(loss.item())
-                    wandb.log({'train_loss_batch': np.mean(running_loss)})
+                    wandb.log({'train_loss': np.mean(running_loss)})
 
                 if verbose:
                     logger.info(f"Epoch loss = {np.mean(running_loss)}")
@@ -358,9 +358,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         train_scores = evaluate(e2e_model, train_dataloader, overfit_batch_idx)
                         if verbose:
                             logger.info(f"Epoch {i + 1}: train_vmeasure={train_scores[0]}, train_b3_f1={train_scores[1]}")
-                        wandb.log(
-                            {'train_loss_epoch': np.mean(running_loss), 'train_vmeasure': train_scores[0],
-                             'train_b3_f1': train_scores[1]})
+                        wandb.log({'train_vmeasure': train_scores[0], 'train_b3_f1': train_scores[1]})
                         if use_lr_scheduler:
                             if hyp['lr_scheduler'] == 'plateau':
                                 scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
@@ -370,8 +368,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         dev_scores = evaluate(e2e_model, val_dataloader)
                         if verbose:
                             logger.info(f"epoch {i + 1}: dev_vmeasure={dev_scores[0]}, dev_b3_f1={dev_scores[1]}")
-                        wandb.log({'Epoch': i + 1, 'train_loss_epoch': np.mean(running_loss), 'dev_vmeasure': dev_scores[0],
-                                   'dev_b3_f1': dev_scores[1]})
+                        wandb.log({'dev_vmeasure': dev_scores[0], 'dev_b3_f1': dev_scores[1]})
                         dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                         if dev_opt_score > best_dev_score:
                             if verbose:
