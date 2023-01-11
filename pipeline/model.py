@@ -33,7 +33,7 @@ class EntResModel(torch.nn.Module):
 
         if verbose:
             logger.info(f"Size of W = {edge_weights.size()}")
-            logger.info(f"{edge_weights}")
+            logger.info(f"\n{edge_weights}")
 
             logger.info(f"Size of W_matrix = {edge_weights_uncompressed.size()}")
             logger.info(f"\n{edge_weights_uncompressed}")

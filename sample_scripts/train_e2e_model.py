@@ -144,13 +144,13 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
             if idx > overfit_batch_idx:
                 break
         data, target, cluster_ids = batch
+        data = data.reshape(-1, n_features).float()
         if data.shape[0] == 0:
             # Only one signature in block -> predict correctly
             v_measure.append(1.)
             b3_f1.append(1.)
             sigs_per_block.append(1)
         else:
-            data = data.reshape(-1, n_features).float()
             block_size = get_matrix_size_from_triu(data)
             cluster_ids = np.reshape(cluster_ids, (block_size, ))
             target = target.flatten().float()
@@ -170,7 +170,8 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
     b3_f1 = np.array(b3_f1)
     sigs_per_block = np.array(sigs_per_block)
 
-    return np.sum(v_measure * sigs_per_block) / sigs_per_block.sum(), np.sum(b3_f1 * sigs_per_block) / sigs_per_block.sum()
+    return np.sum(v_measure * sigs_per_block) / np.sum(sigs_per_block), \
+           np.sum(b3_f1 * sigs_per_block) / np.sum(sigs_per_block)
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
