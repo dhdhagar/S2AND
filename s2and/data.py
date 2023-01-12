@@ -2,6 +2,7 @@ from typing import Optional, Union, Dict, List, Any, Tuple, Set, NamedTuple
 
 import os
 import json
+import math
 import numpy as np
 import pandas as pd
 import logging
@@ -126,7 +127,7 @@ class S2BlocksDataset(Dataset):
             n is the number of signatures in a S2 block and f is the number of pairwise features
     """
     def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
-                 convert_nan=True, nan_value=-1, scale=False, scaler=None):
+                 convert_nan=True, nan_value=-1, scale=False, scaler=None, subsample_sz=-1):
         self.blockwise_data = blockwise_data
         self.convert_nan = convert_nan
         self.nan_value = nan_value
@@ -137,9 +138,18 @@ class S2BlocksDataset(Dataset):
             all_X = np.concatenate(list(map(lambda x: x[0], self.blockwise_data.values())))
             self.scaler = StandardScaler()
             self.scaler.fit(all_X)
+        self.subsample_sz = subsample_sz
 
     def __len__(self):
         return len(self.blockwise_data.keys())
+
+    def get_indices_by_matrix_idx(K, n):
+        first_pos = list(range(K * (n - 1) - K * (K - 1) // 2, K * (n - 1) - K * (K - 1) // 2 + (n - K - 2) + 1))
+        second_pos = [k * (n - 1) - k * (k - 1) // 2 + K - k - 1 for k in range(K)]
+        return first_pos + second_pos
+
+    def get_matrix_size_from_triu(triu):
+        return round(math.sqrt(2 * len(triu))) + 1
 
     def __getitem__(self, idx):
         # returns all pairwise-features for a specified Block
@@ -150,6 +160,27 @@ class S2BlocksDataset(Dataset):
         if self.scale and self.scaler is not None:
             if X.shape[0] != 0:
                 X = self.scaler.transform(X)
+
+        # Sub-sampling
+        if X.shape[0] != 0 and self.subsample_sz > -1:
+            matrix_sz = self.get_matrix_size_from_triu(X)  # len(clusterIds)  # TODO: Remove assert after verifying
+            assert matrix_sz == len(clusterIds)
+            if matrix_sz > self.subsample_sz:
+                n_to_remove = matrix_sz - self.subsample_sz
+                matrix_idxs_to_remove = np.random.choice(range(matrix_sz), n_to_remove, replace=False)
+                idxs_to_remove = []
+                for midx in matrix_idxs_to_remove:
+                    idxs_to_remove += self.get_indices_by_matrix_idx(midx, matrix_sz)
+                idxs_to_remove = np.array(list(set(idxs_to_remove)))
+                keep_mask = np.ones(len(X), dtype=int)
+                keep_mask[idxs_to_remove] = 0
+                X = X[keep_mask == 1]
+                y = y[keep_mask == 1]
+                assert self.get_matrix_size_from_triu(X) == self.subsample_sz
+                keep_mask = np.ones(len(clusterIds), dtype=int)
+                keep_mask[matrix_idxs_to_remove] = 0
+                clusterIds = clusterIds[keep_mask == 1]
+                assert len(clusterIds) == self.subsample_sz
         return X, y, clusterIds
 
 class ANDData:

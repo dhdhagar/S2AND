@@ -35,6 +35,8 @@ DEFAULT_HYPERPARAMS = {
     # Dataset
     "dataset": "pubmed",
     "dataset_random_seed": 1,
+    "subsample_sz": -1,
+    "subsample_dev_test": False,
     # Run config
     "run_random_seed": 17,
     # Data config
@@ -79,21 +81,23 @@ def read_blockwise_features(pkl):
     return blockwise_data
 
 
-def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize=False):
+def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz, subsample_dev_test):
     train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl"
     val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl"
     test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/test_features.pkl"
 
     train_dataset = S2BlocksDataset(read_blockwise_features(train_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                    scale=normalize)
+                                    scale=normalize, subsample_sz=subsample_sz)
     train_dataloader = DataLoader(train_dataset, shuffle=False)
 
     val_dataset = S2BlocksDataset(read_blockwise_features(val_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                  scale=normalize, scaler=train_dataset.scaler)
+                                  scale=normalize, scaler=train_dataset.scaler,
+                                  subsample_sz=subsample_sz if subsample_dev_test else -1)
     val_dataloader = DataLoader(val_dataset, shuffle=False)
 
     test_dataset = S2BlocksDataset(read_blockwise_features(test_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                   scale=normalize, scaler=train_dataset.scaler)
+                                   scale=normalize, scaler=train_dataset.scaler,
+                                   subsample_sz=subsample_sz if subsample_dev_test else -1)
     test_dataloader = DataLoader(test_dataset, shuffle=False)
 
     return train_dataloader, val_dataloader, test_dataloader
@@ -202,7 +206,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         # Get data loaders (optionally with imputation, normalization)
         train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
                                                                             hyp["convert_nan"], hyp["nan_value"],
-                                                                            hyp["normalize_data"])
+                                                                            hyp["normalize_data"], hyp["subsample_sz"],
+                                                                            hyp["subsample_dev_test"])
 
         # Seed everything
         torch.manual_seed(hyp['run_random_seed'])
