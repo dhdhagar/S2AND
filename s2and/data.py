@@ -143,11 +143,13 @@ class S2BlocksDataset(Dataset):
     def __len__(self):
         return len(self.blockwise_data.keys())
 
+    @staticmethod
     def get_indices_by_matrix_idx(K, n):
         first_pos = list(range(K * (n - 1) - K * (K - 1) // 2, K * (n - 1) - K * (K - 1) // 2 + (n - K - 2) + 1))
         second_pos = [k * (n - 1) - k * (k - 1) // 2 + K - k - 1 for k in range(K)]
         return first_pos + second_pos
 
+    @staticmethod
     def get_matrix_size_from_triu(triu):
         return round(math.sqrt(2 * len(triu))) + 1
 
