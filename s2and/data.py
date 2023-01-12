@@ -181,6 +181,7 @@ class S2BlocksDataset(Dataset):
                 assert self.get_matrix_size_from_triu(X) == self.subsample_sz
                 keep_mask = np.ones(len(clusterIds), dtype=int)
                 keep_mask[matrix_idxs_to_remove] = 0
+                embed()
                 clusterIds = clusterIds[keep_mask == 1]
                 assert len(clusterIds) == self.subsample_sz
         return X, y, clusterIds
