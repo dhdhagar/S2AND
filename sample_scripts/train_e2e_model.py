@@ -36,7 +36,7 @@ DEFAULT_HYPERPARAMS = {
     "dataset": "pubmed",
     "dataset_random_seed": 1,
     "subsample_sz": -1,
-    "subsample_dev_test": False,
+    "subsample_dev": False,
     # Run config
     "run_random_seed": 17,
     # Data config
@@ -81,7 +81,7 @@ def read_blockwise_features(pkl):
     return blockwise_data
 
 
-def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz, subsample_dev_test):
+def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz, subsample_dev):
     train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl"
     val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl"
     test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/test_features.pkl"
@@ -92,12 +92,11 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
 
     val_dataset = S2BlocksDataset(read_blockwise_features(val_pkl), convert_nan=convert_nan, nan_value=nan_value,
                                   scale=normalize, scaler=train_dataset.scaler,
-                                  subsample_sz=subsample_sz if subsample_dev_test else -1)
+                                  subsample_sz=subsample_sz if subsample_dev else -1)
     val_dataloader = DataLoader(val_dataset, shuffle=False)
 
     test_dataset = S2BlocksDataset(read_blockwise_features(test_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                   scale=normalize, scaler=train_dataset.scaler,
-                                   subsample_sz=subsample_sz if subsample_dev_test else -1)
+                                   scale=normalize, scaler=train_dataset.scaler)
     test_dataloader = DataLoader(test_dataset, shuffle=False)
 
     return train_dataloader, val_dataloader, test_dataloader
@@ -207,7 +206,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
                                                                             hyp["convert_nan"], hyp["nan_value"],
                                                                             hyp["normalize_data"], hyp["subsample_sz"],
-                                                                            hyp["subsample_dev_test"])
+                                                                            hyp["subsample_dev"])
 
         # Seed everything
         torch.manual_seed(hyp['run_random_seed'])
