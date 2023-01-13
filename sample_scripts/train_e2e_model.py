@@ -36,7 +36,7 @@ DEFAULT_HYPERPARAMS = {
     "dataset": "pubmed",
     "dataset_random_seed": 1,
     "subsample_sz": -1,
-    "subsample_dev": False,
+    "subsample_dev": True,
     # Run config
     "run_random_seed": 17,
     # Data config
