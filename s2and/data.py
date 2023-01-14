@@ -145,6 +145,7 @@ class S2BlocksDataset(Dataset):
         for dict_key in self.blockwise_data.keys():
             X, y, clusterIds = self.blockwise_data[dict_key]
             if X.shape[0] != 0 and self.subsample_sz > -1:
+                # Split large blocks into subsampled blocks with the same key
                 matrix_sz = len(clusterIds)
                 if matrix_sz > self.subsample_sz:
                     shuffled_idxs = np.random.choice(range(matrix_sz), matrix_sz, replace=False)
@@ -167,7 +168,7 @@ class S2BlocksDataset(Dataset):
                 self.blockwise_list_keys.append(dict_key)
 
     def __len__(self):
-        return len(self.blockwise_list)  # len(self.blockwise_data.keys())
+        return len(self.blockwise_list)
 
     @staticmethod
     def get_indices_by_matrix_idx(K, n):
