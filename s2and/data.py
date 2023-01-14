@@ -157,7 +157,7 @@ class S2BlocksDataset(Dataset):
                         _X = X[idxs_to_keep]
                         _y = y[idxs_to_keep]
                         _clusterIds = list(np.array(clusterIds)[matrix_idxs_to_keep])
-                        self.blockwise_list.append(_X, _y, _clusterIds)
+                        self.blockwise_list.append((_X, _y, _clusterIds))
                         self.blockwise_list_keys.append(dict_key)
                 else:
                     self.blockwise_list.append((X, y, clusterIds))
