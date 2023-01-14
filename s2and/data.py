@@ -140,8 +140,34 @@ class S2BlocksDataset(Dataset):
             self.scaler.fit(all_X)
         self.subsample_sz = subsample_sz
 
+        self.blockwise_list = []
+        self.blockwise_list_keys = []
+        for dict_key in self.blockwise_data.keys():
+            X, y, clusterIds = self.blockwise_data[dict_key]
+            if X.shape[0] != 0 and self.subsample_sz > -1:
+                matrix_sz = len(clusterIds)
+                if matrix_sz > self.subsample_sz:
+                    shuffled_idxs = np.random.choice(range(matrix_sz), matrix_sz, replace=False)
+                    for i in range(0, matrix_sz, self.subsample_sz):
+                        matrix_idxs_to_keep = shuffled_idxs[i:i + self.subsample_sz]
+                        idxs_to_keep = []
+                        for midx in matrix_idxs_to_keep:
+                            idxs_to_keep += self.get_indices_by_matrix_idx(midx, matrix_sz)
+                        idxs_to_keep = np.array(list(set(idxs_to_keep)))
+                        _X = X[idxs_to_keep]
+                        _y = y[idxs_to_keep]
+                        _clusterIds = list(np.array(clusterIds)[matrix_idxs_to_keep])
+                        self.blockwise_list.append(_X, _y, _clusterIds)
+                        self.blockwise_list_keys.append(dict_key)
+                else:
+                    self.blockwise_list.append((X, y, clusterIds))
+                    self.blockwise_list_keys.append(dict_key)
+            else:
+                self.blockwise_list.append((X, y, clusterIds))
+                self.blockwise_list_keys.append(dict_key)
+
     def __len__(self):
-        return len(self.blockwise_data.keys())
+        return len(self.blockwise_list)  # len(self.blockwise_data.keys())
 
     @staticmethod
     def get_indices_by_matrix_idx(K, n):
@@ -149,37 +175,13 @@ class S2BlocksDataset(Dataset):
         second_pos = [k * (n - 1) - k * (k - 1) // 2 + K - k - 1 for k in range(K)]
         return first_pos + second_pos
 
-    @staticmethod
-    def get_matrix_size_from_triu(triu):
-        return round(math.sqrt(2 * len(triu))) + 1
-
     def __getitem__(self, idx):
-        # returns all pairwise-features for a specified Block
-        dict_key = list(self.blockwise_data.keys())[idx]
-        X, y, clusterIds = self.blockwise_data[dict_key]
+        X, y, clusterIds = self.blockwise_list[idx]
         if self.convert_nan:
             np.nan_to_num(X, copy=False, nan=self.nan_value)
         if self.scale and self.scaler is not None:
             if X.shape[0] != 0:
                 X = self.scaler.transform(X)
-
-        # Sub-sampling
-        if X.shape[0] != 0 and self.subsample_sz > -1:
-            matrix_sz = len(clusterIds)
-            if matrix_sz > self.subsample_sz:
-                n_to_remove = matrix_sz - self.subsample_sz
-                matrix_idxs_to_remove = np.random.choice(range(matrix_sz), n_to_remove, replace=False)
-                idxs_to_remove = []
-                for midx in matrix_idxs_to_remove:
-                    idxs_to_remove += self.get_indices_by_matrix_idx(midx, matrix_sz)
-                idxs_to_remove = np.array(list(set(idxs_to_remove)))
-                keep_mask = np.ones(len(X), dtype=int)
-                keep_mask[idxs_to_remove] = 0
-                X = X[keep_mask == 1]
-                y = y[keep_mask == 1]
-                keep_mask = np.ones(len(clusterIds), dtype=int)
-                keep_mask[matrix_idxs_to_remove] = 0
-                clusterIds = list(np.array(clusterIds)[keep_mask == 1])
         return X, y, clusterIds
 
 class ANDData:
