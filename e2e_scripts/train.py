@@ -88,6 +88,7 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
 
     train_dataset = S2BlocksDataset(read_blockwise_features(train_pkl), convert_nan=convert_nan, nan_value=nan_value,
                                     scale=normalize, subsample_sz=subsample_sz)
+    embed()
     train_dataloader = DataLoader(train_dataset, shuffle=False)
 
     val_dataset = S2BlocksDataset(read_blockwise_features(val_pkl), convert_nan=convert_nan, nan_value=nan_value,
