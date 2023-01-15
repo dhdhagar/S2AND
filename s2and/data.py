@@ -151,6 +151,7 @@ class S2BlocksDataset(Dataset):
                     shuffled_idxs = np.random.choice(range(matrix_sz), matrix_sz, replace=False)
                     for i in range(0, matrix_sz, self.subsample_sz):
                         matrix_idxs_to_keep = shuffled_idxs[i:i + self.subsample_sz]
+                        assert len(matrix_idxs_to_keep) <= self.subsample_sz
                         idxs_to_keep = []
                         for midx in matrix_idxs_to_keep:
                             idxs_to_keep += self.get_indices_by_matrix_idx(midx, matrix_sz)
