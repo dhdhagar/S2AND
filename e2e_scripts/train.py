@@ -155,7 +155,10 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
             sigs_per_block.append(1)
         else:
             block_size = get_matrix_size_from_triu(data)
-            cluster_ids = np.reshape(cluster_ids, (block_size, ))
+            try:
+                cluster_ids = np.reshape(cluster_ids, (block_size, ))
+            except:
+                embed()
             target = target.flatten().float()
             sigs_per_block.append(block_size)
 

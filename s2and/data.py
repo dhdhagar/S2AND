@@ -155,7 +155,8 @@ class S2BlocksDataset(Dataset):
                         for midx in matrix_idxs_to_keep:
                             idxs_to_keep += self.get_indices_by_matrix_idx(midx, matrix_sz)
                         idxs_to_keep = np.array(list(set(idxs_to_keep)))
-                        _X = X[idxs_to_keep]
+                        assert len(idxs_to_keep) <= self.subsample_sz * (self.subsample_sz - 1) / 2
+                        _X = X[idxs_to_keep, :]
                         _y = y[idxs_to_keep]
                         _clusterIds = list(np.array(clusterIds)[matrix_idxs_to_keep])
                         self.blockwise_list.append((_X, _y, _clusterIds))
