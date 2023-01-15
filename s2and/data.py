@@ -155,7 +155,7 @@ class S2BlocksDataset(Dataset):
                         idxs_to_keep = []
                         for midx in matrix_idxs_to_keep:
                             idxs_to_keep += self.get_indices_by_matrix_idx(midx, matrix_sz)
-                        idxs_to_keep = np.array(list(set(idxs_to_keep)))
+                        idxs_to_keep = np.sort(np.unique(idxs_to_keep))
                         try:
                             assert len(idxs_to_keep) <= self.subsample_sz * (self.subsample_sz - 1) / 2
                         except:
