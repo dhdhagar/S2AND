@@ -152,15 +152,14 @@ class S2BlocksDataset(Dataset):
                     for i in range(0, matrix_sz, self.subsample_sz):
                         matrix_idxs_to_keep = shuffled_idxs[i:i + self.subsample_sz]
                         assert len(matrix_idxs_to_keep) <= self.subsample_sz
-                        idxs_to_keep = []
-                        for midx in matrix_idxs_to_keep:
-                            idxs_to_keep += self.get_indices_by_matrix_idx(midx, matrix_sz)
-                        idxs_to_keep = np.sort(np.unique(idxs_to_keep))
-                        try:
-                            assert len(idxs_to_keep) <= self.subsample_sz * (self.subsample_sz - 1) / 2
-                        except:
-                            embed()
-                        _X = X[idxs_to_keep, :]
+                        matrix_idxs_to_remove = np.delete(shuffled_idxs, matrix_idxs_to_keep)
+                        idxs_to_remove = []
+                        for midx in matrix_idxs_to_remove:
+                            idxs_to_remove += self.get_indices_by_matrix_idx(midx, matrix_sz)
+                        idxs_to_remove = np.sort(np.unique(idxs_to_remove))
+                        idxs_to_keep = np.delete(np.arange(len(X)), idxs_to_remove)
+                        assert len(idxs_to_keep) <= self.subsample_sz * (self.subsample_sz - 1) / 2
+                        _X = X[idxs_to_keep]
                         _y = y[idxs_to_keep]
                         _clusterIds = list(np.array(clusterIds)[matrix_idxs_to_keep])
                         self.blockwise_list.append((_X, _y, _clusterIds))
