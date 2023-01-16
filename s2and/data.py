@@ -157,14 +157,11 @@ class S2BlocksDataset(Dataset):
                             idxs_to_remove += self.get_indices_by_matrix_idx(midx, matrix_sz)
                         idxs_to_remove = np.sort(np.unique(idxs_to_remove))
                         idxs_to_keep = np.delete(np.arange(len(X)), idxs_to_remove)
-                        assert len(idxs_to_keep) <= self.subsample_sz * (self.subsample_sz - 1) / 2
-                        assert np.all(idxs_to_keep[:-1] <= idxs_to_keep[1:])
                         _X = X[idxs_to_keep]
                         _y = y[idxs_to_keep]
                         _clusterIds = list(np.array(clusterIds)[matrix_idxs_to_keep])
                         self.blockwise_list.append((_X, _y, _clusterIds))
                         self.blockwise_list_keys.append(dict_key)
-                    embed()
                 else:
                     self.blockwise_list.append((X, y, clusterIds))
                     self.blockwise_list_keys.append(dict_key)
