@@ -194,7 +194,8 @@ class S2BlocksDataset(Dataset):
         if not self.pairwise_mode:
             X, y, clusterIds = self.blockwise_list[idx]
         else:
-            X, y = self.pairwise_lists['X'][idx:idx + 1], self.pairwise_lists['y'][idx:idx + 1]
+            X = self.pairwise_lists['X'][idx].reshape(-1, len(self.pairwise_lists['X'][0]))
+            y = self.pairwise_lists['y'][idx].reshape(-1, 0)
         if self.convert_nan:
             np.nan_to_num(X, copy=False, nan=self.nan_value)
         if self.scale and self.scaler is not None:
