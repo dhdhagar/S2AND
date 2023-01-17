@@ -126,26 +126,26 @@ class S2BlocksDataset(Dataset):
                 cluster_ids (cluster ids, 1D array of size [n]), where
             n is the number of signatures in a S2 block and f is the number of pairwise features
     """
-    def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    def __init__(self, block_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
                  convert_nan=True, nan_value=-1, scale=False, scaler=None, subsample_sz=-1,
                  pairwise_mode=False):
         self.pairwise_mode = pairwise_mode
-        self.blockwise_data = blockwise_data
+        self.block_dict = block_dict
         self.convert_nan = convert_nan
         self.nan_value = nan_value
         self.scale = scale
         self.scaler = scaler
         if self.scale and self.scaler is None:
             # Fit scaler on input data
-            all_X = np.concatenate(list(map(lambda x: x[0], self.blockwise_data.values())))
+            all_X = np.concatenate(list(map(lambda x: x[0], self.block_dict.values())))
             self.scaler = StandardScaler()
             self.scaler.fit(all_X)
         self.subsample_sz = subsample_sz
 
         self.blockwise_data = []
         self.blockwise_keys = []
-        for dict_key in self.blockwise_data.keys():
-            X, y, cluster_ids = self.blockwise_data[dict_key]
+        for dict_key in self.block_dict.keys():
+            X, y, cluster_ids = self.block_dict[dict_key]
             if X.shape[0] != 0 and self.subsample_sz > -1:
                 # Split large blocks into subsampled blocks with the same key
                 matrix_sz = len(cluster_ids)
