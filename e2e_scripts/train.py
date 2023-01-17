@@ -294,10 +294,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     n_pos = \
                         train_dataloader.dataset[overfit_batch_idx * batch_size:(overfit_batch_idx + 1) * batch_size][
                             1].sum()
-                    pos_weight = (batch_size - n_pos) / n_pos
+                    pos_weight = torch.tensor((batch_size - n_pos) / n_pos)
                 else:
                     n_pos = train_dataloader.dataset[:][1].sum()
-                    pos_weight = (len(train_dataloader.dataset) - n_pos) / n_pos
+                    pos_weight = torch.tensor((len(train_dataloader.dataset) - n_pos) / n_pos)
             loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             # Define eval
             eval_fn = evaluate_pairwise
