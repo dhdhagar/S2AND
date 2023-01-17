@@ -96,10 +96,10 @@ def verify_diff_with_s2and(dataset_name, random_seed):
     logger.info("Done loading and featurizing")
 
     #Verify the 2 sets are equal
-    with open("../data/s2and_data_subsample.pkl", "rb") as _pkl_file:
+    with open("s2and_data_subsample.pkl", "rb") as _pkl_file:
         s2and_set = pickle.load(_pkl_file)
 
-    with open("../data/our_data_subsample.pkl", "rb") as _pkl_file:
+    with open("our_data_subsample.pkl", "rb") as _pkl_file:
         our_set = pickle.load(_pkl_file)
 
     print("VERIFICATION STATUS: ", s2and_set==our_set)
