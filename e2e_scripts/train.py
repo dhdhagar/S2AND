@@ -200,11 +200,8 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
         data = data.to(device)
         y_pred.append(torch.sigmoid(model(data)).cpu().numpy())
         targets.append(target)
-    try:
-        y_pred = np.concatenate(y_pred, axis=0).flatten()
-    except:
-        embed()
-    targets = np.concatenate(targets, axis=0).flatten()
+    y_pred = np.array(y_pred)
+    targets = np.array(targets)
 
     if return_pred_only:
         return y_pred
