@@ -472,18 +472,18 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             if overfit_batch_idx == -1:
                 # Evaluate best dev model on test
                 model.load_state_dict(best_dev_state_dict)
-                model.eval()
-                test_scores = eval_fn(model, test_dataloader)
-                if verbose:
-                    logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
-                                f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
-
-                # Log final metrics
-                wandb.log({'best_dev_epoch': best_epoch + 1,
-                           f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
-                           f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
-                           f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
-                           f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
+                with torch.no_grad():
+                    model.eval()
+                    test_scores = eval_fn(model, test_dataloader)
+                    if verbose:
+                        logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
+                                    f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
+                    # Log final metrics
+                    wandb.log({'best_dev_epoch': best_epoch + 1,
+                               f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
+                               f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
+                               f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
+                               f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
 
         run.summary["z_model_parameters"] = count_parameters(model)
         run.summary["z_run_time"] = round(end_time - start_time)
