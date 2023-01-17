@@ -1453,15 +1453,15 @@ class ANDData:
                 sample_size = min(len(possible), sample_size)
                 pairs = random_sampling(possible, sample_size, self.random_seed)
 
-                if not os.path.exists("s2and_data_subsample.pkl"):
-                    subsample_id_set = set()
-                    for tuple in pairs:
-                        id1, id2, _ = tuple
-                        subsample_id_set.add(id1)
-                        subsample_id_set.add(id2)
-
-                    with open('s2and_data_subsample.pkl', 'wb') as f:
-                        pickle.dump(subsample_id_set, f)
+                # if not os.path.exists("s2and_data_subsample.pkl"):
+                #     subsample_id_set = set()
+                #     for tuple in pairs:
+                #         id1, id2, _ = tuple
+                #         subsample_id_set.add(id1)
+                #         subsample_id_set.add(id2)
+                #
+                #     with open('s2and_data_subsample.pkl', 'wb') as f:
+                #         pickle.dump(subsample_id_set, f)
 
             return pairs
 
@@ -1617,9 +1617,9 @@ class ANDData:
                     subsample_id_set.add(id1)
                     subsample_id_set.add(id2)
 
-                if not os.path.exists("our_data_subsample.pkl"):
-                    with open('our_data_subsample.pkl', 'wb') as f:
-                        pickle.dump(subsample_id_set, f)
+                # if not os.path.exists("our_data_subsample.pkl"):
+                #     with open('our_data_subsample.pkl', 'wb') as f:
+                #         pickle.dump(subsample_id_set, f)
 
                 # Remove sig_pairs which are not subsampled
                 for block_id in blockwise_sig_pairs.keys():
