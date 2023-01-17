@@ -1541,11 +1541,12 @@ class ANDData:
         elif not self.pair_sampling_balanced_homonym_synonym and not self.pair_sampling_balanced_classes: #Important for Blockwise featurization
             for block_id, signatures in blocks.items():
                 sig_pairs: List[Tuple[str, str, Union[int, float]]] = []
+                sig_pairs_ids: List[Tuple[str, str, Union[int, float]]] = []
                 cluster_ids: List[str] = []
                 for i, s1 in enumerate(signatures):
                     s1_cluster = self.signature_to_cluster_id[s1]
                     cluster_ids.append(s1_cluster)
-                    for s2 in signatures[i + 1 :]:
+                    for j, s2 in enumerate(signatures[i + 1 :]):
                         if self.signature_to_cluster_id is not None:
                             s2_cluster = self.signature_to_cluster_id[s2]
                             if s1_cluster == s2_cluster:
@@ -1609,14 +1610,36 @@ class ANDData:
                 and not self.pair_sampling_balanced_classes
                 and not self.pair_sampling_balanced_homonym_synonym
             ):
-                # Take samples from each block weighted by their len of total samples
-                # sample_size = min(len(possible), sample_size)
-                # blockwise_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]] = {}
-                # for k in blockwise_sig_pairs.keys():
-                #     block_sample_size = int(sample_size * len(blockwise_sig_pairs[k])/len(possible))
-                #     samples = random_sampling(blockwise_sig_pairs[k], block_sample_size, self.random_seed)
-                #     if(len(samples)>0):
-                #         blockwise_pairs[k] = samples
+                # Subsampling, while maintaining transitivity
+                sample_size = min(len(possible), sample_size)
+                pairs_ids = random_sampling(possible, sample_size, self.random_seed)
+                # Construct hashset to make queries faster
+                subsample_id_set = set()
+                for tuple in pairs_ids:
+                    id1, id2, _ = tuple
+                    subsample_id_set.add(id1)
+                    subsample_id_set.add(id2)
+
+                # Remove sig_pairs which are not subsampled
+                for block_id in blockwise_sig_pairs.keys():
+                    del_ids = []
+                    for i, tuple in enumerate(blockwise_sig_pairs[block_id]):
+                        id1, id2, _ = tuple
+                        true_val = (id1 in subsample_id_set) or (id2 in subsample_id_set)
+                        if true_val:
+                            continue
+                        else:
+                            del_ids.append(i)
+
+                    sig_pairs = blockwise_sig_pairs[block_id]
+                    final_pairs = [ele for idx, ele in enumerate(sig_pairs) if idx not in del_ids]
+                    cluster_ids = blockwise_cluster_ids[block_id]
+                    final_cluster_ids = [ele for idx, ele in enumerate(cluster_ids) if idx not in del_ids]
+
+                    blockwise_sig_pairs[block_id] = final_pairs
+                    blockwise_cluster_ids[block_id] = final_cluster_ids
+
+
                 return blockwise_sig_pairs, blockwise_cluster_ids
 
             return pairs
