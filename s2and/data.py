@@ -142,13 +142,13 @@ class S2BlocksDataset(Dataset):
             self.scaler.fit(all_X)
         self.subsample_sz = subsample_sz
 
-        self.blockwise_list = []
-        self.blockwise_list_keys = []
+        self.blockwise_data = []
+        self.blockwise_keys = []
         for dict_key in self.blockwise_data.keys():
-            X, y, clusterIds = self.blockwise_data[dict_key]
+            X, y, cluster_ids = self.blockwise_data[dict_key]
             if X.shape[0] != 0 and self.subsample_sz > -1:
                 # Split large blocks into subsampled blocks with the same key
-                matrix_sz = len(clusterIds)
+                matrix_sz = len(cluster_ids)
                 if matrix_sz > self.subsample_sz:
                     shuffled_idxs = np.random.choice(range(matrix_sz), matrix_sz, replace=False)
                     for i in range(0, matrix_sz, self.subsample_sz):
@@ -161,28 +161,30 @@ class S2BlocksDataset(Dataset):
                         idxs_to_keep = np.delete(np.arange(len(X)), idxs_to_remove)
                         _X = X[idxs_to_keep]
                         _y = y[idxs_to_keep]
-                        _clusterIds = list(np.array(clusterIds)[matrix_idxs_to_keep])
-                        self.blockwise_list.append((_X, _y, _clusterIds))
-                        self.blockwise_list_keys.append(dict_key)
+                        _clusterIds = list(np.array(cluster_ids)[matrix_idxs_to_keep])
+                        self.blockwise_data.append((_X, _y, _clusterIds))
+                        self.blockwise_keys.append(dict_key)
                 else:
-                    self.blockwise_list.append((X, y, clusterIds))
-                    self.blockwise_list_keys.append(dict_key)
+                    self.blockwise_data.append((X, y, cluster_ids))
+                    self.blockwise_keys.append(dict_key)
             else:
-                self.blockwise_list.append((X, y, clusterIds))
-                self.blockwise_list_keys.append(dict_key)
+                self.blockwise_data.append((X, y, cluster_ids))
+                self.blockwise_keys.append(dict_key)
         if self.pairwise_mode:
-            self.pairwise_lists = {'X': [], 'y': [], 'clusterIds': []}
-            for tup in self.blockwise_list:
-                self.pairwise_lists['X'].append(tup[0])
-                self.pairwise_lists['y'].append(tup[1])
-                self.pairwise_lists['clusterIds'] += tup[2]
-            self.pairwise_lists['X'] = np.vstack(self.pairwise_lists['X'])
-            self.pairwise_lists['y'] = np.hstack(self.pairwise_lists['y'])
-            del self.blockwise_list
-            del self.blockwise_list_keys
+            self.pairwise_data = {'X': [], 'y': []}
+            self.cluster_ids = []
+            for tup in self.blockwise_data:
+                self.pairwise_data['X'].append(tup[0])
+                self.pairwise_data['y'].append(tup[1])
+                self.cluster_ids += tup[2]
+            self.pairwise_data['X'] = np.vstack(self.pairwise_data['X'])
+            self.pairwise_data['y'] = np.hstack(self.pairwise_data['y'])
+            self.cluster_ids = np.array(self.cluster_ids)
+            del self.blockwise_data
+            del self.blockwise_keys
 
     def __len__(self):
-        return len(self.blockwise_list) if not self.pairwise_mode else len(self.pairwise_lists['X'])
+        return len(self.blockwise_data) if not self.pairwise_mode else len(self.pairwise_data['X'])
 
     @staticmethod
     def get_indices_by_matrix_idx(K, n):
@@ -192,16 +194,16 @@ class S2BlocksDataset(Dataset):
 
     def __getitem__(self, idx):
         if not self.pairwise_mode:
-            X, y, clusterIds = self.blockwise_list[idx]
+            X, y, cluster_ids = self.blockwise_data[idx]
         else:
-            X = self.pairwise_lists['X'][idx].reshape(-1, len(self.pairwise_lists['X'][0]))
-            y = self.pairwise_lists['y'][idx].reshape(-1)
+            X = self.pairwise_data['X'][idx].reshape(-1, len(self.pairwise_data['X'][0]))
+            y = self.pairwise_data['y'][idx].reshape(-1)
         if self.convert_nan:
             np.nan_to_num(X, copy=False, nan=self.nan_value)
         if self.scale and self.scaler is not None:
             if X.shape[0] != 0:
                 X = self.scaler.transform(X)
-        return (X, y, clusterIds) if not self.pairwise_mode else (X, y)
+        return (X, y, cluster_ids) if not self.pairwise_mode else (X, y)
 
 class ANDData:
     """
