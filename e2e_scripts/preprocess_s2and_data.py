@@ -35,8 +35,6 @@ def save_blockwise_featurized_data(dataset_name, random_seed):
         n_jobs=2,
         random_seed=random_seed,
     )
-    # Uncomment the following line if you wish to preprocess the whole dataset
-    #AND_dataset.process_whole_dataset()
 
     # Load the featurizer, which calculates pairwise similarity scores
     featurization_info = FeaturizationInfo()
@@ -102,7 +100,7 @@ if __name__=='__main__':
     DATA_HOME_DIR = params["data_home_dir"]
     dataset = params["dataset_name"]
 
-    random_seeds = {1}
+    random_seeds = {1, 2, 3, 4, 5}
     for seed in random_seeds:
         print("Preprocessing started for seed value", seed)
         save_blockwise_featurized_data(dataset, seed)
