@@ -263,7 +263,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         sdp_eps = hyp["sdp_eps"]
         overfit_batch_idx = hyp['overfit_batch_idx']
         eval_metric_to_idx = {'vmeasure': 0, 'b3_f1': 1} if not pairwise_mode else {'auroc': 0, 'f1': 1}
-        dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx else eval_metric_to_idx[0]
+        dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx \
+            else list(eval_metric_to_idx)[0]
 
         # Get data loaders (optionally with imputation, normalization)
         train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
@@ -328,10 +329,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 end_time = time.time()
                 if verbose:
                     logger.info(
-                        f"Eval: {eval_only_split}_{eval_metric_to_idx.keys()[0]}={eval_scores[0]}, " +
-                        f"{eval_only_split}_{eval_metric_to_idx.keys()[1]}={eval_scores[1]}")
-                wandb.log({'epoch': 0, f'{eval_only_split}_{eval_metric_to_idx.keys()[0]}': eval_scores[0],
-                           f'{eval_only_split}_{eval_metric_to_idx.keys()[1]}': eval_scores[1]})
+                        f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
+                        f"{eval_only_split}_{list(eval_metric_to_idx)[1]}={eval_scores[1]}")
+                wandb.log({'epoch': 0, f'{eval_only_split}_{list(eval_metric_to_idx)[0]}': eval_scores[0],
+                           f'{eval_only_split}_{list(eval_metric_to_idx)[1]}': eval_scores[1]})
         else:
             # Training
             wandb.watch(model)
@@ -361,17 +362,17 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     if overfit_batch_idx > -1:
                         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx)
                         if verbose:
-                            logger.info(f"Initial: train_{eval_metric_to_idx.keys()[0]}={train_scores[0]}, " +
-                                        f"train_{eval_metric_to_idx.keys()[1]}={train_scores[1]}")
-                        wandb.log({'epoch': 0, f'train_{eval_metric_to_idx.keys()[0]}': train_scores[0],
-                                   f'train_{eval_metric_to_idx.keys()[1]}': train_scores[1]})
+                            logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
+                                        f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
+                        wandb.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+                                   f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                     else:
                         dev_scores = eval_fn(model, val_dataloader)
                         if verbose:
-                            logger.info(f"Initial: dev_{eval_metric_to_idx.keys()[0]}={dev_scores[0]}, " +
-                                        f"dev_{eval_metric_to_idx.keys()[1]}={dev_scores[1]}")
-                        wandb.log({'epoch': 0, f'dev_{eval_metric_to_idx.keys()[0]}': dev_scores[0],
-                                   f'dev_{eval_metric_to_idx.keys()[1]}': dev_scores[1]})
+                            logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                                        f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
+                        wandb.log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+                                   f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
 
             model.train()
             start_time = time.time()  # Tracks full training runtime
@@ -435,10 +436,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     if overfit_batch_idx > -1:
                         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx)
                         if verbose:
-                            logger.info(f"Epoch {i + 1}: train_{eval_metric_to_idx.keys()[0]}={train_scores[0]}, " +
-                                        f"train_{eval_metric_to_idx.keys()[1]}={train_scores[1]}")
-                        wandb.log({f'train_{eval_metric_to_idx.keys()[0]}': train_scores[0],
-                                   f'train_{eval_metric_to_idx.keys()[1]}': train_scores[1]})
+                            logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
+                                        f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
+                        wandb.log({f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+                                   f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                         if use_lr_scheduler:
                             if hyp['lr_scheduler'] == 'plateau':
                                 scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
@@ -447,10 +448,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     else:
                         dev_scores = eval_fn(model, val_dataloader)
                         if verbose:
-                            logger.info(f"epoch {i + 1}: dev_{eval_metric_to_idx.keys()[0]}={dev_scores[0]}, " +
-                                        f"dev_{eval_metric_to_idx.keys()[1]}={dev_scores[1]}")
-                        wandb.log({f'dev_{eval_metric_to_idx.keys()[0]}': dev_scores[0],
-                                   f'dev_{eval_metric_to_idx.keys()[1]}': dev_scores[1]})
+                            logger.info(f"epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                                        f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
+                        wandb.log({f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+                                   f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
                         dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                         if dev_opt_score > best_dev_score:
                             if verbose:
@@ -474,15 +475,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 model.eval()
                 test_scores = eval_fn(model, test_dataloader)
                 if verbose:
-                    logger.info(f"Final: test_{eval_metric_to_idx.keys()[0]}={test_scores[0]}, " +
-                                f"test_{eval_metric_to_idx.keys()[1]}={test_scores[1]}")
+                    logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
+                                f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
 
                 # Log final metrics
                 wandb.log({'best_dev_epoch': best_epoch + 1,
-                           f'best_dev_{eval_metric_to_idx.keys()[0]}': best_dev_scores[0],
-                           f'best_dev_{eval_metric_to_idx.keys()[1]}': best_dev_scores[1],
-                           f'best_test_{eval_metric_to_idx.keys()[0]}': test_scores[0],
-                           f'best_test_{eval_metric_to_idx.keys()[1]}': test_scores[1]})
+                           f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
+                           f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
+                           f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
+                           f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
 
         run.summary["z_model_parameters"] = count_parameters(model)
         run.summary["z_run_time"] = round(end_time - start_time)
