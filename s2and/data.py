@@ -178,6 +178,8 @@ class S2BlocksDataset(Dataset):
                 self.pairwise_lists['clusterIds'] += tup[2]
             self.pairwise_lists['X'] = np.vstack(self.pairwise_lists['X'])
             self.pairwise_lists['y'] = np.hstack(self.pairwise_lists['y'])
+            del self.blockwise_list
+            del self.blockwise_list_keys
 
     def __len__(self):
         return len(self.blockwise_list) if not self.pairwise_mode else len(self.pairwise_lists['X'])
