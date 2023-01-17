@@ -35,7 +35,7 @@ def save_blockwise_featurized_data(dataset_name, random_seed):
         val_pairs_size=10000,
         test_pairs_size=10000,
         name=dataset_name,
-        n_jobs=2,
+        n_jobs=16,
         random_seed=random_seed,
     )
 
@@ -44,7 +44,7 @@ def save_blockwise_featurized_data(dataset_name, random_seed):
     # the cache will make it faster to train multiple times - it stores the features on disk for you
     train_pkl, val_pkl, test_pkl = store_featurized_pickles(AND_dataset,
                                                             featurization_info,
-                                                            n_jobs=2,
+                                                            n_jobs=16,
                                                             use_cache=False,
                                                             random_seed=random_seed)
 
@@ -89,7 +89,7 @@ def find_total_num_train_pairs(blockwise_data):
 #     # Load the featurizer, which calculates pairwise similarity scores
 #     featurization_info = FeaturizationInfo()
 #     # the cache will make it faster to train multiple times - it stores the features on disk for you
-#     train, val, test = featurize(AND_dataset, featurization_info, n_jobs=2, use_cache=False, random_seed=random_seed)
+#     train, val, test = featurize(AND_dataset, featurization_info, n_jobs=2, use_cache=False)
 #     X_train, y_train, _ = train
 #     X_val, y_val, _ = val
 #
