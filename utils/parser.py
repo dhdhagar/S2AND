@@ -136,3 +136,7 @@ class Parser(argparse.ArgumentParser):
             "--skip_initial_eval", action='store_true',
             help="Whether to skip dev evaluation before training starts",
         )
+        parser.add_argument(
+            "--pairwise_mode", action='store_true',
+            help="Whether to use the pairwise MLP-only model or the e2e clustering model",
+        )

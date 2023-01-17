@@ -2,7 +2,7 @@
     "n_epochs": {"value": 10},
     "lr": {"max": 1e-1, "min": 1e-5},
     "weight_decay": {"values": [1e-1, 1e-2, 1e-3, 0]},
-    "dev_opt_metric": {"values": ["b3_f1", "v_measure"]},
+    "dev_opt_metric": {"values": ["b3_f1", "vmeasure"]},
     "neumiss_depth": {"values": [5, 10, 20]},
     "hidden_dim": {"values": [256, 512, 1024]},
     "n_hidden_layers": {"values": [1, 2]},

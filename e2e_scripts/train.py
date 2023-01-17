@@ -15,9 +15,12 @@ import wandb
 from torch.utils.data import DataLoader
 import numpy as np
 from sklearn.metrics.cluster import v_measure_score
+from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import precision_recall_fscore_support
 from tqdm import tqdm
 
 from e2e_pipeline.model import EntResModel
+from e2e_pipeline.pairwise_model import PairwiseModel
 from s2and.consts import PREPROCESSED_DATA_DIR
 from s2and.data import S2BlocksDataset
 from s2and.eval import b3_precision_recall_fscore
@@ -59,9 +62,10 @@ DEFAULT_HYPERPARAMS = {
     "sdp_max_iters": 50000,
     "sdp_eps": 1e-3,
     # Training config
+    "batch_size": 1,
     "lr": 1e-4,
     "n_epochs": 5,
-    # "weighted_loss": True,
+    "weighted_loss": True,  # Only applies to pairwise model currently; TODO: Implement for e2e
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "step"
     "lr_factor": 0.7,
@@ -70,8 +74,8 @@ DEFAULT_HYPERPARAMS = {
     "lr_step_size": 200,
     "lr_gamma": 0.1,
     "weight_decay": 0.01,
-    "dev_opt_metric": 'b3_f1',
-    "overfit_batch_idx": -1  # 35
+    "dev_opt_metric": 'b3_f1',  # e2e: {'vmeasure', 'b3_f1'}; pairwise: {'auroc', 'f1'}
+    "overfit_batch_idx": -1
 }
 
 def read_blockwise_features(pkl):
@@ -81,23 +85,24 @@ def read_blockwise_features(pkl):
     return blockwise_data
 
 
-def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz, subsample_dev):
+def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz, subsample_dev,
+                    pairwise_mode, batch_size):
     train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl"
     val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl"
     test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/test_features.pkl"
 
     train_dataset = S2BlocksDataset(read_blockwise_features(train_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                    scale=normalize, subsample_sz=subsample_sz)
-    train_dataloader = DataLoader(train_dataset, shuffle=False)
+                                    scale=normalize, subsample_sz=subsample_sz, pairwise_mode=pairwise_mode)
+    train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=batch_size)
 
     val_dataset = S2BlocksDataset(read_blockwise_features(val_pkl), convert_nan=convert_nan, nan_value=nan_value,
                                   scale=normalize, scaler=train_dataset.scaler,
-                                  subsample_sz=subsample_sz if subsample_dev else -1)
-    val_dataloader = DataLoader(val_dataset, shuffle=False)
+                                  subsample_sz=subsample_sz if subsample_dev else -1, pairwise_mode=pairwise_mode)
+    val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size)
 
     test_dataset = S2BlocksDataset(read_blockwise_features(test_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                   scale=normalize, scaler=train_dataset.scaler)
-    test_dataloader = DataLoader(test_dataset, shuffle=False)
+                                   scale=normalize, scaler=train_dataset.scaler, pairwise_mode=pairwise_mode)
+    test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
 
     return train_dataloader, val_dataloader, test_dataloader
 
@@ -139,7 +144,7 @@ def compute_b3_f1(true_cluster_ids, pred_cluster_ids):
 
 def evaluate(model, dataloader, overfit_batch_idx=-1):
     n_features = dataloader.dataset[0][0].shape[1]
-    v_measure, b3_f1, sigs_per_block = [], [], []
+    vmeasure, b3_f1, sigs_per_block = [], [], []
     for (idx, batch) in enumerate(tqdm(dataloader, desc='Evaluating')):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
@@ -150,7 +155,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
         data = data.reshape(-1, n_features).float()
         if data.shape[0] == 0:
             # Only one signature in block -> predict correctly
-            v_measure.append(1.)
+            vmeasure.append(1.)
             b3_f1.append(1.)
             sigs_per_block.append(1)
         else:
@@ -165,21 +170,53 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
             predicted_cluster_ids = model.hac_cut_layer.cluster_labels.detach()
 
             # Compute clustering metrics
-            v_measure.append(v_measure_score(predicted_cluster_ids, cluster_ids))
+            vmeasure.append(v_measure_score(predicted_cluster_ids, cluster_ids))
             b3_f1_metrics = compute_b3_f1(cluster_ids, predicted_cluster_ids)
             b3_f1.append(b3_f1_metrics[2])
 
-    v_measure = np.array(v_measure)
+    vmeasure = np.array(vmeasure)
     b3_f1 = np.array(b3_f1)
     sigs_per_block = np.array(sigs_per_block)
 
-    return np.sum(v_measure * sigs_per_block) / np.sum(sigs_per_block), \
+    return np.sum(vmeasure * sigs_per_block) / np.sum(sigs_per_block), \
            np.sum(b3_f1 * sigs_per_block) / np.sum(sigs_per_block)
+
+
+def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
+                      thresh_for_f1=0.5):
+    n_features = dataloader.dataset[0][0].shape[1]
+    y_pred, targets = [], []
+    for (idx, batch) in enumerate(tqdm(dataloader, desc='Evaluating')):
+        if overfit_batch_idx > -1:
+            if idx < overfit_batch_idx:
+                continue
+            if idx > overfit_batch_idx:
+                break
+        data, target = batch
+        data = data.reshape(-1, n_features).float()
+        assert data.shape[0] != 0
+        target = target.flatten().float()
+        # Forward pass through the pairwise model
+        data = data.to(device)
+        y_pred.append(torch.sigmoid(model(data)).cpu().numpy())
+        targets.append(target)
+    y_pred = np.concatenate(y_pred, axis=0).flatten()
+    targets = np.concatenate(targets, axis=0).flatten()
+
+    if return_pred_only:
+        return y_pred
+
+    fpr, tpr, _ = roc_curve(targets, y_pred)
+    roc_auc = auc(fpr, tpr)
+    pr, rc, f1, _ = precision_recall_fscore_support(targets, y_pred >= thresh_for_f1, beta=1.0, average=mode,
+                                                    zero_division=0)
+
+    return roc_auc, np.round(f1, 3)
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
-          eval_only_split=None, skip_initial_eval=False):
+          eval_only_split=None, skip_initial_eval=False, pairwise_mode=False):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -202,19 +239,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             json.dump(dict(hyp), fh)
         wandb.save('hyperparameters.json')
 
-        # Get data loaders (optionally with imputation, normalization)
-        train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
-                                                                            hyp["convert_nan"], hyp["nan_value"],
-                                                                            hyp["normalize_data"], hyp["subsample_sz"],
-                                                                            hyp["subsample_dev"])
-
         # Seed everything
         torch.manual_seed(hyp['run_random_seed'])
         random.seed(hyp['run_random_seed'])
         np.random.seed(hyp['run_random_seed'])
 
-        # weighted_loss = hyp['weighted_loss']  # TODO: Think about how to implement this
-        dev_opt_metric = hyp['dev_opt_metric']
+        weighted_loss = hyp['weighted_loss']
+        batch_size = hyp['batch_size']
         n_epochs = hyp['n_epochs']
         use_lr_scheduler = hyp['use_lr_scheduler']
         hidden_dim = hyp["hidden_dim"]
@@ -230,15 +261,46 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         negative_slope = hyp["negative_slope"]
         sdp_max_iters = hyp["sdp_max_iters"]
         sdp_eps = hyp["sdp_eps"]
-        n_features = train_dataloader.dataset[0][0].shape[1]
         overfit_batch_idx = hyp['overfit_batch_idx']
-        eval_metric_to_idx = {'v_measure': 0, 'b3_f1': 1}
+        eval_metric_to_idx = {'vmeasure': 0, 'b3_f1': 1} if not pairwise_mode else {'auroc': 0, 'f1': 1}
+        dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx else eval_metric_to_idx[0]
+
+        # Get data loaders (optionally with imputation, normalization)
+        train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
+                                                                            hyp["convert_nan"], hyp["nan_value"],
+                                                                            hyp["normalize_data"], hyp["subsample_sz"],
+                                                                            hyp["subsample_dev"], pairwise_mode,
+                                                                            batch_size)
+        n_features = train_dataloader.dataset[0][0].shape[1]
 
         # Create model with hyperparams
-        e2e_model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
+        if not pairwise_mode:
+            model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                                 negative_slope, hidden_config, sdp_max_iters, sdp_eps)
-        logger.info(f"Model loaded: {e2e_model}", )
+            # Define loss
+            loss_fn = lambda pred, gold: torch.norm(gold - pred)
+            # Define eval
+            eval_fn = evaluate
+        else:
+            model = PairwiseModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
+                                  neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                                  negative_slope, hidden_config)
+            # Define loss
+            pos_weight = None
+            if weighted_loss:
+                if overfit_batch_idx > -1:
+                    n_pos = \
+                        train_dataloader.dataset[overfit_batch_idx * batch_size:(overfit_batch_idx + 1) * batch_size][
+                            1].sum()
+                    pos_weight = (batch_size - n_pos) / n_pos
+                else:
+                    n_pos = train_dataloader.dataset[:][1].sum()
+                    pos_weight = (len(train_dataloader.dataset) - n_pos) / n_pos
+            loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            # Define eval
+            eval_fn = evaluate_pairwise
+        logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
         state_dict = None
@@ -249,9 +311,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         elif load_model_from_fpath is not None:
             state_dict = torch.load(load_model_from_fpath, device)
         if state_dict is not None:
-            e2e_model.load_state_dict(state_dict)
+            model.load_state_dict(state_dict)
             logger.info(f'Loaded stored model.')
-        e2e_model.to(device)
+        model.to(device)
 
         if eval_only_split is not None:
             # Run inference and exit
@@ -262,18 +324,19 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             }
             with torch.no_grad():
                 start_time = time.time()
-                eval_scores = evaluate(e2e_model, dataloaders[eval_only_split])
+                eval_scores = eval_fn(model, dataloaders[eval_only_split])
                 end_time = time.time()
                 if verbose:
                     logger.info(
-                        f"Eval: {eval_only_split}_vmeasure={eval_scores[0]}, {eval_only_split}_b3_f1={eval_scores[1]}")
-                wandb.log({'epoch': 0, f'{eval_only_split}_vmeasure': eval_scores[0],
-                           f'{eval_only_split}_b3_f1': eval_scores[1]})
+                        f"Eval: {eval_only_split}_{eval_metric_to_idx.keys()[0]}={eval_scores[0]}, " +
+                        f"{eval_only_split}_{eval_metric_to_idx.keys()[1]}={eval_scores[1]}")
+                wandb.log({'epoch': 0, f'{eval_only_split}_{eval_metric_to_idx.keys()[0]}': eval_scores[0],
+                           f'{eval_only_split}_{eval_metric_to_idx.keys()[1]}': eval_scores[1]})
         else:
             # Training
-            wandb.watch(e2e_model)
+            wandb.watch(model)
 
-            optimizer = torch.optim.AdamW(e2e_model.parameters(), lr=hyp['lr'])
+            optimizer = torch.optim.AdamW(model.parameters(), lr=hyp['lr'])
             if use_lr_scheduler:
                 if hyp['lr_scheduler'] == 'plateau':
                     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
@@ -294,19 +357,23 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
                 with torch.no_grad():
-                    e2e_model.eval()
+                    model.eval()
                     if overfit_batch_idx > -1:
-                        train_scores = evaluate(e2e_model, train_dataloader, overfit_batch_idx)
+                        train_scores = eval_fn(model, train_dataloader, overfit_batch_idx)
                         if verbose:
-                            logger.info(f"Initial: train_vmeasure={train_scores[0]}, train_b3_f1={train_scores[1]}")
-                        wandb.log({'epoch': 0, 'train_vmeasure': train_scores[0], 'train_b3_f1': train_scores[1]})
+                            logger.info(f"Initial: train_{eval_metric_to_idx.keys()[0]}={train_scores[0]}, " +
+                                        f"train_{eval_metric_to_idx.keys()[1]}={train_scores[1]}")
+                        wandb.log({'epoch': 0, f'train_{eval_metric_to_idx.keys()[0]}': train_scores[0],
+                                   f'train_{eval_metric_to_idx.keys()[1]}': train_scores[1]})
                     else:
-                        dev_scores = evaluate(e2e_model, val_dataloader)
+                        dev_scores = eval_fn(model, val_dataloader)
                         if verbose:
-                            logger.info(f"Initial: dev_vmeasure={dev_scores[0]}, dev_b3_f1={dev_scores[1]}")
-                        wandb.log({'epoch': 0, 'dev_vmeasure': dev_scores[0], 'dev_b3_f1': dev_scores[1]})
+                            logger.info(f"Initial: dev_{eval_metric_to_idx.keys()[0]}={dev_scores[0]}, " +
+                                        f"dev_{eval_metric_to_idx.keys()[1]}={dev_scores[1]}")
+                        wandb.log({'epoch': 0, f'dev_{eval_metric_to_idx.keys()[0]}': dev_scores[0],
+                                   f'dev_{eval_metric_to_idx.keys()[1]}': dev_scores[1]})
 
-            e2e_model.train()
+            model.train()
             start_time = time.time()  # Tracks full training runtime
             for i in range(n_epochs):
                 wandb.log({'epoch': i + 1})
@@ -317,7 +384,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             continue
                         if idx > overfit_batch_idx:
                             break
-                    data, target, _ = batch
+                    if not pairwise_mode:
+                        data, target, _ = batch
+                    else:
+                        data, target = batch
                     data = data.reshape(-1, n_features).float()
                     if data.shape[0] == 0:
                         # Block contains only one signature
@@ -329,18 +399,23 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     target = target.flatten().float()
                     if verbose:
                         logger.info(f"Batch shape: {data.shape}")
-                        logger.info(f"Batch matrix size: {block_size}")
+                        if not pairwise_mode:
+                            logger.info(f"Batch matrix size: {block_size}")
 
-                    # Forward pass through the e2e model
+                    # Forward pass through the e2e or pairwise model
                     data, target = data.to(device), target.to(device)
-                    output = e2e_model(data, block_size, verbose)
+                    output = model(data, block_size, verbose)
 
                     # Calculate the loss
-                    gold_output = uncompress_target_tensor(target)
-                    if verbose:
-                        logger.info(f"Gold:\n{gold_output}")
-
-                    loss = torch.norm(gold_output - output) / (2 * block_size)
+                    if not pairwise_mode:
+                        gold_output = uncompress_target_tensor(target)
+                        if verbose:
+                            logger.info(f"Gold:\n{gold_output}")
+                        loss = loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
+                    else:
+                        if verbose:
+                            logger.info(f"Gold:\n{target}")
+                        loss = loss_fn(output.view_as(target), target)
 
                     optimizer.zero_grad()
                     loss.backward()
@@ -356,53 +431,60 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 with torch.no_grad():
-                    e2e_model.eval()
+                    model.eval()
                     if overfit_batch_idx > -1:
-                        train_scores = evaluate(e2e_model, train_dataloader, overfit_batch_idx)
+                        train_scores = eval_fn(model, train_dataloader, overfit_batch_idx)
                         if verbose:
-                            logger.info(f"Epoch {i + 1}: train_vmeasure={train_scores[0]}, train_b3_f1={train_scores[1]}")
-                        wandb.log({'train_vmeasure': train_scores[0], 'train_b3_f1': train_scores[1]})
+                            logger.info(f"Epoch {i + 1}: train_{eval_metric_to_idx.keys()[0]}={train_scores[0]}, " +
+                                        f"train_{eval_metric_to_idx.keys()[1]}={train_scores[1]}")
+                        wandb.log({f'train_{eval_metric_to_idx.keys()[0]}': train_scores[0],
+                                   f'train_{eval_metric_to_idx.keys()[1]}': train_scores[1]})
                         if use_lr_scheduler:
                             if hyp['lr_scheduler'] == 'plateau':
                                 scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
                             elif hyp['lr_scheduler'] == 'step':
                                 scheduler.step()
                     else:
-                        dev_scores = evaluate(e2e_model, val_dataloader)
+                        dev_scores = eval_fn(model, val_dataloader)
                         if verbose:
-                            logger.info(f"epoch {i + 1}: dev_vmeasure={dev_scores[0]}, dev_b3_f1={dev_scores[1]}")
-                        wandb.log({'dev_vmeasure': dev_scores[0], 'dev_b3_f1': dev_scores[1]})
+                            logger.info(f"epoch {i + 1}: dev_{eval_metric_to_idx.keys()[0]}={dev_scores[0]}, " +
+                                        f"dev_{eval_metric_to_idx.keys()[1]}={dev_scores[1]}")
+                        wandb.log({f'dev_{eval_metric_to_idx.keys()[0]}': dev_scores[0],
+                                   f'dev_{eval_metric_to_idx.keys()[1]}': dev_scores[1]})
                         dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                         if dev_opt_score > best_dev_score:
                             if verbose:
-                                logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}; storing model")
+                                logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
                             best_epoch = i
                             best_dev_score = dev_opt_score
                             best_dev_scores = dev_scores
-                            best_dev_state_dict = copy.deepcopy(e2e_model.state_dict())
+                            best_dev_state_dict = copy.deepcopy(model.state_dict())
                         if use_lr_scheduler:
                             if hyp['lr_scheduler'] == 'plateau':
                                 scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
                             elif hyp['lr_scheduler'] == 'step':
                                 scheduler.step()
-                e2e_model.train()
+                model.train()
 
             end_time = time.time()
 
             if overfit_batch_idx == -1:
                 # Evaluate best dev model on test
-                e2e_model.load_state_dict(best_dev_state_dict)
-                e2e_model.eval()
-                test_scores = evaluate(e2e_model, test_dataloader)
+                model.load_state_dict(best_dev_state_dict)
+                model.eval()
+                test_scores = eval_fn(model, test_dataloader)
                 if verbose:
-                    logger.info(f"Final: test_vmeasure={test_scores[0]}, test_b3_f1={test_scores[1]}")
+                    logger.info(f"Final: test_{eval_metric_to_idx.keys()[0]}={test_scores[0]}, " +
+                                f"test_{eval_metric_to_idx.keys()[1]}={test_scores[1]}")
 
                 # Log final metrics
-                wandb.log({'best_dev_epoch': best_epoch + 1, 'best_dev_vmeasure': best_dev_scores[0],
-                           'best_dev_b3_f1': best_dev_scores[1], 'best_test_vmeasure': test_scores[0],
-                           'best_test_b3_f1': test_scores[1]})
+                wandb.log({'best_dev_epoch': best_epoch + 1,
+                           f'best_dev_{eval_metric_to_idx.keys()[0]}': best_dev_scores[0],
+                           f'best_dev_{eval_metric_to_idx.keys()[1]}': best_dev_scores[1],
+                           f'best_test_{eval_metric_to_idx.keys()[0]}': test_scores[0],
+                           f'best_test_{eval_metric_to_idx.keys()[1]}': test_scores[1]})
 
-        run.summary["z_model_parameters"] = count_parameters(e2e_model)
+        run.summary["z_model_parameters"] = count_parameters(model)
         run.summary["z_run_time"] = round(end_time - start_time)
         run.summary["z_run_dir_path"] = run.dir
 
@@ -505,5 +587,6 @@ if __name__ == '__main__':
               load_model_from_wandb_run=args['load_model_from_wandb_run'],
               load_model_from_fpath=args['load_model_from_fpath'],
               eval_only_split=args['eval_only_split'],
-              skip_initial_eval=args['skip_initial_eval'])
+              skip_initial_eval=args['skip_initial_eval'],
+              pairwise_mode=args['pairwise_mode'])
         logger.info("End of run")

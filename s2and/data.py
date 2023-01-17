@@ -127,7 +127,9 @@ class S2BlocksDataset(Dataset):
             n is the number of signatures in a S2 block and f is the number of pairwise features
     """
     def __init__(self, blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
-                 convert_nan=True, nan_value=-1, scale=False, scaler=None, subsample_sz=-1):
+                 convert_nan=True, nan_value=-1, scale=False, scaler=None, subsample_sz=-1,
+                 pairwise_mode=False):
+        self.pairwise_mode = pairwise_mode
         self.blockwise_data = blockwise_data
         self.convert_nan = convert_nan
         self.nan_value = nan_value
@@ -168,9 +170,17 @@ class S2BlocksDataset(Dataset):
             else:
                 self.blockwise_list.append((X, y, clusterIds))
                 self.blockwise_list_keys.append(dict_key)
+        if self.pairwise_mode:
+            self.pairwise_lists = {'X': [], 'y': [], 'clusterIds': []}
+            for tup in self.blockwise_list:
+                self.pairwise_lists['X'].append(tup[0])
+                self.pairwise_lists['y'].append(tup[1])
+                self.pairwise_lists['clusterIds'] += tup[2]
+            self.pairwise_lists['X'] = np.vstack(self.pairwise_lists['X'])
+            self.pairwise_lists['y'] = np.hstack(self.pairwise_lists['y'])
 
     def __len__(self):
-        return len(self.blockwise_list)
+        return len(self.blockwise_list) if not self.pairwise_mode else len(self.pairwise_lists['X'])
 
     @staticmethod
     def get_indices_by_matrix_idx(K, n):
@@ -179,13 +189,16 @@ class S2BlocksDataset(Dataset):
         return first_pos + second_pos
 
     def __getitem__(self, idx):
-        X, y, clusterIds = self.blockwise_list[idx]
+        if not self.pairwise_mode:
+            X, y, clusterIds = self.blockwise_list[idx]
+        else:
+            X, y = self.pairwise_lists['X'][idx], self.pairwise_lists['y'][idx]
         if self.convert_nan:
             np.nan_to_num(X, copy=False, nan=self.nan_value)
         if self.scale and self.scaler is not None:
             if X.shape[0] != 0:
                 X = self.scaler.transform(X)
-        return X, y, clusterIds
+        return (X, y, clusterIds) if not self.pairwise_mode else (X, y)
 
 class ANDData:
     """
