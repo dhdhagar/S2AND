@@ -1660,7 +1660,7 @@ class ANDData:
                     idxs_to_keep = np.array(idxs_to_keep, dtype=int)
                     sig_idxs_to_keep = np.array(sig_idxs_to_keep, dtype=int)
                     print(type(sig_idxs_to_keep), type(idxs_to_keep))
-                    _sig_pairs = sig_pairs[idxs_to_keep]
+                    _sig_pairs = list(np.array(sig_pairs)[idxs_to_keep])
                     _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
                     # Update the values in the dictionary
                     blockwise_sig_pairs[block_id] = _sig_pairs
