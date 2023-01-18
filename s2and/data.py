@@ -1623,19 +1623,27 @@ class ANDData:
 
                 # Remove sig_pairs which are not subsampled
                 for block_id in blockwise_sig_pairs.keys():
-                    del_ids = []
+                    del_idxs = []
+                    del_cluster_idxs = []
                     for i, tuple in enumerate(blockwise_sig_pairs[block_id]):
                         id1, id2, _ = tuple
                         true_val = (id1 in subsample_id_set) or (id2 in subsample_id_set)
                         if true_val:
                             continue
                         else:
-                            del_ids.append(i)
+                            del_idxs.append(i)
+                            # Find the index of these 2 signatures in the list of signatures and add to a separate deletion list
+                            for c_i, s in enumerate(signatures):
+                                if(s==id1 or s==id2):
+                                    del_cluster_idxs.append(c_i)
+
+                    #ensure del_cluster_idxs has unique values
+                    del_cluster_idxs = np.unique(np.array(del_cluster_idxs))
 
                     sig_pairs = blockwise_sig_pairs[block_id]
-                    final_pairs = [ele for idx, ele in enumerate(sig_pairs) if idx not in del_ids]
+                    final_pairs = [ele for idx, ele in enumerate(sig_pairs) if idx not in del_idxs]
                     cluster_ids = blockwise_cluster_ids[block_id]
-                    final_cluster_ids = [ele for idx, ele in enumerate(cluster_ids) if idx not in del_ids]
+                    final_cluster_ids = [ele for idx, ele in enumerate(cluster_ids) if idx not in del_cluster_idxs]
 
                     blockwise_sig_pairs[block_id] = final_pairs
                     blockwise_cluster_ids[block_id] = final_cluster_ids

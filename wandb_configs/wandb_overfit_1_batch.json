@@ -1,3 +1,4 @@
 {
-  "overfit_batch_idx": 35
+  "dataset": "pubmed",
+  "dataset_random_seed": 1
 }
