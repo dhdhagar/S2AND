@@ -1645,7 +1645,14 @@ class ANDData:
 
                     sig_idxs_to_keep = np.sort(sig_idxs_to_keep)
                     if(sig_idxs_to_keep.size == 0):
-                        sig_idxs_to_remove = all_idxs
+                        # delete the whole block
+                        del blockwise_sig_ids[block_id]
+                        del blockwise_sig_pairs[block_id]
+                        del blockwise_cluster_ids[block_id]
+                        continue
+                    elif(sig_idxs_to_keep.size== n):
+                        # continue no need to subsample
+                        continue
                     else:
                         sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
 
