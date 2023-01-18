@@ -31,7 +31,7 @@ def save_blockwise_featurized_data(dataset_name, random_seed):
         specter_embeddings=join(parent_dir, f"{dataset_name}_specter.pickle"),
         clusters=join(parent_dir, f"{dataset_name}_clusters.json"),
         block_type="s2",
-        train_pairs_size=100000,
+        train_pairs_size=10,
         val_pairs_size=10000,
         test_pairs_size=10000,
         name=dataset_name,

@@ -1630,36 +1630,26 @@ class ANDData:
 
                 # Remove sig_pairs which are not subsampled
                 for block_id, signatures in blocks.items():
-                    block_len = len(blockwise_sig_pairs[block_id])
-                    all_idxs = np.arange(0, len(signatures))
-                    sig_idxs_to_keep = []
+                    sig_pairs = blockwise_sig_pairs[block_id]
+                    cluster_ids = blockwise_cluster_ids[block_id]
+                    n = len(signatures)
+                    block_len = len(sig_pairs)
 
+                    all_idxs = np.arange(0, n)
+                    sig_idxs_to_keep = []
                     for i, s in enumerate(signatures):
                         if (s in subsample_id_set):
                             sig_idxs_to_keep.append(i)
 
                     sig_idxs_to_keep = np.sort(sig_idxs_to_keep)
-                    if(sig_idxs_to_keep.size == 0):
-                        sig_idxs_to_remove = all_idxs
-                    else:
-                        sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
-
-                    sig_pairs = blockwise_sig_pairs[block_id]
-                    cluster_ids = blockwise_cluster_ids[block_id]
+                    sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
 
                     idxs_to_remove = []
                     for midx in sig_idxs_to_remove:
-                        idxs_to_remove += self.get_indices_by_matrix_idx(midx, block_len)
+                        idxs_to_remove += self.get_indices_by_matrix_idx(midx, n)
                     idxs_to_remove = np.sort(np.unique(idxs_to_remove))
+                    idxs_to_keep = np.delete(np.arange(block_len), idxs_to_remove)
 
-                    if (idxs_to_remove.size == 0):
-                        idxs_to_keep = np.arange(block_len)
-                    else:
-                        idxs_to_keep = np.delete(np.arange(block_len), idxs_to_remove)
-
-                    idxs_to_keep = np.array(idxs_to_keep, dtype=int)
-                    sig_idxs_to_keep = np.array(sig_idxs_to_keep, dtype=int)
-                    print(type(sig_idxs_to_keep), type(idxs_to_keep))
                     _sig_pairs = list(np.array(sig_pairs)[idxs_to_keep])
                     _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
                     # Update the values in the dictionary
