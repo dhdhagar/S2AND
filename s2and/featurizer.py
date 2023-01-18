@@ -904,6 +904,7 @@ def store_featurized_pickles(
                 ) = dataset.split_cluster_signatures()  # this is called for getting blockwise signature pairs
             # Modify method call to store blockwise signature pairs as pickle so that dataloader can load from these idxs
             # After this call block id is lost
+            train_signatures, val_signatures, test_signatures,\
             train_blockwise_pairs, train_blockwise_clusterIds, \
             val_blockwise_pairs, val_blockwise_clusterIds, \
             test_blockwise_pairs, test_blockwise_clusterIds = dataset.split_pairs_to_store(

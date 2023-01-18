@@ -1201,12 +1201,12 @@ class ANDData:
             and isinstance(val_signatures, dict)
             and isinstance(test_signatures, dict)
         )
-        train_blockwise_pairs, train_blockwise_clusterIds = self.pair_sampling_to_store(
+        train_signatures, train_blockwise_pairs, train_blockwise_clusterIds = self.pair_sampling_to_store(
             self.train_pairs_size,
             [],
             train_signatures,
         )
-        val_blockwise_pairs, val_blockwise_clusterIds = (
+        val_signatures, val_blockwise_pairs, val_blockwise_clusterIds = (
             self.pair_sampling_to_store(
                 self.val_pairs_size,
                 [],
@@ -1216,14 +1216,15 @@ class ANDData:
             else []
         )
 
-        test_blockwise_pairs, test_blockwise_clusterIds = self.pair_sampling_to_store(
+        test_signatures, test_blockwise_pairs, test_blockwise_clusterIds = self.pair_sampling_to_store(
             self.test_pairs_size,
             [],
             test_signatures,
             self.all_test_pairs_flag
         )
 
-        return train_blockwise_pairs, train_blockwise_clusterIds, \
+        return train_signatures, val_signatures, test_signatures, \
+               train_blockwise_pairs, train_blockwise_clusterIds, \
                val_blockwise_pairs, val_blockwise_clusterIds, \
                test_blockwise_pairs, test_blockwise_clusterIds
 
@@ -1523,6 +1524,7 @@ class ANDData:
         blockwise_sig_pairs: Dict[str, List[Tuple[str, str, Union[int, float]]]] = {}
         # Return block-wise cluster_ids
         blockwise_cluster_ids: Dict[str, List[str]] = {}
+        blockwise_sig_ids: Dict[str, List[str]] = {}
 
         if not self.pair_sampling_block: #Ignored for s2 Block featurization
             for i, s1 in enumerate(signature_ids):
@@ -1544,7 +1546,6 @@ class ANDData:
         elif not self.pair_sampling_balanced_homonym_synonym and not self.pair_sampling_balanced_classes: #Important for Blockwise featurization
             for block_id, signatures in blocks.items():
                 sig_pairs: List[Tuple[str, str, Union[int, float]]] = []
-                sig_pairs_ids: List[Tuple[str, str, Union[int, float]]] = []
                 cluster_ids: List[str] = []
                 for i, s1 in enumerate(signatures):
                     s1_cluster = self.signature_to_cluster_id[s1]
@@ -1563,6 +1564,7 @@ class ANDData:
                             sig_pairs.append((s1, s2, NUMPY_NAN))
                 blockwise_sig_pairs[block_id] = sig_pairs
                 blockwise_cluster_ids[block_id] = cluster_ids
+                blockwise_sig_ids[block_id] = signatures
 
         else:
             for _, signatures in blocks.items():
@@ -1659,15 +1661,18 @@ class ANDData:
                     idxs_to_keep = np.array(idxs_to_keep, dtype=int)
                     sig_idxs_to_keep = np.array(sig_idxs_to_keep, dtype=int)
                     #print(type(idxs_to_keep), type(sig_idxs_to_keep), idxs_to_keep, sig_idxs_to_keep)
-                    #_sig_pairs = [ele for idx, ele in enumerate(sig_pairs) if idx in idxs_to_keep]
-                    _sig_pairs = list(np.array([tuple(row) for row in sig_pairs], dtype=np.dtype('U10,U10,i'))[idxs_to_keep])
+                    _sig_pairs = [ele for idx, ele in enumerate(sig_pairs) if idx in idxs_to_keep]
+                    # Error in next line: 'tuple' object is not callable, but above line also works same
+                    #_sig_pairs = list(np.array([tuple(row) for row in sig_pairs], dtype=np.dtype('U10,U10,i'))[idxs_to_keep])
                     _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
+                    _signatures = list(np.array(signatures)[sig_idxs_to_keep])
                     # Update the values in the dictionary
                     blockwise_sig_pairs[block_id] = _sig_pairs
                     blockwise_cluster_ids[block_id] = _clusterIds
+                    blockwise_sig_ids[block_id] = _signatures
 
 
-                return blockwise_sig_pairs, blockwise_cluster_ids
+                return blockwise_sig_ids, blockwise_sig_pairs, blockwise_cluster_ids
 
             return pairs
 
