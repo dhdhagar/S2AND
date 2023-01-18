@@ -1643,13 +1643,19 @@ class ANDData:
 
                     sig_idxs_to_keep = np.sort(sig_idxs_to_keep)
                     print(type(all_idxs), type(sig_idxs_to_keep), all_idxs, sig_idxs_to_keep)
-                    sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
+                    if(sig_idxs_to_keep.size == 0):
+                        sig_idxs_to_remove = all_idxs
+                    else:
+                        sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
 
                     idxs_to_remove = []
                     for midx in sig_idxs_to_remove:
                         idxs_to_remove += self.get_indices_by_matrix_idx(midx, n)
                     idxs_to_remove = np.sort(np.unique(idxs_to_remove))
-                    idxs_to_keep = np.delete(np.arange(block_len), idxs_to_remove)
+                    if (idxs_to_remove.size == 0):
+                        idxs_to_keep = np.arange(block_len)
+                    else:
+                        idxs_to_keep = np.delete(np.arange(block_len), idxs_to_remove)
 
                     _sig_pairs = list(np.array(sig_pairs)[idxs_to_keep])
                     _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
