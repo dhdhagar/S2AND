@@ -1624,7 +1624,7 @@ class ANDData:
                 # Remove sig_pairs which are not subsampled
                 for block_id in blockwise_sig_pairs.keys():
                     block_len = len(blockwise_sig_pairs[block_id])
-                    all_idxs = np.arange(0, len)
+                    all_idxs = np.arange(0, block_len)
                     sig_idxs_to_keep = np.array([])
 
                     for c_i, s in enumerate(signatures):
