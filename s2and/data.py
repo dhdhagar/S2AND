@@ -1657,8 +1657,8 @@ class ANDData:
                     else:
                         idxs_to_keep = np.delete(np.arange(block_len), idxs_to_remove)
 
-                    idxs_to_keep = np.array(idxs_to_keep)
-                    sig_idxs_to_keep = np.array(sig_idxs_to_keep)
+                    idxs_to_keep = np.array(idxs_to_keep, dtype=int)
+                    sig_idxs_to_keep = np.array(sig_idxs_to_keep, dtype=int)
                     print(type(sig_idxs_to_keep), type(idxs_to_keep))
                     _sig_pairs = sig_pairs[idxs_to_keep]
                     _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
