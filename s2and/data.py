@@ -1465,6 +1465,12 @@ class ANDData:
 
             return pairs
 
+    @staticmethod
+    def get_indices_by_matrix_idx(K, n):
+        first_pos = list(range(K * (n - 1) - K * (K - 1) // 2, K * (n - 1) - K * (K - 1) // 2 + (n - K - 2) + 1))
+        second_pos = [k * (n - 1) - k * (k - 1) // 2 + K - k - 1 for k in range(K)]
+        return first_pos + second_pos
+
     def pair_sampling_to_store(
         self,
         sample_size: int,
