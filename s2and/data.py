@@ -1623,30 +1623,30 @@ class ANDData:
 
                 # Remove sig_pairs which are not subsampled
                 for block_id in blockwise_sig_pairs.keys():
-                    del_idxs = []
-                    del_cluster_idxs = []
-                    for i, tuple in enumerate(blockwise_sig_pairs[block_id]):
-                        id1, id2, _ = tuple
-                        true_val = (id1 in subsample_id_set) or (id2 in subsample_id_set)
-                        if true_val:
-                            continue
-                        else:
-                            del_idxs.append(i)
-                            # Find the index of these 2 signatures in the list of signatures and add to a separate deletion list
-                            for c_i, s in enumerate(signatures):
-                                if(s==id1 or s==id2):
-                                    del_cluster_idxs.append(c_i)
+                    block_len = len(blockwise_sig_pairs[block_id])
+                    all_idxs = np.arange(0, len)
+                    sig_idxs_to_keep = np.array([])
 
-                    #ensure del_cluster_idxs has unique values
-                    del_cluster_idxs = np.unique(np.array(del_cluster_idxs))
+                    for c_i, s in enumerate(signatures):
+                        if (s in subsample_id_set):
+                            sig_idxs_to_keep.append(c_i)
+
+                    sig_idxs_to_keep = np.sort(sig_idxs_to_keep)
+                    sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
 
                     sig_pairs = blockwise_sig_pairs[block_id]
-                    final_pairs = [ele for idx, ele in enumerate(sig_pairs) if idx not in del_idxs]
                     cluster_ids = blockwise_cluster_ids[block_id]
-                    final_cluster_ids = [ele for idx, ele in enumerate(cluster_ids) if idx not in del_cluster_idxs]
 
-                    blockwise_sig_pairs[block_id] = final_pairs
-                    blockwise_cluster_ids[block_id] = final_cluster_ids
+                    idxs_to_remove = []
+                    for midx in sig_idxs_to_remove:
+                        idxs_to_remove += self.get_indices_by_matrix_idx(midx, block_len)
+                    idxs_to_remove = np.sort(np.unique(idxs_to_remove))
+                    idxs_to_keep = np.delete(np.arange(block_len*(block_len-1)/2), idxs_to_remove)
+                    _sig_pairs = sig_pairs[idxs_to_keep]
+                    _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
+                    # Update the values in the dictionary
+                    blockwise_sig_pairs[block_id] = _sig_pairs
+                    blockwise_cluster_ids[block_id] = _clusterIds
 
 
                 return blockwise_sig_pairs, blockwise_cluster_ids
