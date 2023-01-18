@@ -1582,6 +1582,7 @@ class ANDData:
                                 same_name_different_cluster.append((s1, s2, 0))
                             else:
                                 different_name_different_cluster.append((s1, s2, 0))
+
         if all_pairs: # TODO: Need to update this for mode=inference
             if (
                 self.pair_sampling_balanced_homonym_synonym
@@ -1655,6 +1656,9 @@ class ANDData:
                         idxs_to_keep = np.arange(block_len*(block_len-1)/2)
                     else:
                         idxs_to_keep = np.delete(np.arange(block_len*(block_len-1)/2), idxs_to_remove)
+
+                    print(sig_idxs_to_keep, sig_idxs_to_remove)
+                    print(idxs_to_keep, idxs_to_remove)
                     _sig_pairs = sig_pairs[idxs_to_keep]
                     _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
                     # Update the values in the dictionary
