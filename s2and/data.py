@@ -1642,6 +1642,7 @@ class ANDData:
                             sig_idxs_to_keep.append(i)
 
                     sig_idxs_to_keep = np.sort(sig_idxs_to_keep)
+                    print(type(all_idxs), type(sig_idxs_to_keep), all_idxs, sig_idxs_to_keep)
                     sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
 
                     idxs_to_remove = []
