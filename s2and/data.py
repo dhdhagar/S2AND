@@ -1659,8 +1659,7 @@ class ANDData:
 
                     idxs_to_keep = np.array(idxs_to_keep)
                     sig_idxs_to_keep = np.array(sig_idxs_to_keep)
-                    print(sig_idxs_to_keep, sig_idxs_to_remove)
-                    print(idxs_to_keep, idxs_to_remove)
+                    print(type(sig_idxs_to_keep), type(idxs_to_keep))
                     _sig_pairs = sig_pairs[idxs_to_keep]
                     _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
                     # Update the values in the dictionary
