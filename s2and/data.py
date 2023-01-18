@@ -1629,7 +1629,7 @@ class ANDData:
 
                     for c_i, s in enumerate(signatures):
                         if (s in subsample_id_set):
-                            sig_idxs_to_keep.append(c_i)
+                            np.append(sig_idxs_to_keep, c_i)
 
                     sig_idxs_to_keep = np.sort(sig_idxs_to_keep)
                     sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
