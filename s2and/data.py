@@ -1628,7 +1628,7 @@ class ANDData:
                 #         pickle.dump(subsample_id_set, f)
 
                 # Remove sig_pairs which are not subsampled
-                for block_id in blockwise_sig_pairs.keys():
+                for block_id, signatures in blocks.items():
                     block_len = len(blockwise_sig_pairs[block_id])
                     all_idxs = np.arange(0, block_len)
                     sig_idxs_to_keep = []
