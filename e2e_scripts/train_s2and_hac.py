@@ -19,28 +19,26 @@ def load_training_data(train_pkl, val_pkl):
     blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]
     with open(train_pkl, "rb") as _pkl_file:
         blockwise_data = pickle.load(_pkl_file)
-
     # Combine the blockwise_data to form complete train, test, val sets
-    X_train = []
+    X_train = [[]]
     y_train = []
-
     for block_data in blockwise_data.values():
         x, y, cluster_ids = block_data
         X_train = np.concatenate((X_train, x), axis=0)
         y_train = np.concatenate((y_train, y), axis=0)
+    X_train = np.delete(X_train, 0)
 
     blockwise_data_val: Dict[str, Tuple[np.ndarray, np.ndarray]]
     with open(val_pkl, "rb") as _pkl_file:
         blockwise_data_val = pickle.load(_pkl_file)
-
     # Combine the blockwise_data to form complete train, test, val sets
-    X_val = []
+    X_val = [[]]
     y_val = []
-
     for block_data in blockwise_data_val.values():
         x, y, cluster_ids = block_data
         X_val = np.concatenate((X_val, x), axis=0)
         y_val = np.concatenate((y_val, y), axis=0)
+    X_val = np.delete(X_val, 0)
 
     logger.info("Dataset loaded and prepared for training")
 
