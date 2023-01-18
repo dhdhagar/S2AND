@@ -24,7 +24,7 @@ def load_training_data(train_pkl, val_pkl):
     X_train = []
     y_train = []
 
-    for block_data in blockwise_data.values:
+    for block_data in blockwise_data.values():
         x, y, cluster_ids = block_data
         X_train = np.concatenate((X_train, x), axis=0)
         y_train = np.concatenate((y_train, y), axis=0)
@@ -37,7 +37,7 @@ def load_training_data(train_pkl, val_pkl):
     X_val = []
     y_val = []
 
-    for block_data in blockwise_data_val.values:
+    for block_data in blockwise_data_val.values():
         x, y, cluster_ids = block_data
         X_val = np.concatenate((X_val, x), axis=0)
         y_val = np.concatenate((y_val, y), axis=0)
