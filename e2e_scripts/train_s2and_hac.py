@@ -20,7 +20,8 @@ def load_training_data(train_pkl, val_pkl):
     with open(train_pkl, "rb") as _pkl_file:
         blockwise_data = pickle.load(_pkl_file)
     # Combine the blockwise_data to form complete train, test, val sets
-    X_train = [[]]
+    remove_arr = np.zeros(39)
+    X_train = [remove_arr]
     y_train = []
     for block_data in blockwise_data.values():
         x, y, cluster_ids = block_data
@@ -32,7 +33,7 @@ def load_training_data(train_pkl, val_pkl):
     with open(val_pkl, "rb") as _pkl_file:
         blockwise_data_val = pickle.load(_pkl_file)
     # Combine the blockwise_data to form complete train, test, val sets
-    X_val = [[]]
+    X_val = [remove_arr]
     y_val = []
     for block_data in blockwise_data_val.values():
         x, y, cluster_ids = block_data
