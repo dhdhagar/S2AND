@@ -1625,13 +1625,13 @@ class ANDData:
                 for block_id in blockwise_sig_pairs.keys():
                     block_len = len(blockwise_sig_pairs[block_id])
                     all_idxs = np.arange(0, block_len)
-                    sig_idxs_to_keep = np.array([])
+                    sig_idxs_to_keep = []
 
-                    for c_i, s in enumerate(signatures):
+                    for i, s in enumerate(signatures):
                         if (s in subsample_id_set):
-                            np.append(sig_idxs_to_keep, c_i)
+                            sig_idxs_to_keep.append(i)
 
-                    sig_idxs_to_keep = np.sort(sig_idxs_to_keep)
+                    sig_idxs_to_keep = np.sort(np.array(sig_idxs_to_keep))
                     sig_idxs_to_remove = np.delete(all_idxs, sig_idxs_to_keep)
 
                     sig_pairs = blockwise_sig_pairs[block_id]
