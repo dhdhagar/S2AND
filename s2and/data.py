@@ -1637,7 +1637,8 @@ class ANDData:
                         if (s in subsample_id_set):
                             sig_idxs_to_keep.append(i)
 
-                    sig_idxs_to_keep = np.array(sig_idxs_to_keep.sort())
+                    sig_idxs_to_keep = np.array(sig_idxs_to_keep)
+
                     if(sig_idxs_to_keep.size == None):
                         sig_idxs_to_remove = all_idxs
                     else:
@@ -1650,6 +1651,7 @@ class ANDData:
                     for midx in sig_idxs_to_remove:
                         idxs_to_remove += self.get_indices_by_matrix_idx(midx, block_len)
                     idxs_to_remove = np.sort(np.unique(idxs_to_remove))
+
                     if (idxs_to_remove.size == None):
                         idxs_to_keep = np.arange(block_len*(block_len-1)/2)
                     else:
