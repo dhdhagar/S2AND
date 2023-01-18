@@ -609,6 +609,8 @@ def many_pairs_featurize(
         labels[i] = pair[2]
 
         # negative labels are an indication of partial supervision
+        if(type(pair[2]) != int):
+            print ("error is here", pair)
         if pair[2] < 0:
             continue
 
