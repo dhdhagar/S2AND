@@ -1658,8 +1658,10 @@ class ANDData:
 
                     idxs_to_keep = np.array(idxs_to_keep, dtype=int)
                     sig_idxs_to_keep = np.array(sig_idxs_to_keep, dtype=int)
-                    print(type(idxs_to_keep), type(sig_idxs_to_keep), idxs_to_keep, sig_idxs_to_keep)
-                    _sig_pairs = [ele for idx, ele in enumerate(sig_pairs) if idx in idxs_to_keep]
+                    #print(type(idxs_to_keep), type(sig_idxs_to_keep), idxs_to_keep, sig_idxs_to_keep)
+                    #_sig_pairs = [ele for idx, ele in enumerate(sig_pairs) if idx in idxs_to_keep]
+                    _sig_pairs = list(np.array([tuple(row) for row in sig_pairs],
+                                               dtype=np.dtype('U10,U10,i'))[idxs_to_keep])
                     _clusterIds = list(np.array(cluster_ids)[sig_idxs_to_keep])
                     # Update the values in the dictionary
                     blockwise_sig_pairs[block_id] = _sig_pairs
