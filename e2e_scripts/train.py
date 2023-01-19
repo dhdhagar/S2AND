@@ -357,6 +357,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     pairwise_clustering_fn = HACInference()  # TODO: Implement
                 else:
                     raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
+                _, _, clustering_test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
+                                                                   hyp["convert_nan"], hyp["nan_value"],
+                                                                   hyp["normalize_data"], hyp["subsample_sz"],
+                                                                   hyp["subsample_dev"], False,
+                                                                   batch_size)
         logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
@@ -380,11 +385,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 'test': test_dataloader
             }
             with torch.no_grad():
-                start_time = time.time()
-                eval_scores = eval_fn(model, dataloaders[eval_only_split], clustering_fn=pairwise_clustering_fn)
-                end_time = time.time()
                 if pairwise_clustering_fn is not None:
+                    assert eval_only_split == 'test'  # Clustering in --eval_only_split implemented only for test set
                     eval_metric_to_idx = clustering_metrics
+                    eval_dataloader = clustering_test_dataloader
+                else:
+                    eval_dataloader = dataloaders[eval_only_split]
+                start_time = time.time()
+                eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn)
+                end_time = time.time()
                 if verbose:
                     logger.info(
                         f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
@@ -543,7 +552,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
                                f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
                     if pairwise_clustering_fn is not None:
-                        clustering_scores = eval_fn(model, test_dataloader, clustering_fn=pairwise_clustering_fn)
+                        clustering_scores = eval_fn(model, clustering_test_dataloader,
+                                                    clustering_fn=pairwise_clustering_fn)
                         if verbose:
                             logger.info(f"Final: test_{list(clustering_metrics)[0]}={clustering_scores[0]}, " +
                                         f"test_{list(clustering_metrics)[1]}={clustering_scores[1]}")
