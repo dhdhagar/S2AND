@@ -354,6 +354,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             if pairwise_eval_clustering is not None:
                 if pairwise_eval_clustering == 'cc':
                     pairwise_clustering_fn = CCInference(sdp_max_iters, sdp_eps)
+                    pairwise_clustering_fn.eval()
                 elif pairwise_eval_clustering == 'hac':
                     pairwise_clustering_fn = HACInference()  # TODO: Implement
                 else:
@@ -385,6 +386,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 'test': test_dataloader
             }
             with torch.no_grad():
+                model.eval()
                 if pairwise_clustering_fn is not None:
                     assert eval_only_split == 'test'  # Clustering in --eval_only_split implemented only for test set
                     eval_metric_to_idx = clustering_metrics
