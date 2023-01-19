@@ -45,7 +45,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, tqdm_l
         pred_cluster_ids += (max_pred_id + 1)
         max_pred_id = max(pred_cluster_ids)
         all_pred += list(pred_cluster_ids)
-    vmeasure = v_measure_score(all_pred, all_gold)
+    vmeasure = v_measure_score(all_gold, all_pred)
     b3_f1 = compute_b3_f1(all_gold, all_pred)[2]
     return b3_f1, vmeasure
 
@@ -80,7 +80,8 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
             pred_cluster_ids += (max_pred_id + 1)
             max_pred_id = max(pred_cluster_ids)
             all_pred += list(pred_cluster_ids)
-        vmeasure = v_measure_score(all_pred, all_gold)
+        embed()
+        vmeasure = v_measure_score(all_gold, all_pred)
         b3_f1 = compute_b3_f1(all_gold, all_pred)[2]
         return b3_f1, vmeasure
 
