@@ -393,7 +393,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 else:
                     eval_dataloader = dataloaders[eval_only_split]
                 start_time = time.time()
-                eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn)
+                eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
+                                      tqdm_label=eval_only_split)
                 end_time = time.time()
                 if verbose:
                     logger.info(
@@ -428,14 +429,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 with torch.no_grad():
                     model.eval()
                     if overfit_batch_idx > -1:
-                        train_scores = eval_fn(model, train_dataloader, overfit_batch_idx)
+                        train_scores = eval_fn(model, train_dataloader, overfit_batch_idx, tqdm_label='train')
                         if verbose:
                             logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
                                         f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
                         wandb.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                     else:
-                        dev_scores = eval_fn(model, val_dataloader)
+                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev')
                         if verbose:
                             logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
                                         f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
@@ -502,7 +503,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 with torch.no_grad():
                     model.eval()
                     if overfit_batch_idx > -1:
-                        train_scores = eval_fn(model, train_dataloader, overfit_batch_idx)
+                        train_scores = eval_fn(model, train_dataloader, overfit_batch_idx, tqdm_label='train')
                         if verbose:
                             logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
                                         f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
@@ -514,7 +515,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             elif hyp['lr_scheduler'] == 'step':
                                 scheduler.step()
                     else:
-                        dev_scores = eval_fn(model, val_dataloader)
+                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev')
                         if verbose:
                             logger.info(f"epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
                                         f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
@@ -542,7 +543,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 model.load_state_dict(best_dev_state_dict)
                 with torch.no_grad():
                     model.eval()
-                    test_scores = eval_fn(model, test_dataloader)
+                    test_scores = eval_fn(model, test_dataloader, tqdm_label='test')
                     if verbose:
                         logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                     f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
@@ -554,7 +555,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
                     if pairwise_clustering_fn is not None:
                         clustering_scores = eval_fn(model, clustering_test_dataloader,
-                                                    clustering_fn=pairwise_clustering_fn)
+                                                    clustering_fn=pairwise_clustering_fn, tqdm_label='test clustering')
                         if verbose:
                             logger.info(f"Final: test_{list(clustering_metrics)[0]}={clustering_scores[0]}, " +
                                         f"test_{list(clustering_metrics)[1]}={clustering_scores[1]}")
