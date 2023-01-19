@@ -19,6 +19,8 @@ from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import precision_recall_fscore_support
 from tqdm import tqdm
 
+from e2e_pipeline.cc_inference import CCInference
+from e2e_pipeline.hac_inference import HACInference
 from e2e_pipeline.model import EntResModel
 from e2e_pipeline.pairwise_model import PairwiseModel
 from s2and.consts import PREPROCESSED_DATA_DIR
@@ -142,7 +144,10 @@ def compute_b3_f1(true_cluster_ids, pred_cluster_ids):
     return b3_precision_recall_fscore(true_cluster_dict, pred_cluster_dict)
 
 
-def evaluate(model, dataloader, overfit_batch_idx=-1):
+def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None):
+    """
+    clustering_fn: unused when pairwise_mode is False (only added to keep fn signature identical)
+    """
     n_features = dataloader.dataset[0][0].shape[1]
     vmeasure, b3_f1, sigs_per_block = [], [], []
     for (idx, batch) in enumerate(tqdm(dataloader, desc='Evaluating')):
@@ -159,7 +164,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
             b3_f1.append(1.)
             sigs_per_block.append(1)
         else:
-            block_size = get_matrix_size_from_triu(data)
+            block_size = len(cluster_ids)  # get_matrix_size_from_triu(data)
             cluster_ids = np.reshape(cluster_ids, (block_size, ))
             target = target.flatten().float()
             sigs_per_block.append(block_size)
@@ -167,7 +172,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
             # Forward pass through the e2e model
             data, target = data.to(device), target.to(device)
             _ = model(data, block_size)
-            predicted_cluster_ids = model.hac_cut_layer.cluster_labels.detach()
+            predicted_cluster_ids = model.hac_cut_layer.cluster_labels  # .detach()
 
             # Compute clustering metrics
             vmeasure.append(v_measure_score(predicted_cluster_ids, cluster_ids))
@@ -183,8 +188,47 @@ def evaluate(model, dataloader, overfit_batch_idx=-1):
 
 
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
-                      thresh_for_f1=0.5):
+                      thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None):
     n_features = dataloader.dataset[0][0].shape[1]
+
+    if clustering_fn is not None:
+        # Then dataloader passed is blockwise
+        vmeasure, b3_f1, sigs_per_block = [], [], []
+        for (idx, batch) in enumerate(tqdm(dataloader, desc='Evaluating')):
+            if overfit_batch_idx > -1:
+                if idx < overfit_batch_idx:
+                    continue
+                if idx > overfit_batch_idx:
+                    break
+            data, target, cluster_ids = batch
+            data = data.reshape(-1, n_features).float()
+            if data.shape[0] == 0:
+                # Only one signature in block -> predict correctly
+                vmeasure.append(1.)
+                b3_f1.append(1.)
+                sigs_per_block.append(1)
+            else:
+                block_size = len(cluster_ids)  # get_matrix_size_from_triu(data)
+                cluster_ids = np.reshape(cluster_ids, (block_size,))
+                target = target.flatten().float()
+                sigs_per_block.append(block_size)
+
+                # Forward pass through the e2e model
+                data, target = data.to(device), target.to(device)
+                predicted_cluster_ids = clustering_fn(model(data), block_size)  # .detach()
+
+                # Compute clustering metrics
+                vmeasure.append(v_measure_score(predicted_cluster_ids, cluster_ids))
+                b3_f1_metrics = compute_b3_f1(cluster_ids, predicted_cluster_ids)
+                b3_f1.append(b3_f1_metrics[2])
+
+        vmeasure = np.array(vmeasure)
+        b3_f1 = np.array(b3_f1)
+        sigs_per_block = np.array(sigs_per_block)
+
+        return np.sum(vmeasure * sigs_per_block) / np.sum(sigs_per_block), \
+               np.sum(b3_f1 * sigs_per_block) / np.sum(sigs_per_block)
+
     y_pred, targets = [], []
     for (idx, batch) in enumerate(tqdm(dataloader, desc='Evaluating')):
         if overfit_batch_idx > -1:
@@ -216,7 +260,8 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
-          eval_only_split=None, skip_initial_eval=False, pairwise_mode=False):
+          eval_only_split=None, skip_initial_eval=False, pairwise_mode=False,
+          pairwise_eval_clustering=None):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -283,6 +328,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             loss_fn = lambda pred, gold: torch.norm(gold - pred)
             # Define eval
             eval_fn = evaluate
+            pairwise_clustering_fn = None  # Unused when pairwise_mode is False
         else:
             model = PairwiseModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                   neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
@@ -301,6 +347,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             # Define eval
             eval_fn = evaluate_pairwise
+            pairwise_clustering_fn = None
+            if pairwise_eval_clustering is not None:
+                if pairwise_eval_clustering == 'cc':
+                    pairwise_clustering_fn = CCInference(sdp_max_iters, sdp_eps)
+                elif pairwise_eval_clustering == 'hac':
+                    pairwise_clustering_fn = HACInference()  # TODO: Implement
+                else:
+                    raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
         logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
@@ -325,7 +379,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             }
             with torch.no_grad():
                 start_time = time.time()
-                eval_scores = eval_fn(model, dataloaders[eval_only_split])
+                eval_scores = eval_fn(model, dataloaders[eval_only_split], clustering_fn=pairwise_clustering_fn)
                 end_time = time.time()
                 if verbose:
                     logger.info(
@@ -474,7 +528,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 model.load_state_dict(best_dev_state_dict)
                 with torch.no_grad():
                     model.eval()
-                    test_scores = eval_fn(model, test_dataloader)
+                    test_scores = eval_fn(model, test_dataloader, clustering_fn=pairwise_clustering_fn)
                     if verbose:
                         logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                     f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")

@@ -123,5 +123,5 @@ class HACCutLayer(torch.nn.Module):
         self.objective_value = energy[max_node]
         return self.round_matrix
 
-    def forward(self, X, W):
-        return X + (self.get_rounded_solution(X, W) - X).detach()
+    def forward(self, X, W, use_similarities=True):
+        return X + (self.get_rounded_solution(X, W, use_similarities=use_similarities) - X).detach()
