@@ -144,13 +144,13 @@ def compute_b3_f1(true_cluster_ids, pred_cluster_ids):
     return b3_precision_recall_fscore(true_cluster_dict, pred_cluster_dict)
 
 
-def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None):
+def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, tqdm_label=''):
     """
     clustering_fn: unused when pairwise_mode is False (only added to keep fn signature identical)
     """
     n_features = dataloader.dataset[0][0].shape[1]
     vmeasure, b3_f1, sigs_per_block = [], [], []
-    for (idx, batch) in enumerate(tqdm(dataloader, desc='Evaluating')):
+    for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
                 continue
@@ -188,13 +188,14 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None):
 
 
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
-                      thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None):
+                      thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
+                      tqdm_label=''):
     n_features = dataloader.dataset[0][0].shape[1]
 
     if clustering_fn is not None:
         # Then dataloader passed is blockwise
         vmeasure, b3_f1, sigs_per_block = [], [], []
-        for (idx, batch) in enumerate(tqdm(dataloader, desc='Evaluating')):
+        for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
             if overfit_batch_idx > -1:
                 if idx < overfit_batch_idx:
                     continue
@@ -230,7 +231,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                np.sum(b3_f1 * sigs_per_block) / np.sum(sigs_per_block)
 
     y_pred, targets = [], []
-    for (idx, batch) in enumerate(tqdm(dataloader, desc='Evaluating')):
+    for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
                 continue
@@ -446,7 +447,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             for i in range(n_epochs):
                 wandb.log({'epoch': i + 1})
                 running_loss = []
-                for (idx, batch) in enumerate(tqdm(train_dataloader, desc="Training")):
+                for (idx, batch) in enumerate(tqdm(train_dataloader, desc=f"Training {i + 1}")):
                     if overfit_batch_idx > -1:
                         if idx < overfit_batch_idx:
                             continue
@@ -670,5 +671,6 @@ if __name__ == '__main__':
               load_model_from_fpath=args['load_model_from_fpath'],
               eval_only_split=args['eval_only_split'],
               skip_initial_eval=args['skip_initial_eval'],
-              pairwise_mode=args['pairwise_mode'])
+              pairwise_mode=args['pairwise_mode'],
+              pairwise_eval_clustering=args['pairwise_eval_clustering'])
         logger.info("End of run")
