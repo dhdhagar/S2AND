@@ -64,10 +64,10 @@ DEFAULT_HYPERPARAMS = {
     "sdp_max_iters": 50000,
     "sdp_eps": 1e-3,
     # Training config
-    "batch_size": 1,
+    "batch_size": 10000,  # For pairwise_mode only
     "lr": 1e-4,
     "n_epochs": 5,
-    "weighted_loss": True,  # Only applies to pairwise model currently; TODO: Implement for e2e
+    "weighted_loss": True,  # For pairwise_mode only; TODO: Implement for e2e
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "step"
     "lr_factor": 0.7,
@@ -291,7 +291,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         np.random.seed(hyp['run_random_seed'])
 
         weighted_loss = hyp['weighted_loss']
-        batch_size = hyp['batch_size']
+        batch_size = hyp['batch_size'] if pairwise_mode else 1  # Force clustering runs to operate on 1 block only
         n_epochs = hyp['n_epochs']
         use_lr_scheduler = hyp['use_lr_scheduler']
         hidden_dim = hyp["hidden_dim"]
@@ -361,8 +361,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 _, _, clustering_test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
                                                                    hyp["convert_nan"], hyp["nan_value"],
                                                                    hyp["normalize_data"], hyp["subsample_sz"],
-                                                                   hyp["subsample_dev"], False,
-                                                                   batch_size)
+                                                                   hyp["subsample_dev"], False, 1)
         logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
