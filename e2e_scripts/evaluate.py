@@ -30,7 +30,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, tqdm_l
             if idx > overfit_batch_idx:
                 break
         data, target, cluster_ids = batch
-        all_gold += list(cluster_ids)
+        all_gold += list(np.reshape(cluster_ids, (len(cluster_ids),)))
         data = data.reshape(-1, n_features).float()
         if data.shape[0] == 0:
             # Only one signature in block; manually assign a 0-cluster
@@ -67,7 +67,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                 if idx > overfit_batch_idx:
                     break
             data, _, cluster_ids = batch
-            all_gold += list(cluster_ids)
+            all_gold += list(np.reshape(cluster_ids, (len(cluster_ids),)))
             data = data.reshape(-1, n_features).float()
             if data.shape[0] == 0:
                 # Only one signature in block; manually assign a 0-cluster
@@ -80,7 +80,6 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
             pred_cluster_ids += (max_pred_id + 1)
             max_pred_id = max(pred_cluster_ids)
             all_pred += list(pred_cluster_ids)
-        embed()
         vmeasure = v_measure_score(all_gold, all_pred)
         b3_f1 = compute_b3_f1(all_gold, all_pred)[2]
         return b3_f1, vmeasure

@@ -42,4 +42,4 @@ class CCInference(torch.nn.Module):
             logger.info(f"Size of X_r = {pred_clustering.size()}")
             logger.info(f"\n{pred_clustering}")
 
-        return self.hac_cut_layer.cluster_labels
+        return self.hac_cut_layer.cluster_labels.tolist()
