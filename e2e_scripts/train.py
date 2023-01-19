@@ -289,7 +289,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     else:
                         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device)
                         if verbose:
-                            logger.info(f"epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                            logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
                                         f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
                         wandb.log({f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
