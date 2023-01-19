@@ -29,20 +29,18 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, tqdm_l
                 continue
             if idx > overfit_batch_idx:
                 break
-        data, target, cluster_ids = batch
+        data, _, cluster_ids = batch
         all_gold += list(np.reshape(cluster_ids, (len(cluster_ids),)))
         data = data.reshape(-1, n_features).float()
         if data.shape[0] == 0:
-            # Only one signature in block; manually assign a 0-cluster
-            pred_cluster_ids = np.array([0])
+            # Only one signature in block; manually assign a unique cluster
+            pred_cluster_ids = [max_pred_id + 1]
         else:
             block_size = len(cluster_ids)
-            target = target.flatten().float()
             # Forward pass through the e2e model
-            data, target = data.to(device), target.to(device)
+            data = data.to(device)
             _ = model(data, block_size)
-            pred_cluster_ids = model.hac_cut_layer.cluster_labels
-        pred_cluster_ids += (max_pred_id + 1)
+            pred_cluster_ids = (model.hac_cut_layer.cluster_labels + (max_pred_id + 1)).tolist()
         max_pred_id = max(pred_cluster_ids)
         all_pred += list(pred_cluster_ids)
     vmeasure = v_measure_score(all_gold, all_pred)
@@ -70,14 +68,13 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
             all_gold += list(np.reshape(cluster_ids, (len(cluster_ids),)))
             data = data.reshape(-1, n_features).float()
             if data.shape[0] == 0:
-                # Only one signature in block; manually assign a 0-cluster
-                pred_cluster_ids = np.array([0])
+                # Only one signature in block; manually assign a unique cluster
+                pred_cluster_ids = [max_pred_id + 1]
             else:
                 block_size = len(cluster_ids)
                 # Forward pass through the e2e model
                 data = data.to(device)
-                pred_cluster_ids = clustering_fn(model(data), block_size)
-            pred_cluster_ids += (max_pred_id + 1)
+                pred_cluster_ids = clustering_fn(model(data), block_size, min_id=(max_pred_id + 1))
             max_pred_id = max(pred_cluster_ids)
             all_pred += list(pred_cluster_ids)
         vmeasure = v_measure_score(all_gold, all_pred)

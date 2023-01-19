@@ -23,7 +23,7 @@ class CCInference(torch.nn.Module):
         self.sdp_layer = SDPLayer(max_iters=sdp_max_iters, eps=sdp_eps)
         self.hac_cut_layer = HACCutLayer()
 
-    def forward(self, edge_weights, N, verbose=False):
+    def forward(self, edge_weights, N, min_id=0, verbose=False):
         edge_weights = torch.squeeze(edge_weights)
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
         output_probs = self.sdp_layer(edge_weights_uncompressed, N)
@@ -42,4 +42,4 @@ class CCInference(torch.nn.Module):
             logger.info(f"Size of X_r = {pred_clustering.size()}")
             logger.info(f"\n{pred_clustering}")
 
-        return self.hac_cut_layer.cluster_labels.tolist()
+        return (self.hac_cut_layer.cluster_labels + min_id).tolist()
