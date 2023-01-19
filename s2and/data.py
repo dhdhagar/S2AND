@@ -162,6 +162,7 @@ class S2BlocksDataset(Dataset):
                         _X = X[idxs_to_keep]
                         _y = y[idxs_to_keep]
                         _clusterIds = list(np.array(cluster_ids)[matrix_idxs_to_keep])
+                        _clusterIds = list(map(lambda x: f'{x}_{i}', _clusterIds))
                         self.blockwise_data.append((_X, _y, _clusterIds))
                         self.blockwise_keys.append(dict_key)
                 else:

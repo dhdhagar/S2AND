@@ -21,7 +21,8 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, tqdm_l
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
 
-    vmeasure, b3_f1, sigs_per_block = [], [], []
+    all_gold, all_pred = [], []
+    max_pred_id = -1
     for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
@@ -29,34 +30,24 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, tqdm_l
             if idx > overfit_batch_idx:
                 break
         data, target, cluster_ids = batch
+        all_gold += list(cluster_ids)
         data = data.reshape(-1, n_features).float()
         if data.shape[0] == 0:
-            # Only one signature in block -> predict correctly
-            vmeasure.append(1.)
-            b3_f1.append(1.)
-            sigs_per_block.append(1)
+            # Only one signature in block; manually assign a 0-cluster
+            pred_cluster_ids = np.array([0])
         else:
-            block_size = len(cluster_ids)  # get_matrix_size_from_triu(data)
-            cluster_ids = np.reshape(cluster_ids, (block_size,))
+            block_size = len(cluster_ids)
             target = target.flatten().float()
-            sigs_per_block.append(block_size)
-
             # Forward pass through the e2e model
             data, target = data.to(device), target.to(device)
             _ = model(data, block_size)
-            predicted_cluster_ids = model.hac_cut_layer.cluster_labels  # .detach()
-
-            # Compute clustering metrics
-            vmeasure.append(v_measure_score(predicted_cluster_ids, cluster_ids))
-            b3_f1_metrics = compute_b3_f1(cluster_ids, predicted_cluster_ids)
-            b3_f1.append(b3_f1_metrics[2])
-
-    vmeasure = np.array(vmeasure)
-    b3_f1 = np.array(b3_f1)
-    sigs_per_block = np.array(sigs_per_block)
-
-    return np.sum(b3_f1 * sigs_per_block) / np.sum(sigs_per_block), \
-           np.sum(vmeasure * sigs_per_block) / np.sum(sigs_per_block)
+            pred_cluster_ids = model.hac_cut_layer.cluster_labels
+        pred_cluster_ids += (max_pred_id + 1)
+        max_pred_id = np.max(pred_cluster_ids)
+        all_pred += list(pred_cluster_ids)
+    vmeasure = v_measure_score(all_pred, all_gold)
+    b3_f1 = compute_b3_f1(all_gold, all_pred)[2]
+    return b3_f1, vmeasure
 
 
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
@@ -67,41 +58,31 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
 
     if clustering_fn is not None:
         # Then dataloader passed is blockwise
-        vmeasure, b3_f1, sigs_per_block = [], [], []
+        all_gold, all_pred = [], []
+        max_pred_id = -1  # In each iteration, add to all blockwise predicted IDs to distinguish from previous blocks
         for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
             if overfit_batch_idx > -1:
                 if idx < overfit_batch_idx:
                     continue
                 if idx > overfit_batch_idx:
                     break
-            data, target, cluster_ids = batch
+            data, _, cluster_ids = batch
+            all_gold += list(cluster_ids)
             data = data.reshape(-1, n_features).float()
             if data.shape[0] == 0:
-                # Only one signature in block -> predict correctly
-                vmeasure.append(1.)
-                b3_f1.append(1.)
-                sigs_per_block.append(1)
+                # Only one signature in block; manually assign a 0-cluster
+                pred_cluster_ids = np.array([0])
             else:
-                block_size = len(cluster_ids)  # get_matrix_size_from_triu(data)
-                cluster_ids = np.reshape(cluster_ids, (block_size,))
-                target = target.flatten().float()
-                sigs_per_block.append(block_size)
-
+                block_size = len(cluster_ids)
                 # Forward pass through the e2e model
-                data, target = data.to(device), target.to(device)
-                predicted_cluster_ids = clustering_fn(model(data), block_size)  # .detach()
-
-                # Compute clustering metrics
-                vmeasure.append(v_measure_score(predicted_cluster_ids, cluster_ids))
-                b3_f1_metrics = compute_b3_f1(cluster_ids, predicted_cluster_ids)
-                b3_f1.append(b3_f1_metrics[2])
-
-        vmeasure = np.array(vmeasure)
-        b3_f1 = np.array(b3_f1)
-        sigs_per_block = np.array(sigs_per_block)
-
-        return np.sum(vmeasure * sigs_per_block) / np.sum(sigs_per_block), \
-               np.sum(b3_f1 * sigs_per_block) / np.sum(sigs_per_block)
+                data = data.to(device)
+                pred_cluster_ids = clustering_fn(model(data), block_size)
+            pred_cluster_ids += (max_pred_id + 1)
+            max_pred_id = np.max(pred_cluster_ids)
+            all_pred += list(pred_cluster_ids)
+        vmeasure = v_measure_score(all_pred, all_gold)
+        b3_f1 = compute_b3_f1(all_gold, all_pred)[2]
+        return b3_f1, vmeasure
 
     y_pred, targets = [], []
     for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
