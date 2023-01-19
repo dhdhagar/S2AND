@@ -308,7 +308,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         sdp_max_iters = hyp["sdp_max_iters"]
         sdp_eps = hyp["sdp_eps"]
         overfit_batch_idx = hyp['overfit_batch_idx']
-        clustering_metrics = {'vmeasure': 0, 'b3_f1': 1}
+        clustering_metrics = {'b3_f1': 1, 'vmeasure': 0}
         pairwise_metrics = {'auroc': 0, 'f1': 1}
         eval_metric_to_idx = clustering_metrics if not pairwise_mode else pairwise_metrics
         dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx \
@@ -571,6 +571,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         if save_model:
             torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
             wandb.save('model_state_dict_best.pt')
+            logger.info(f"Saved best model on dev to {os.path.join(run.dir, 'model_state_dict_best.pt')}")
 
         logger.info(f"Run directory: {run.dir}")
         logger.info("End of train() call")
