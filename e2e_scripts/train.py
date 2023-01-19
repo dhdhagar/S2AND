@@ -307,7 +307,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         sdp_max_iters = hyp["sdp_max_iters"]
         sdp_eps = hyp["sdp_eps"]
         overfit_batch_idx = hyp['overfit_batch_idx']
-        eval_metric_to_idx = {'vmeasure': 0, 'b3_f1': 1} if not pairwise_mode else {'auroc': 0, 'f1': 1}
+        clustering_metrics = {'vmeasure': 0, 'b3_f1': 1}
+        pairwise_metrics = {'auroc': 0, 'f1': 1}
+        eval_metric_to_idx = clustering_metrics if not pairwise_mode else pairwise_metrics
         dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx \
             else list(eval_metric_to_idx)[0]
 
@@ -381,6 +383,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 start_time = time.time()
                 eval_scores = eval_fn(model, dataloaders[eval_only_split], clustering_fn=pairwise_clustering_fn)
                 end_time = time.time()
+                if pairwise_clustering_fn is not None:
+                    eval_metric_to_idx = clustering_metrics
                 if verbose:
                     logger.info(
                         f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
@@ -528,7 +532,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 model.load_state_dict(best_dev_state_dict)
                 with torch.no_grad():
                     model.eval()
-                    test_scores = eval_fn(model, test_dataloader, clustering_fn=pairwise_clustering_fn)
+                    test_scores = eval_fn(model, test_dataloader)
                     if verbose:
                         logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                     f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
@@ -538,6 +542,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
                                f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
                                f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
+                    if pairwise_clustering_fn is not None:
+                        clustering_scores = eval_fn(model, test_dataloader, clustering_fn=pairwise_clustering_fn)
+                        if verbose:
+                            logger.info(f"Final: test_{list(clustering_metrics)[0]}={clustering_scores[0]}, " +
+                                        f"test_{list(clustering_metrics)[1]}={clustering_scores[1]}")
+                        # Log final metrics
+                        wandb.log({f'best_test_{list(clustering_metrics)[0]}': clustering_scores[0],
+                                   f'best_test_{list(clustering_metrics)[1]}': clustering_scores[1]})
+
 
         run.summary["z_model_parameters"] = count_parameters(model)
         run.summary["z_run_time"] = round(end_time - start_time)
