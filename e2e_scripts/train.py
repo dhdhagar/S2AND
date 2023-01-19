@@ -183,8 +183,8 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, tqdm_l
     b3_f1 = np.array(b3_f1)
     sigs_per_block = np.array(sigs_per_block)
 
-    return np.sum(vmeasure * sigs_per_block) / np.sum(sigs_per_block), \
-           np.sum(b3_f1 * sigs_per_block) / np.sum(sigs_per_block)
+    return np.sum(b3_f1 * sigs_per_block) / np.sum(sigs_per_block), \
+           np.sum(vmeasure * sigs_per_block) / np.sum(sigs_per_block)
 
 
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
@@ -308,7 +308,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         sdp_max_iters = hyp["sdp_max_iters"]
         sdp_eps = hyp["sdp_eps"]
         overfit_batch_idx = hyp['overfit_batch_idx']
-        clustering_metrics = {'b3_f1': 1, 'vmeasure': 0}
+        clustering_metrics = {'b3_f1': 0, 'vmeasure': 1}
         pairwise_metrics = {'auroc': 0, 'f1': 1}
         eval_metric_to_idx = clustering_metrics if not pairwise_mode else pairwise_metrics
         dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx \
