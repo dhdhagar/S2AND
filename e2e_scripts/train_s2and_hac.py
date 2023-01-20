@@ -10,6 +10,7 @@ from s2and.featurizer import FeaturizationInfo, featurize
 from s2and.eval import pairwise_eval, cluster_eval
 from s2and.model import Clusterer, FastCluster
 from hyperopt import hp
+import os
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
@@ -20,40 +21,27 @@ def load_training_data(train_pkl, val_pkl):
     with open(train_pkl, "rb") as _pkl_file:
         blockwise_data = pickle.load(_pkl_file)
     # Combine the blockwise_data to form complete train, test, val sets
-    remove_arr = np.zeros(39)
-    X_train = [remove_arr]
-    y_train = []
-    for block_data in blockwise_data.values():
-        x, y, cluster_ids = block_data
-        X_train = np.concatenate((X_train, x), axis=0)
-        y_train = np.concatenate((y_train, y), axis=0)
-    X_train = np.delete(X_train, 0)
+    x_vals = [val[0] for val in blockwise_data.values()]
+    X_train = np.concatenate(x_vals)
+
+    y_vals = [val[1] for val in blockwise_data.values()]
+    y_train = np.concatenate(y_vals)
 
     blockwise_data_val: Dict[str, Tuple[np.ndarray, np.ndarray]]
     with open(val_pkl, "rb") as _pkl_file:
         blockwise_data_val = pickle.load(_pkl_file)
     # Combine the blockwise_data to form complete train, test, val sets
-    X_val = [remove_arr]
-    y_val = []
-    for block_data in blockwise_data_val.values():
-        x, y, cluster_ids = block_data
-        X_val = np.concatenate((X_val, x), axis=0)
-        y_val = np.concatenate((y_val, y), axis=0)
-    X_val = np.delete(X_val, 0)
+    x_vals = [val[0] for val in blockwise_data_val.values()]
+    X_val = np.concatenate(x_vals)
 
+    y_vals = [val[1] for val in blockwise_data_val.values()]
+    y_val = np.concatenate(y_vals)
+
+    logger.info(X_train, y_train)
+    logger.info(np.shape(X_train), np.shape(y_train))
+    logger.info(X_val, y_val)
+    logger.info(np.shape(X_val), np.shape(y_val))
     logger.info("Dataset loaded and prepared for training")
-
-    # dataset = ANDData(
-    #     signatures=join(parent_dir, f"{dataset_name}_signatures.json"),
-    #     papers=join(parent_dir, f"{dataset_name}_papers.json"),
-    #     mode="train",
-    #     specter_embeddings=join(parent_dir, f"{dataset_name}_specter.pickle"),
-    #     clusters=join(parent_dir, f"{dataset_name}_clusters.json"),
-    #     block_type="s2",
-    #     name=dataset_name,
-    #     n_jobs=4,
-    # )
-    # logger.info("loaded the data")
 
     # Training Featurizer model
     featurization_info = FeaturizationInfo()
@@ -61,7 +49,7 @@ def load_training_data(train_pkl, val_pkl):
     logger.info("Done loading and featurizing")
     return featurization_info, X_train, y_train, X_val, y_val
 
-def train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val):
+def train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val, save_model=True):
     # calibration fits isotonic regression after the binary classifier is fit
     # monotone constraints help the LightGBM classifier behave sensibly
     pairwise_model = PairwiseModeler(
@@ -74,6 +62,18 @@ def train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val
     # this will also dump a lot of useful plots (ROC, PR, SHAP) to the figs_path
     pairwise_metrics = pairwise_eval(X_val, y_val, pairwise_model.classifier, figs_path='figs/', title='validation_metrics')
     logger.info(pairwise_metrics)
+    if save_model:
+        # Create a new directory
+        directory = '../s2and_checkpoints'
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # Create a new file within the directory
+        file_path = os.path.join(directory, f'{dataset_name}_{dataset_seed}_lgbm.pkl')
+        # Serialize the model to a file
+        with open(file_path, 'wb') as file:
+            pickle.dump(pairwise_model, file)
+
     return pairwise_model
 
 def train_HAC_clusterer(dataset_name, featurization_info, pairwise_model):
