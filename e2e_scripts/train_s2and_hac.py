@@ -16,6 +16,8 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+DATA_DIR = "../data"
+
 def load_training_data(train_pkl, val_pkl):
     blockwise_data: Dict[str, Tuple[np.ndarray, np.ndarray]]
     with open(train_pkl, "rb") as _pkl_file:
@@ -58,13 +60,9 @@ def train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val
     # this does hyperparameter selection, which is why we need to pass in the validation set.
     pairwise_model.fit(X_train, y_train, X_val, y_val)
     logger.info("Fitted the Pairwise model")
-
-    # this will also dump a lot of useful plots (ROC, PR, SHAP) to the figs_path
-    pairwise_metrics = pairwise_eval(X_val, y_val, pairwise_model.classifier, figs_path='figs/', title='validation_metrics')
-    logger.info(pairwise_metrics)
     if save_model:
         # Create a new directory
-        directory = '../s2and_checkpoints'
+        directory = '../s2and_experiments'
         if not os.path.exists(directory):
             os.makedirs(directory)
 
@@ -73,6 +71,18 @@ def train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val
         # Serialize the model to a file
         with open(file_path, 'wb') as file:
             pickle.dump(pairwise_model, file)
+            logger.info("Saved the Pairwise classification model")
+
+    # this will also dump a lot of useful plots (ROC, PR, SHAP) to the figs_path
+    pairwise_metrics = pairwise_eval(
+        X_val,
+        y_val,
+        pairwise_model,
+        os.path.join(DATA_DIR, "s2and_experiments",  "figs"),
+        f"{dataset_name}_seed_{dataset_seed}",
+        featurization_info.get_feature_names()
+    )
+    logger.info(pairwise_metrics)
 
     return pairwise_model
 
@@ -86,6 +96,7 @@ def train_HAC_clusterer(dataset_name, featurization_info, pairwise_model):
         n_jobs=8,
     )
     clusterer.fit(dataset_name)
+    # Save clusterer object to pickle
     
     # the metrics_per_signature are there so we can break out the facets if needed
     metrics, metrics_per_signature = cluster_eval(dataset_name, clusterer)
@@ -102,4 +113,4 @@ if __name__=='__main__':
 
     featurization_info, X_train, y_train, X_val, y_val = load_training_data(train_pkl, val_pkl)
     pairwise_model = train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val)
-    train_HAC_clusterer(dataset_name, featurization_info, pairwise_model)
+    #train_HAC_clusterer(dataset_name, featurization_info, pairwise_model)
