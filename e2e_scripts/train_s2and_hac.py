@@ -74,15 +74,15 @@ def train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val
             logger.info("Saved the Pairwise classification model")
 
     # this will also dump a lot of useful plots (ROC, PR, SHAP) to the figs_path
-    pairwise_metrics = pairwise_eval(
-        X_val,
-        y_val,
-        pairwise_model,
-        os.path.join(DATA_DIR, "s2and_experiments",  "figs"),
-        f"{dataset_name}_seed_{dataset_seed}",
-        featurization_info.get_feature_names()
-    )
-    logger.info(pairwise_metrics)
+    # pairwise_metrics = pairwise_eval(
+    #     X_val,
+    #     y_val,
+    #     pairwise_model,
+    #     os.path.join(DATA_DIR, "s2and_experiments",  "figs"),
+    #     f"{dataset_name}_seed_{dataset_seed}",
+    #     featurization_info.get_feature_names()
+    # )
+    # logger.info(pairwise_metrics)
 
     return pairwise_model
 
@@ -104,13 +104,16 @@ def train_HAC_clusterer(dataset_name, featurization_info, pairwise_model):
 
 
 if __name__=='__main__':
-    dataset_name = "pubmed"
-    dataset_seed = 1
-    parent_dir = f"../data/{dataset_name}"
-    train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset_name}/seed{dataset_seed}/train_features.pkl"
-    val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset_name}/seed{dataset_seed}/val_features.pkl"
-    test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset_name}/seed{dataset_seed}/test_features.pkl"
+    datasets = {"pubmed", "arnetminer", "qian", "zbmath", "kisti"}
+    seeds = {1, 2, 3, 4, 5}
 
-    featurization_info, X_train, y_train, X_val, y_val = load_training_data(train_pkl, val_pkl)
-    pairwise_model = train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val)
-    #train_HAC_clusterer(dataset_name, featurization_info, pairwise_model)
+    for dataset_name in datasets:
+        for dataset_seed in seeds:
+            parent_dir = f"../data/{dataset_name}"
+            train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset_name}/seed{dataset_seed}/train_features.pkl"
+            val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset_name}/seed{dataset_seed}/val_features.pkl"
+            test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset_name}/seed{dataset_seed}/test_features.pkl"
+
+            featurization_info, X_train, y_train, X_val, y_val = load_training_data(train_pkl, val_pkl)
+            pairwise_model = train_pairwise_classifier(featurization_info, X_train, y_train, X_val, y_val)
+            #train_HAC_clusterer(dataset_name, featurization_info, pairwise_model)
