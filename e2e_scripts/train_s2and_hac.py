@@ -39,10 +39,10 @@ def load_training_data(train_pkl, val_pkl):
     y_vals = [val[1] for val in blockwise_data_val.values()]
     y_val = np.concatenate(y_vals)
 
-    logger.info(X_train, y_train)
-    logger.info(np.shape(X_train), np.shape(y_train))
-    logger.info(X_val, y_val)
-    logger.info(np.shape(X_val), np.shape(y_val))
+    logger.info(np.shape(X_train))
+    logger.info(np.shape(y_train))
+    logger.info(np.shape(X_val))
+    logger.info(np.shape(y_val))
     logger.info("Dataset loaded and prepared for training")
 
     # Training Featurizer model
@@ -109,6 +109,7 @@ if __name__=='__main__':
 
     for dataset_name in datasets:
         for dataset_seed in seeds:
+            logger.info(f"Starting training lgbm for {dataset_name}, {dataset_seed}")
             parent_dir = f"../data/{dataset_name}"
             train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset_name}/seed{dataset_seed}/train_features.pkl"
             val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset_name}/seed{dataset_seed}/val_features.pkl"
