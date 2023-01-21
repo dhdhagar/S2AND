@@ -111,7 +111,9 @@ if __name__=='__main__':
         for dataset_seed in seeds:
             if(dataset_name=="pubmed" and dataset_seed==1):
                 continue
-            if(dataset_name=="qian" and dataset_seed in {1, 2, 3}):
+            if (dataset_name == "zbmath" and dataset_seed == 5):
+                continue
+            if(dataset_name in {"qian", "zbmath"} and dataset_seed in {1, 2, 3, 4}):
                 continue
             logger.info(f"Starting training lgbm for {dataset_name}, {dataset_seed}")
             parent_dir = f"../data/{dataset_name}"
