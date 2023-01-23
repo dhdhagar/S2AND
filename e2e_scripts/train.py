@@ -130,10 +130,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     pairwise_clustering_fn = HACInference()
                 else:
                     raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
-                _, _, clustering_test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
-                                                                   hyp["convert_nan"], hyp["nan_value"],
-                                                                   hyp["normalize_data"], hyp["subsample_sz_train"],
-                                                                   hyp["subsample_sz_dev"], False, 1)
+                _, clustering_val_dataloader, clustering_test_dataloader = get_dataloaders(hyp["dataset"],
+                                                                                           hyp["dataset_random_seed"],
+                                                                                           hyp["convert_nan"],
+                                                                                           hyp["nan_value"],
+                                                                                           hyp["normalize_data"],
+                                                                                           hyp["subsample_sz_train"],
+                                                                                           hyp["subsample_sz_dev"],
+                                                                                           False, 1)
         logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
@@ -166,7 +170,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     eval_dataloader = dataloaders[eval_only_split]
                 start_time = time.time()
                 eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
-                                      tqdm_label=eval_only_split, device=device)
+                                      tqdm_label=eval_only_split, device=device,
+                                      val_dataloader=clustering_val_dataloader)
                 end_time = time.time()
                 if verbose:
                     logger.info(
@@ -347,7 +352,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     if pairwise_clustering_fn is not None:
                         clustering_scores = eval_fn(model, clustering_test_dataloader,
                                                     clustering_fn=pairwise_clustering_fn, tqdm_label='test clustering',
-                                                    device=device)
+                                                    device=device, val_dataloader=clustering_val_dataloader)
                         if verbose:
                             logger.info(f"Final: test_{list(clustering_metrics)[0]}={clustering_scores[0]}, " +
                                         f"test_{list(clustering_metrics)[1]}={clustering_scores[1]}")

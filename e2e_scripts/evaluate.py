@@ -15,9 +15,10 @@ from e2e_scripts.train_utils import compute_b3_f1
 from IPython import embed
 
 
-def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, tqdm_label='', device=None):
+def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_dataloader=None,
+             tqdm_label='', device=None):
     """
-    clustering_fn: unused when pairwise_mode is False (only added to keep fn signature identical)
+    clustering_fn, val_dataloader: unused when pairwise_mode is False (only added to keep fn signature identical)
     """
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
