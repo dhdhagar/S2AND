@@ -28,7 +28,7 @@ class HACInference:
     def set_threshold(self, threshold):
         self.cut_threshold = threshold
 
-    def tune_threshold(self, model, dataloader, device, n_trials=100):
+    def tune_threshold(self, model, dataloader, device, n_trials=1000):
         device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         all_gold = []
         blockwise_trees = []
