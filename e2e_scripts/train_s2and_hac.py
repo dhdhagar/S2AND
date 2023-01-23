@@ -104,16 +104,12 @@ def train_HAC_clusterer(dataset_name, featurization_info, pairwise_model):
 
 
 if __name__=='__main__':
-    datasets = {"pubmed", "arnetminer", "qian", "kisti"}
+    datasets = {"arnetminer", "kisti"}
     seeds = {1, 2, 3, 4, 5}
 
     for dataset_name in datasets:
         for dataset_seed in seeds:
-            if(dataset_name=="pubmed" and dataset_seed==1):
-                continue
-            if (dataset_name == "zbmath" and dataset_seed == 5):
-                continue
-            if(dataset_name in {"qian", "zbmath"} and dataset_seed in {1, 2, 3, 4}):
+            if(dataset_name in {"arnetminer"} and dataset_seed in {1, 2}):
                 continue
             logger.info(f"Starting training lgbm for {dataset_name}, {dataset_seed}")
             parent_dir = f"../data/{dataset_name}"
