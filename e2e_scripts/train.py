@@ -127,7 +127,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     pairwise_clustering_fn = CCInference(sdp_max_iters, sdp_eps)
                     pairwise_clustering_fn.eval()
                 elif pairwise_eval_clustering == 'hac':
-                    pairwise_clustering_fn = HACInference()  # TODO: Implement
+                    pairwise_clustering_fn = HACInference()
                 else:
                     raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
                 _, _, clustering_test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],

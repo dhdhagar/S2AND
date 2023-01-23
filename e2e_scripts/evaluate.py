@@ -9,6 +9,7 @@ from sklearn.metrics import precision_recall_fscore_support
 import numpy as np
 import torch
 
+from e2e_pipeline.hac_inference import HACInference
 from e2e_scripts.train_utils import compute_b3_f1
 
 from IPython import embed
@@ -64,6 +65,11 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
 
     if clustering_fn is not None:
         # Then dataloader passed is blockwise
+        if clustering_fn.__class__ is HACInference:
+            if clustering_threshold is not None:
+                clustering_fn.set_threshold(clustering_threshold)
+            else:
+                clustering_fn.tune_threshold(model, val_dataloader, device)
         all_gold, all_pred = [], []
         max_pred_id = -1  # In each iteration, add to all blockwise predicted IDs to distinguish from previous blocks
         for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
