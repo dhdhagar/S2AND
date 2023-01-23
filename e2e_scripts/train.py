@@ -87,8 +87,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         # Get data loaders (optionally with imputation, normalization)
         train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
                                                                             hyp["convert_nan"], hyp["nan_value"],
-                                                                            hyp["normalize_data"], hyp["subsample_sz"],
-                                                                            hyp["subsample_dev"], pairwise_mode,
+                                                                            hyp["normalize_data"], hyp["subsample_sz_train"],
+                                                                            hyp["subsample_sz_dev"], pairwise_mode,
                                                                             batch_size)
         n_features = train_dataloader.dataset[0][0].shape[1]
 
@@ -96,7 +96,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         if not pairwise_mode:
             model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
-                                negative_slope, hidden_config, sdp_max_iters, sdp_eps)
+                                negative_slope, hidden_config, sdp_max_iters, sdp_eps,
+                                use_rounded_loss=hyp["use_rounded_loss"])
             # Define loss
             loss_fn = lambda pred, gold: torch.norm(gold - pred)
             # Define eval

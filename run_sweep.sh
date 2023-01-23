@@ -13,6 +13,6 @@ for ((i = 1; i <= ${n_seeds}; i++)); do
     --dataset_random_seed=${i} \
     --wandb_sweep_name="main_${dataset}_${i}" \
     --wandb_sweep_params="wandb_configs/sweeps/e2e_main.json" \
-    --skip_initial_eval --sdp_eps=1e-1
+    --skip_initial_eval --sdp_eps=1e-1 --silent
   echo "    Logs: jobs/${JOB_NAME}.err"
 done

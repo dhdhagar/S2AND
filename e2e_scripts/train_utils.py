@@ -22,8 +22,8 @@ DEFAULT_HYPERPARAMS = {
     # Dataset
     "dataset": "pubmed",
     "dataset_random_seed": 1,
-    "subsample_sz": -1,
-    "subsample_dev": True,
+    "subsample_sz_train": -1,
+    "subsample_sz_dev": -1,
     # Run config
     "run_random_seed": 17,
     # Data config
@@ -42,14 +42,15 @@ DEFAULT_HYPERPARAMS = {
     "hidden_config": None,
     "activation": "leaky_relu",
     "negative_slope": 0.01,
+    "use_rounded_loss": True,
     # Solver config
     "sdp_max_iters": 50000,
-    "sdp_eps": 1e-3,
+    "sdp_eps": 1e-1,
     # Training config
     "batch_size": 10000,  # For pairwise_mode only
     "lr": 1e-4,
     "n_epochs": 5,
-    "weighted_loss": True,  # For pairwise_mode only; TODO: Implement for e2e
+    "weighted_loss": True,  # For pairwise_mode only; TODO: Think about implementing for e2e
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "step"
     "lr_factor": 0.7,
@@ -58,7 +59,7 @@ DEFAULT_HYPERPARAMS = {
     "lr_step_size": 200,
     "lr_gamma": 0.1,
     "weight_decay": 0.01,
-    "dev_opt_metric": 'b3_f1',  # e2e: {'vmeasure', 'b3_f1'}; pairwise: {'auroc', 'f1'}
+    "dev_opt_metric": 'b3_f1',  # e2e: {'b3_f1', 'vmeasure'}; pairwise: {'auroc', 'f1'}
     "overfit_batch_idx": -1
 }
 
@@ -70,19 +71,19 @@ def read_blockwise_features(pkl):
     return blockwise_data
 
 
-def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz, subsample_dev,
+def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz_train, subsample_sz_dev,
                     pairwise_mode, batch_size):
     train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl"
     val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl"
     test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/test_features.pkl"
 
     train_dataset = S2BlocksDataset(read_blockwise_features(train_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                    scale=normalize, subsample_sz=subsample_sz, pairwise_mode=pairwise_mode)
+                                    scale=normalize, subsample_sz=subsample_sz_train, pairwise_mode=pairwise_mode)
     train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=batch_size)
 
     val_dataset = S2BlocksDataset(read_blockwise_features(val_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                  scale=normalize, scaler=train_dataset.scaler,
-                                  subsample_sz=subsample_sz if subsample_dev else -1, pairwise_mode=pairwise_mode)
+                                  scale=normalize, scaler=train_dataset.scaler, subsample_sz=subsample_sz_dev,
+                                  pairwise_mode=pairwise_mode)
     val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size)
 
     test_dataset = S2BlocksDataset(read_blockwise_features(test_pkl), convert_nan=convert_nan, nan_value=nan_value,

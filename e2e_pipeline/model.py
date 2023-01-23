@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class EntResModel(torch.nn.Module):
     def __init__(self, n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                  neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
-                 negative_slope, hidden_config, sdp_max_iters, sdp_eps):
+                 negative_slope, hidden_config, sdp_max_iters, sdp_eps, use_rounded_loss=True):
         super().__init__()
         self.mlp_layer = MLPLayer(n_features=n_features, neumiss_depth=neumiss_depth, dropout_p=dropout_p,
                                   dropout_only_once=dropout_only_once, add_neumiss=add_neumiss, neumiss_deq=neumiss_deq,
@@ -24,24 +24,30 @@ class EntResModel(torch.nn.Module):
         self.uncompress_layer = UncompressTransformLayer()
         self.sdp_layer = SDPLayer(max_iters=sdp_max_iters, eps=sdp_eps)
         self.hac_cut_layer = HACCutLayer()
+        self.use_rounded_loss = use_rounded_loss
 
     def forward(self, x, N, verbose=False):
         edge_weights = torch.squeeze(self.mlp_layer(x))
-        edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
-        output_probs = self.sdp_layer(edge_weights_uncompressed, N)
-        pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
-
         if verbose:
             logger.info(f"Size of W = {edge_weights.size()}")
             logger.info(f"\n{edge_weights}")
 
+        edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
+        if verbose:
             logger.info(f"Size of W_matrix = {edge_weights_uncompressed.size()}")
             logger.info(f"\n{edge_weights_uncompressed}")
 
+        output_probs = self.sdp_layer(edge_weights_uncompressed, N)
+        if verbose:
             logger.info(f"Size of X = {output_probs.size()}")
             logger.info(f"\n{output_probs}")
 
-            logger.info(f"Size of X_r = {pred_clustering.size()}")
-            logger.info(f"\n{pred_clustering}")
+        if not self.training or self.use_rounded_loss:
+            pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
+            if verbose:
+                logger.info(f"Size of X_r = {pred_clustering.size()}")
+                logger.info(f"\n{pred_clustering}")
 
-        return pred_clustering
+            return pred_clustering
+
+        return output_probs
