@@ -14,6 +14,7 @@ for ((i = 1; i <= ${n_seeds}; i++)); do
     --dataset_random_seed=${i} \
     --wandb_sweep_name="${model}_${dataset}_${i}" \
     --wandb_sweep_params="wandb_configs/sweeps/${model}.json" \
+    --wandb_tags="${model},${dataset},seed_${i}" \
     --skip_initial_eval --silent
   echo "    Logs: jobs/${JOB_NAME}.err"
 done
