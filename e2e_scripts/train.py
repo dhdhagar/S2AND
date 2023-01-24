@@ -31,8 +31,7 @@ logger = logging.getLogger(__name__)
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
-          eval_only_split=None, skip_initial_eval=False, pairwise_mode=False,
-          pairwise_eval_clustering=None):
+          eval_only_split=None, skip_initial_eval=False, pairwise_eval_clustering=None):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -61,6 +60,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             np.random.seed(hyp['run_random_seed'])
             torch.manual_seed(hyp['run_random_seed'])
 
+        pairwise_mode = hyp['pairwise_mode']
         weighted_loss = hyp['weighted_loss']
         batch_size = hyp['batch_size'] if pairwise_mode else 1  # Force clustering runs to operate on 1 block only
         n_epochs = hyp['n_epochs']
@@ -467,8 +467,7 @@ if __name__ == '__main__':
                                            verbose=not args['silent'],
                                            tags=args['wandb_tags'],
                                            save_model=args['save_model'],
-                                           skip_initial_eval=args['skip_initial_eval'],
-                                           pairwise_mode=args['pairwise_mode']),
+                                           skip_initial_eval=args['skip_initial_eval']),
                     count=args['wandb_max_runs'])
 
         logger.info("End of sweep")
@@ -492,6 +491,5 @@ if __name__ == '__main__':
               load_model_from_fpath=args['load_model_from_fpath'],
               eval_only_split=args['eval_only_split'],
               skip_initial_eval=args['skip_initial_eval'],
-              pairwise_mode=args['pairwise_mode'],
               pairwise_eval_clustering=args['pairwise_eval_clustering'])
         logger.info("End of run")

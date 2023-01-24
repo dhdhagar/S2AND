@@ -137,15 +137,7 @@ class Parser(argparse.ArgumentParser):
             help="Whether to skip dev evaluation before training starts",
         )
         parser.add_argument(
-            "--pairwise_mode", action='store_true',
-            help="Whether to use the pairwise MLP-only model or the e2e clustering model",
-        )
-        parser.add_argument(
             "--pairwise_eval_clustering", type=str,
             help="(only in --pairwise_mode) Whether to run clustering during --eval_only_split and final test eval. " +
             "Accepts 'cc' for correlation clustering and 'hac' for agglomerative clustering.",
-        )
-        parser.add_argument(
-            "--load_gbdt_model", type=str,
-            help="(only in --pairwise_mode and --eval_only_split) Load a gbdt model to compute the pairwise weights."
         )

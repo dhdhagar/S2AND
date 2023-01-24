@@ -26,6 +26,7 @@ DEFAULT_HYPERPARAMS = {
     "subsample_sz_dev": -1,
     # Run config
     "run_random_seed": 17,
+    "pairwise_mode": False,
     # Data config
     "convert_nan": False,
     "nan_value": -1,
