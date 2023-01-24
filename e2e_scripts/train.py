@@ -154,6 +154,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             state_dict_fpath = wandb.restore('model_state_dict_best.pt',
                                              run_path=load_model_from_wandb_run).name
             state_dict = torch.load(state_dict_fpath, device)
+            os.remove(state_dict_fpath)
         elif load_model_from_fpath is not None:
             state_dict = torch.load(load_model_from_fpath, device)
         if state_dict is not None:
@@ -488,6 +489,7 @@ if __name__ == '__main__':
                 run_params_fpath = wandb.restore('hyperparameters.json', run_path=args['load_hyp_from_wandb_run']).name
                 with open(run_params_fpath, 'r') as fh:
                     run_params = json.load(fh)
+                os.remove(run_params_fpath)
             else:
                 with open(args['wandb_run_params'], 'r') as fh:
                     run_params = json.load(fh)
