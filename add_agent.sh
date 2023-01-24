@@ -14,8 +14,11 @@ for ((i = 1; i <= ${n_agents}; i++)); do
     run_sbatch.sh e2e_scripts/train.py \
     --dataset="${dataset}" \
     --dataset_random_seed=${seed} \
+    --pairwise_eval_clustering="both" \
+    --skip_initial_eval \
+    --silent \
     --wandb_sweep_params="wandb_configs/sweeps/${model}.json" \
     --wandb_tags="${model},${dataset},seed_${seed}" \
-    --skip_initial_eval --silent --wandb_sweep_id="${sweep_id}"
+    --wandb_sweep_id="${sweep_id}"
   echo "    Logs: jobs/${JOB_NAME}.err"
 done

@@ -103,7 +103,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             loss_fn = lambda pred, gold: torch.norm(gold - pred)
             # Define eval
             eval_fn = evaluate
-            pairwise_clustering_fn = None  # Unused when pairwise_mode is False
+            pairwise_clustering_fns = [None]  # Unused when pairwise_mode is False
         else:
             model = PairwiseModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                   neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
@@ -122,13 +122,19 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             # Define eval
             eval_fn = evaluate_pairwise
-            pairwise_clustering_fn = None
+            pairwise_clustering_fns = [None]
             if pairwise_eval_clustering is not None:
                 if pairwise_eval_clustering == 'cc':
-                    pairwise_clustering_fn = CCInference(sdp_max_iters, sdp_eps)
-                    pairwise_clustering_fn.eval()
+                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps)]
+                    pairwise_clustering_fns[0].eval()
+                    pairwise_clustering_fn_labels = ['cc']
                 elif pairwise_eval_clustering == 'hac':
-                    pairwise_clustering_fn = HACInference()
+                    pairwise_clustering_fns = [HACInference()]
+                    pairwise_clustering_fn_labels = ['hac']
+                elif pairwise_eval_clustering == 'both':
+                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps), HACInference()]
+                    pairwise_clustering_fns[0].eval()
+                    pairwise_clustering_fn_labels = ['cc', 'hac']
                 else:
                     raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
                 _, clustering_val_dataloader, clustering_test_dataloader = get_dataloaders(hyp["dataset"],
@@ -163,33 +169,34 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             }
             with torch.no_grad():
                 model.eval()
-                if pairwise_clustering_fn is not None:
+                if pairwise_clustering_fns[0] is not None:
                     assert eval_only_split == 'test'  # Clustering in --eval_only_split implemented only for test set
                     eval_metric_to_idx = clustering_metrics
                     eval_dataloader = clustering_test_dataloader
                 else:
                     eval_dataloader = dataloaders[eval_only_split]
                 start_time = time.time()
-                eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
-                                      tqdm_label=eval_only_split, device=device,
-                                      val_dataloader=clustering_val_dataloader)
-                end_time = time.time()
-                if verbose:
-                    logger.info(
-                        f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
-                        f"{eval_only_split}_{list(eval_metric_to_idx)[1]}={eval_scores[1]}")
+                for i, pairwise_clustering_fn in pairwise_clustering_fns:
+                    eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
+                                          tqdm_label=eval_only_split, device=device,
+                                          val_dataloader=clustering_val_dataloader)
+                    if verbose:
+                        logger.info(
+                            f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}_{pairwise_clustering_fn_labels[i]}={eval_scores[0]}, " +
+                            f"{eval_only_split}_{list(eval_metric_to_idx)[1]}_{pairwise_clustering_fn_labels[i]}={eval_scores[1]}")
+                        if len(eval_scores) == 3:
+                            # CC objective values available
+                            logger.info(f"Eval: {eval_only_split}_obj_sdp={eval_scores[2]['sdp']}, " +
+                                        f"{eval_only_split}_obj_hac={eval_scores[2]['round']}, " +
+                                        f"{eval_only_split}_obj_ratio={eval_scores[2]['round'] / eval_scores[2]['sdp']}")
+                    wandb.log({'epoch': 0, f'{eval_only_split}_{list(eval_metric_to_idx)[0]}_{pairwise_clustering_fn_labels[i]}': eval_scores[0],
+                               f'{eval_only_split}_{list(eval_metric_to_idx)[1]}_{pairwise_clustering_fn_labels[i]}': eval_scores[1]})
                     if len(eval_scores) == 3:
                         # CC objective values available
-                        logger.info(f"Eval: {eval_only_split}_obj_sdp={eval_scores[2]['sdp']}, " +
-                                    f"{eval_only_split}_obj_hac={eval_scores[2]['round']}, " +
-                                    f"{eval_only_split}_obj_ratio={eval_scores[2]['round'] / eval_scores[2]['sdp']}")
-                wandb.log({'epoch': 0, f'{eval_only_split}_{list(eval_metric_to_idx)[0]}': eval_scores[0],
-                           f'{eval_only_split}_{list(eval_metric_to_idx)[1]}': eval_scores[1]})
-                if len(eval_scores) == 3:
-                    # CC objective values available
-                    wandb.log({f'{eval_only_split}_obj_sdp': eval_scores[2]['sdp'],
-                               f'{eval_only_split}_obj_hac': eval_scores[2]['round'],
-                               f'{eval_only_split}_obj_ratio': eval_scores[2]['round'] / eval_scores[2]['sdp']})
+                        wandb.log({f'{eval_only_split}_obj_sdp': eval_scores[2]['sdp'],
+                                   f'{eval_only_split}_obj_hac': eval_scores[2]['round'],
+                                   f'{eval_only_split}_obj_ratio': eval_scores[2]['round'] / eval_scores[2]['sdp']})
+                end_time = time.time()
         else:
             # Training
             wandb.watch(model)
@@ -360,26 +367,27 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         wandb.log({'best_test_obj_sdp': test_scores[2]['sdp'],
                                    'best_test_obj_hac': test_scores[2]['round'],
                                    'best_test_obj_ratio': test_scores[2]['round'] / test_scores[2]['sdp']})
-                    if pairwise_clustering_fn is not None:
-                        clustering_scores = eval_fn(model, clustering_test_dataloader,
-                                                    clustering_fn=pairwise_clustering_fn, tqdm_label='test clustering',
-                                                    device=device, val_dataloader=clustering_val_dataloader)
-                        if verbose:
-                            logger.info(f"Final: test_{list(clustering_metrics)[0]}={clustering_scores[0]}, " +
-                                        f"test_{list(clustering_metrics)[1]}={clustering_scores[1]}")
+                    if pairwise_clustering_fns[0] is not None:
+                        for i, pairwise_clustering_fn in pairwise_clustering_fns:
+                            clustering_scores = eval_fn(model, clustering_test_dataloader,
+                                                        clustering_fn=pairwise_clustering_fn, tqdm_label='test clustering',
+                                                        device=device, val_dataloader=clustering_val_dataloader)
+                            if verbose:
+                                logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
+                                            f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
+                                if len(clustering_scores) == 3:
+                                    # CC objective values available
+                                    logger.info(f"Final: test_obj_sdp={clustering_scores[2]['sdp']}, " +
+                                                f"test_obj_hac={clustering_scores[2]['round']}, " +
+                                                f"test_obj_ratio={clustering_scores[2]['round'] / clustering_scores[2]['sdp']}")
+                            # Log final metrics
+                            wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[0],
+                                       f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[1]})
                             if len(clustering_scores) == 3:
                                 # CC objective values available
-                                logger.info(f"Final: test_obj_sdp={clustering_scores[2]['sdp']}, " +
-                                            f"test_obj_hac={clustering_scores[2]['round']}, " +
-                                            f"test_obj_ratio={clustering_scores[2]['round'] / clustering_scores[2]['sdp']}")
-                        # Log final metrics
-                        wandb.log({f'best_test_{list(clustering_metrics)[0]}': clustering_scores[0],
-                                   f'best_test_{list(clustering_metrics)[1]}': clustering_scores[1]})
-                        if len(clustering_scores) == 3:
-                            # CC objective values available
-                            wandb.log({'best_test_obj_sdp': clustering_scores[2]['sdp'],
-                                       'best_test_obj_hac': clustering_scores[2]['round'],
-                                       'best_test_obj_ratio': clustering_scores[2]['round'] / clustering_scores[2]['sdp']})
+                                wandb.log({'best_test_obj_sdp': clustering_scores[2]['sdp'],
+                                           'best_test_obj_hac': clustering_scores[2]['round'],
+                                           'best_test_obj_ratio': clustering_scores[2]['round'] / clustering_scores[2]['sdp']})
 
 
         run.summary["z_model_parameters"] = count_parameters(model)
