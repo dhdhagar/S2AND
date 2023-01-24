@@ -44,18 +44,7 @@ class Parser(argparse.ArgumentParser):
         Add arguments related to model training.
         """
         parser = self.add_argument_group("Training Arguments")
-        parser.add_argument(
-            "--dataset", type=str, default="pubmed",
-            help="Dataset name (pubmed/qian/zbmath/arnetminer)",
-        )
-        parser.add_argument(
-            "--dataset_random_seed", type=int, default=1,
-            help="S2AND random seed for dataset splits (1/2/3/4/5)",
-        )
-        parser.add_argument(
-            "--run_random_seed", type=int, default=17,
-            help="Random seed for everything except the dataset",
-        )
+
         parser.add_argument(
             "--wandb_sweep_name", type=str,
             help="Wandb sweep name",
