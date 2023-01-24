@@ -57,8 +57,8 @@ DEFAULT_HYPERPARAMS = {
     "lr_factor": 0.4,
     "lr_min": 1e-6,
     "lr_scheduler_patience": 2,
-    "lr_step_size": 200,
-    "lr_gamma": 0.1,
+    "lr_step_size": 2,
+    "lr_gamma": 0.4,
     "weight_decay": 0.01,
     "dev_opt_metric": 'b3_f1',  # e2e: {'b3_f1', 'vmeasure'}; pairwise: {'auroc', 'f1'}
     "overfit_batch_idx": -1
