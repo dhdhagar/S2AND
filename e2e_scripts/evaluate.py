@@ -1,6 +1,7 @@
 """
     Functions to evaluate end-to-end clustering and pairwise training
 """
+import logging
 
 from tqdm import tqdm
 from sklearn.metrics.cluster import v_measure_score
@@ -11,10 +12,15 @@ import torch
 
 from e2e_pipeline.cc_inference import CCInference
 from e2e_pipeline.hac_inference import HACInference
+from e2e_pipeline.sdp_layer import CvxpyException
 from e2e_scripts.train_utils import compute_b3_f1
 
 from IPython import embed
 
+
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_dataloader=None,
              tqdm_label='', device=None):
@@ -30,6 +36,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_da
         'round': []
     }
     max_pred_id = -1
+    n_exceptions = 0
     for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
@@ -46,7 +53,16 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_da
             block_size = len(cluster_ids)
             # Forward pass through the e2e model
             data = data.to(device)
-            _ = model(data, block_size)
+            try:
+                _ = model(data, block_size)
+            except CvxpyException:
+                if tqdm_label is not 'dev':
+                    raise CvxpyException()
+                # If split is dev, skip batch and continue
+                all_gold = all_gold[:-len(cluster_ids)]
+                n_exceptions += 1
+                logger.info(f'Caught CvxpyException {n_exceptions}: skipping batch')
+                continue
             pred_cluster_ids = (model.hac_cut_layer.cluster_labels + (max_pred_id + 1)).tolist()
             cc_obj_vals['round'].append(model.hac_cut_layer.objective_value)
             cc_obj_vals['sdp'].append(model.sdp_layer.objective_value)
@@ -78,6 +94,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
             'round': []
         }
         max_pred_id = -1  # In each iteration, add to all blockwise predicted IDs to distinguish from previous blocks
+        n_exceptions = 0
         for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
             if overfit_batch_idx > -1:
                 if idx < overfit_batch_idx:
@@ -94,7 +111,16 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                 block_size = len(cluster_ids)
                 # Forward pass through the e2e model
                 data = data.to(device)
-                pred_cluster_ids = clustering_fn(model(data), block_size, min_id=(max_pred_id + 1))
+                try:
+                    pred_cluster_ids = clustering_fn(model(data), block_size, min_id=(max_pred_id + 1))
+                except CvxpyException:
+                    if tqdm_label is not 'dev':
+                        raise CvxpyException()
+                    # If split is dev, skip batch and continue
+                    all_gold = all_gold[:-len(cluster_ids)]
+                    n_exceptions += 1
+                    logger.info(f'Caught CvxpyException {n_exceptions}: skipping batch')
+                    continue
             max_pred_id = max(pred_cluster_ids)
             all_pred += list(pred_cluster_ids)
             if clustering_fn.__class__ is CCInference:
