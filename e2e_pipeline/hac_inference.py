@@ -89,7 +89,7 @@ class HACInference:
         _data = []
         _g = hg.UndirectedGraph(N)
         r, c = np.triu_indices(N, k=1)
-        _dists = 1. - torch.sigmoid(edge_weights).cpu().numpy()
+        _dists = 1. - torch.sigmoid(edge_weights).cpu().numpy().reshape(N*(N-1)//2)
         _g.add_edges(r, c)
         _hac, _hac_alts = hg.binary_partition_tree_average_linkage(_g, _dists)
 
