@@ -2,8 +2,8 @@
 
 dataset=${1:-"pubmed"}
 n_seeds=${2:-5}
-gpu_name=${3:-"gypsum-1080ti"}
-model=${4:-"e2e"}  # Used as prefix and to pick up the right sweep file
+model=${3:-"e2e"}  # Used as prefix and to pick up the right sweep file
+gpu_name=${4:-"gypsum-1080ti"}
 
 for ((i = 1; i <= ${n_seeds}; i++)); do
   JOB_DESC=${model}_${dataset}_sweep${i} && JOB_NAME=${JOB_DESC}_$(date +%s) && \
