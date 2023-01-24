@@ -132,5 +132,5 @@ class Parser(argparse.ArgumentParser):
         parser.add_argument(
             "--pairwise_eval_clustering", type=str,
             help="(only in --pairwise_mode) Whether to run clustering during --eval_only_split and final test eval. " +
-            "Accepts 'cc' for correlation clustering and 'hac' for agglomerative clustering.",
+            "Accepts 'cc' for correlation clustering, 'hac' for agglomerative clustering, and 'both' to run both.",
         )
