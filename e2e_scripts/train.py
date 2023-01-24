@@ -177,7 +177,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 else:
                     eval_dataloader = dataloaders[eval_only_split]
                 start_time = time.time()
-                for i, pairwise_clustering_fn in pairwise_clustering_fns:
+                for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
                     eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
                                           tqdm_label=eval_only_split, device=device,
                                           val_dataloader=clustering_val_dataloader, verbose=verbose)
@@ -369,7 +369,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                    'best_test_obj_hac': test_scores[2]['round'],
                                    'best_test_obj_ratio': test_scores[2]['round'] / test_scores[2]['sdp']})
                     if pairwise_clustering_fns[0] is not None:
-                        for i, pairwise_clustering_fn in pairwise_clustering_fns:
+                        for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
                             clustering_scores = eval_fn(model, clustering_test_dataloader,
                                                         clustering_fn=pairwise_clustering_fn, tqdm_label='test clustering',
                                                         device=device, val_dataloader=clustering_val_dataloader,
