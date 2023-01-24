@@ -53,9 +53,9 @@ DEFAULT_HYPERPARAMS = {
     "weighted_loss": True,  # For pairwise_mode only; TODO: Think about implementing for e2e
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "step"
-    "lr_factor": 0.7,
+    "lr_factor": 0.4,
     "lr_min": 1e-6,
-    "lr_scheduler_patience": 10,
+    "lr_scheduler_patience": 2,
     "lr_step_size": 200,
     "lr_gamma": 0.1,
     "weight_decay": 0.01,

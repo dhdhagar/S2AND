@@ -198,7 +198,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             if use_lr_scheduler:
                 if hyp['lr_scheduler'] == 'plateau':
                     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                                                                           mode='min',
+                                                                           mode='max',
                                                                            factor=hyp['lr_factor'],
                                                                            min_lr=hyp['lr_min'],
                                                                            patience=hyp['lr_scheduler_patience'],
