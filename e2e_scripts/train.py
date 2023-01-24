@@ -484,8 +484,8 @@ if __name__ == '__main__':
     else:
         logger.info("Single-run mode")
         try:
-            if args['load_model_from_wandb_run'] is not None:
-                run_params = wandb.restore('hyperparameters.json', run_path=args['load_model_from_wandb_run']).name
+            if args['load_hyp_from_wandb_run'] is not None:
+                run_params = wandb.restore('hyperparameters.json', run_path=args['load_hyp_from_wandb_run']).name
             else:
                 with open(args['wandb_run_params'], 'r') as fh:
                     run_params = json.load(fh)
