@@ -121,6 +121,10 @@ class Parser(argparse.ArgumentParser):
             help="Load model state_dict from a previous wandb run (expects 'entity/project/runid' as input)",
         )
         parser.add_argument(
+            "--load_hyp_from_wandb_run", type=str,
+            help="Load hyperparameters from a previous wandb run (expects 'entity/project/runid' as input)",
+        )
+        parser.add_argument(
             "--load_model_from_fpath", type=str,
             help="Load model state_dict from a local file path",
         )

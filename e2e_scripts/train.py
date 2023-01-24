@@ -31,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
-          eval_only_split=None, skip_initial_eval=False, pairwise_eval_clustering=None):
+          load_hyp_from_wandb_run=None, eval_only_split=None, skip_initial_eval=False,
+          pairwise_eval_clustering=None):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -483,8 +484,11 @@ if __name__ == '__main__':
     else:
         logger.info("Single-run mode")
         try:
-            with open(args['wandb_run_params'], 'r') as fh:
-                run_params = json.load(fh)
+            if args['load_model_from_wandb_run'] is not None:
+                run_params = wandb.restore('hyperparameters.json', run_path=args['load_model_from_wandb_run']).name
+            else:
+                with open(args['wandb_run_params'], 'r') as fh:
+                    run_params = json.load(fh)
         except:
             logger.info("Run config could not be loaded; using defaults.")
             run_params = {}
@@ -498,6 +502,7 @@ if __name__ == '__main__':
               save_model=args['save_model'],
               load_model_from_wandb_run=args['load_model_from_wandb_run'],
               load_model_from_fpath=args['load_model_from_fpath'],
+              load_hyp_from_wandb_run=args['load_hyp_from_wandb_run'],
               eval_only_split=args['eval_only_split'],
               skip_initial_eval=args['skip_initial_eval'],
               pairwise_eval_clustering=args['pairwise_eval_clustering'])
