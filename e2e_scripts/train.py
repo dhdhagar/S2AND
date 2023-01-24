@@ -179,7 +179,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 for i, pairwise_clustering_fn in pairwise_clustering_fns:
                     eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
                                           tqdm_label=eval_only_split, device=device,
-                                          val_dataloader=clustering_val_dataloader)
+                                          val_dataloader=clustering_val_dataloader, verbose=verbose)
                     if verbose:
                         logger.info(
                             f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}_{pairwise_clustering_fn_labels[i]}={eval_scores[0]}, " +
@@ -225,14 +225,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     model.eval()
                     if overfit_batch_idx > -1:
                         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                                               tqdm_label='train', device=device)
+                                               tqdm_label='train', device=device, verbose=verbose)
                         if verbose:
                             logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
                                         f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
                         wandb.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                     else:
-                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device)
+                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose)
                         if verbose:
                             logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
                                         f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
@@ -245,7 +245,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 wandb.log({'epoch': i + 1})
                 running_loss = []
                 n_exceptions = 0
-                for (idx, batch) in enumerate(tqdm(train_dataloader, desc=f"Training {i + 1}")):
+                for (idx, batch) in enumerate(tqdm(train_dataloader, desc=f"Training {i + 1}", disable=(not verbose))):
                     if overfit_batch_idx > -1:
                         if idx < overfit_batch_idx:
                             continue
@@ -306,7 +306,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     model.eval()
                     if overfit_batch_idx > -1:
                         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                                               tqdm_label='train', device=device)
+                                               tqdm_label='train', device=device, verbose=verbose)
                         if verbose:
                             logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
                                         f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
@@ -318,7 +318,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             elif hyp['lr_scheduler'] == 'step':
                                 scheduler.step()
                     else:
-                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device)
+                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose)
                         if verbose:
                             logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
                                         f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
@@ -347,7 +347,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 model.load_state_dict(best_dev_state_dict)
                 with torch.no_grad():
                     model.eval()
-                    test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device)
+                    test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose)
                     if verbose:
                         logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                     f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
@@ -371,7 +371,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         for i, pairwise_clustering_fn in pairwise_clustering_fns:
                             clustering_scores = eval_fn(model, clustering_test_dataloader,
                                                         clustering_fn=pairwise_clustering_fn, tqdm_label='test clustering',
-                                                        device=device, val_dataloader=clustering_val_dataloader)
+                                                        device=device, val_dataloader=clustering_val_dataloader,
+                                                        verbose=verbose)
                             if verbose:
                                 logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
                                             f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
