@@ -23,8 +23,11 @@ class CCInference(torch.nn.Module):
         self.sdp_layer = SDPLayer(max_iters=sdp_max_iters, eps=sdp_eps)
         self.hac_cut_layer = HACCutLayer()
 
-    def forward(self, edge_weights, N, min_id=0, verbose=False):
+    def forward(self, edge_weights, N, min_id=0, threshold=None, verbose=False):
         edge_weights = torch.squeeze(edge_weights)
+        if threshold is not None:
+            # threshold is used to convert a similarity score (in [0,1]) into edge weights (in R, i.e. + and -)
+            edge_weights = torch.sigmoid(edge_weights) - threshold
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
         output_probs = self.sdp_layer(edge_weights_uncompressed, N)
         pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)

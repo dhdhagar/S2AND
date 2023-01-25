@@ -50,6 +50,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
     with wandb.init(**init_args) as run:
         wandb.config.update(hyperparams, allow_val_change=True)
         hyp = wandb.config
+        logger.info("Run hyperparameters:")
+        logger.info(hyp)
         # Save hyperparameters as a json file and store in wandb run
         with open(os.path.join(run.dir, 'hyperparameters.json'), 'w') as fh:
             json.dump(dict(hyp), fh)
@@ -133,9 +135,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     pairwise_clustering_fns = [HACInference()]
                     pairwise_clustering_fn_labels = ['hac']
                 elif pairwise_eval_clustering == 'both':
-                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps), HACInference()]
+                    cc_inference = CCInference(sdp_max_iters, sdp_eps)
+                    pairwise_clustering_fns = [cc_inference, HACInference(), cc_inference]
                     pairwise_clustering_fns[0].eval()
-                    pairwise_clustering_fn_labels = ['cc', 'hac']
+                    pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
                 else:
                     raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
                 _, clustering_val_dataloader, clustering_test_dataloader = get_dataloaders(hyp["dataset"],
@@ -178,10 +181,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 else:
                     eval_dataloader = dataloaders[eval_only_split]
                 start_time = time.time()
+                clustering_threshold = None
                 for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
                     eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
-                                          tqdm_label=eval_only_split, device=device,
-                                          val_dataloader=clustering_val_dataloader, verbose=verbose)
+                                          clustering_threshold=clustering_threshold, val_dataloader=clustering_val_dataloader,
+                                          tqdm_label=eval_only_split, device=device, verbose=verbose)
+                    if pairwise_clustering_fn.__class__ is HACInference:
+                        clustering_threshold = pairwise_clustering_fn.cut_threshold
                     if verbose:
                         logger.info(
                             f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}_{pairwise_clustering_fn_labels[i]}={eval_scores[0]}, " +
@@ -369,12 +375,17 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         wandb.log({'best_test_obj_sdp': test_scores[2]['sdp'],
                                    'best_test_obj_hac': test_scores[2]['round'],
                                    'best_test_obj_ratio': max(1., test_scores[2]['round'] / test_scores[2]['sdp'])})
+                    # For pairwise-mode:
                     if pairwise_clustering_fns[0] is not None:
+                        clustering_threshold = None
                         for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
                             clustering_scores = eval_fn(model, clustering_test_dataloader,
-                                                        clustering_fn=pairwise_clustering_fn, tqdm_label='test clustering',
-                                                        device=device, val_dataloader=clustering_val_dataloader,
-                                                        verbose=verbose)
+                                                        clustering_fn=pairwise_clustering_fn,
+                                                        clustering_threshold=clustering_threshold,
+                                                        val_dataloader=clustering_val_dataloader,
+                                                        tqdm_label='test clustering', device=device, verbose=verbose)
+                            if pairwise_clustering_fn.__class__ is HACInference:
+                                clustering_threshold = pairwise_clustering_fn.cut_threshold
                             if verbose:
                                 logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
                                             f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")

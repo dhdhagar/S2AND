@@ -84,9 +84,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
     if clustering_fn is not None:
         # Then dataloader passed is blockwise
         if clustering_fn.__class__ is HACInference:
-            if clustering_threshold is not None:
-                clustering_fn.set_threshold(clustering_threshold)
-            else:
+            if clustering_threshold is None:
                 clustering_fn.tune_threshold(model, val_dataloader, device)
         all_gold, all_pred = [], []
         cc_obj_vals = {
@@ -112,7 +110,8 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                 # Forward pass through the e2e model
                 data = data.to(device)
                 try:
-                    pred_cluster_ids = clustering_fn(model(data), block_size, min_id=(max_pred_id + 1))
+                    pred_cluster_ids = clustering_fn(model(data), block_size, min_id=(max_pred_id + 1),
+                                                     threshold=clustering_threshold)
                 except CvxpyException:
                     if tqdm_label is not 'dev':
                         raise CvxpyException()

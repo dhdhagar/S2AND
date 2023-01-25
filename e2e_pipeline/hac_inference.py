@@ -81,7 +81,7 @@ class HACInference:
         _cut_labels = _cut.labelisation_leaves(tree)
         return _cut_labels
 
-    def cluster(self, edge_weights, N, min_id=0, verbose=False, threshold=None, return_tree=False):
+    def cluster(self, edge_weights, N, min_id=0, threshold=None, return_tree=False, verbose=False):
         """
         edge_weights: N(N-1)/2 length array of weights from the upper-triangular (shift 1) pairwise weight matrix
         """
