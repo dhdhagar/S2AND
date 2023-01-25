@@ -52,6 +52,7 @@ DEFAULT_HYPERPARAMS = {
     "batch_size": 10000,  # For pairwise_mode only
     "lr": 1e-4,
     "n_epochs": 5,
+    "n_warmstart_epochs": 0,
     "weighted_loss": True,  # For pairwise_mode only; TODO: Think about implementing for e2e
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "step"

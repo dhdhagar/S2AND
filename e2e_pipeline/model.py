@@ -17,6 +17,7 @@ class EntResModel(torch.nn.Module):
                  neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                  negative_slope, hidden_config, sdp_max_iters, sdp_eps, use_rounded_loss=True):
         super().__init__()
+        # Layers
         self.mlp_layer = MLPLayer(n_features=n_features, neumiss_depth=neumiss_depth, dropout_p=dropout_p,
                                   dropout_only_once=dropout_only_once, add_neumiss=add_neumiss, neumiss_deq=neumiss_deq,
                                   hidden_dim=hidden_dim, n_hidden_layers=n_hidden_layers, add_batchnorm=add_batchnorm,
@@ -24,13 +25,16 @@ class EntResModel(torch.nn.Module):
         self.uncompress_layer = UncompressTransformLayer()
         self.sdp_layer = SDPLayer(max_iters=sdp_max_iters, eps=sdp_eps)
         self.hac_cut_layer = HACCutLayer()
+        # Configs
         self.use_rounded_loss = use_rounded_loss
 
-    def forward(self, x, N, verbose=False):
+    def forward(self, x, N, warmstart=False, verbose=False):
         edge_weights = torch.squeeze(self.mlp_layer(x))
         if verbose:
             logger.info(f"Size of W = {edge_weights.size()}")
             logger.info(f"\n{edge_weights}")
+        if warmstart:
+            return edge_weights
 
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
         if verbose:
@@ -41,13 +45,12 @@ class EntResModel(torch.nn.Module):
         if verbose:
             logger.info(f"Size of X = {output_probs.size()}")
             logger.info(f"\n{output_probs}")
+        if self.training and not self.use_rounded_loss:
+            return output_probs
 
-        if not self.training or self.use_rounded_loss:
-            pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
-            if verbose:
-                logger.info(f"Size of X_r = {pred_clustering.size()}")
-                logger.info(f"\n{pred_clustering}")
+        pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
+        if verbose:
+            logger.info(f"Size of X_r = {pred_clustering.size()}")
+            logger.info(f"\n{pred_clustering}")
 
-            return pred_clustering
-
-        return output_probs
+        return pred_clustering

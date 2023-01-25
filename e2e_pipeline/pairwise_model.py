@@ -22,7 +22,10 @@ class PairwiseModel(torch.nn.Module):
                                   hidden_dim=hidden_dim, n_hidden_layers=n_hidden_layers, add_batchnorm=add_batchnorm,
                                   activation=activation, negative_slope=negative_slope, hidden_config=hidden_config)
 
-    def forward(self, x, N=None, verbose=False):
+    def forward(self, x, N=None, warmstart=False, verbose=False):
+        """
+        N, warmstart: unused; added to keep forward signature consistent across models
+        """
         edge_weights = torch.squeeze(self.mlp_layer(x))
 
         if verbose:

@@ -67,6 +67,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         weighted_loss = hyp['weighted_loss']
         batch_size = hyp['batch_size'] if pairwise_mode else 1  # Force clustering runs to operate on 1 block only
         n_epochs = hyp['n_epochs']
+        n_warmstart_epochs = hyp['n_warmstart_epochs']
         use_lr_scheduler = hyp['use_lr_scheduler']
         hidden_dim = hyp["hidden_dim"]
         n_hidden_layers = hyp["n_hidden_layers"]
@@ -103,10 +104,19 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                 negative_slope, hidden_config, sdp_max_iters, sdp_eps,
                                 use_rounded_loss=hyp["use_rounded_loss"])
             # Define loss
-            loss_fn = lambda pred, gold: torch.norm(gold - pred)
+            loss_fn_e2e = lambda pred, gold: torch.norm(gold - pred)
             # Define eval
             eval_fn = evaluate
             pairwise_clustering_fns = [None]  # Unused when pairwise_mode is False
+            if n_warmstart_epochs > 0:
+                train_dataloader_pairwise, _, _ = get_dataloaders(hyp["dataset"],
+                                                                  hyp["dataset_random_seed"],
+                                                                  hyp["convert_nan"],
+                                                                  hyp["nan_value"],
+                                                                  hyp["normalize_data"],
+                                                                  hyp["subsample_sz_train"],
+                                                                  hyp["subsample_sz_dev"],
+                                                                  True, hyp['batch_size'])
         else:
             model = PairwiseModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                   neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
@@ -122,7 +132,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 else:
                     n_pos = train_dataloader.dataset[:][1].sum()
                     pos_weight = torch.tensor((len(train_dataloader.dataset) - n_pos) / n_pos)
-            loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             # Define eval
             eval_fn = evaluate_pairwise
             pairwise_clustering_fns = [None]
@@ -141,14 +151,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
                 else:
                     raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
-                _, clustering_val_dataloader, clustering_test_dataloader = get_dataloaders(hyp["dataset"],
-                                                                                           hyp["dataset_random_seed"],
-                                                                                           hyp["convert_nan"],
-                                                                                           hyp["nan_value"],
-                                                                                           hyp["normalize_data"],
-                                                                                           hyp["subsample_sz_train"],
-                                                                                           hyp["subsample_sz_dev"],
-                                                                                           False, 1)
+                _, val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
+                                                                             hyp["dataset_random_seed"],
+                                                                             hyp["convert_nan"],
+                                                                             hyp["nan_value"],
+                                                                             hyp["normalize_data"],
+                                                                             hyp["subsample_sz_train"],
+                                                                             hyp["subsample_sz_dev"],
+                                                                             False, 1)
         logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
@@ -177,14 +187,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 if pairwise_clustering_fns[0] is not None:
                     assert eval_only_split == 'test'  # Clustering in --eval_only_split implemented only for test set
                     eval_metric_to_idx = clustering_metrics
-                    eval_dataloader = clustering_test_dataloader
+                    eval_dataloader = test_dataloader_e2e
                 else:
                     eval_dataloader = dataloaders[eval_only_split]
                 start_time = time.time()
                 clustering_threshold = None
                 for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
                     eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
-                                          clustering_threshold=clustering_threshold, val_dataloader=clustering_val_dataloader,
+                                          clustering_threshold=clustering_threshold, val_dataloader=val_dataloader_e2e,
                                           tqdm_label=eval_only_split, device=device, verbose=verbose)
                     if pairwise_clustering_fn.__class__ is HACInference:
                         clustering_threshold = pairwise_clustering_fn.cut_threshold
@@ -244,10 +254,20 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             model.train()
             start_time = time.time()  # Tracks full training runtime
             for i in range(n_epochs):
+                _train_dataloader = train_dataloader
+                loss_fn = loss_fn_e2e if not pairwise_mode else loss_fn_pairwise
+                warmstart_mode = not pairwise_mode and i < n_warmstart_epochs
+
+                if warmstart_mode:
+                    _train_dataloader = train_dataloader_pairwise
+                    loss_fn = loss_fn_pairwise
+
                 wandb.log({'epoch': i + 1})
                 running_loss = []
                 n_exceptions = 0
-                for (idx, batch) in enumerate(tqdm(train_dataloader, desc=f"Training {i + 1}", disable=(not verbose))):
+                for (idx, batch) in enumerate(tqdm(_train_dataloader,
+                                                   desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
+                                                   disable=(not verbose))):
                     if overfit_batch_idx > -1:
                         if idx < overfit_batch_idx:
                             continue
@@ -273,10 +293,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                     # Forward pass through the e2e or pairwise model
                     data, target = data.to(device), target.to(device)
-                    output = model(data, block_size, verbose)
+                    output = model(data, N=block_size, warmstart=warmstart_mode, verbose=verbose)
 
                     # Calculate the loss
-                    if not pairwise_mode:
+                    if not pairwise_mode and not warmstart_mode:
                         gold_output = uncompress_target_tensor(target, device=device)
                         if verbose:
                             logger.info(f"Gold:\n{gold_output}")
@@ -298,7 +318,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     if verbose:
                         logger.info(f"Loss = {loss.item()}")
                     running_loss.append(loss.item())
-                    wandb.log({'train_loss': np.mean(running_loss)})
+                    wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
 
                 if verbose:
                     logger.info(f"Epoch loss = {np.mean(running_loss)}")
@@ -366,10 +386,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     if pairwise_clustering_fns[0] is not None:
                         clustering_threshold = None
                         for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
-                            clustering_scores = eval_fn(model, clustering_test_dataloader,
+                            clustering_scores = eval_fn(model, test_dataloader_e2e,
                                                         clustering_fn=pairwise_clustering_fn,
                                                         clustering_threshold=clustering_threshold,
-                                                        val_dataloader=clustering_val_dataloader,
+                                                        val_dataloader=val_dataloader_e2e,
                                                         tqdm_label='test clustering', device=device, verbose=verbose)
                             if pairwise_clustering_fn.__class__ is HACInference:
                                 clustering_threshold = pairwise_clustering_fn.cut_threshold
