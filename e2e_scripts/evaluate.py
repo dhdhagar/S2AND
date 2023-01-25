@@ -33,7 +33,9 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_da
     all_gold, all_pred = [], []
     cc_obj_vals = {
         'sdp': [],
-        'round': []
+        'round': [],
+        'block_idxs': [],
+        'block_sizes': []
     }
     max_pred_id = -1
     n_exceptions = 0
@@ -44,13 +46,13 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_da
             if idx > overfit_batch_idx:
                 break
         data, _, cluster_ids = batch
-        all_gold += list(np.reshape(cluster_ids, (len(cluster_ids),)))
+        block_size = len(cluster_ids)
+        all_gold += list(np.reshape(cluster_ids, (block_size,)))
         data = data.reshape(-1, n_features).float()
         if data.shape[0] == 0:
             # Only one signature in block; manually assign a unique cluster
             pred_cluster_ids = [max_pred_id + 1]
         else:
-            block_size = len(cluster_ids)
             # Forward pass through the e2e model
             data = data.to(device)
             try:
@@ -66,12 +68,12 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_da
             pred_cluster_ids = (model.hac_cut_layer.cluster_labels + (max_pred_id + 1)).tolist()
             cc_obj_vals['round'].append(model.hac_cut_layer.objective_value)
             cc_obj_vals['sdp'].append(model.sdp_layer.objective_value)
+            cc_obj_vals['block_idxs'].append(idx)
+            cc_obj_vals['block_sizes'].append(block_size)
         max_pred_id = max(pred_cluster_ids)
         all_pred += list(pred_cluster_ids)
     vmeasure = v_measure_score(all_gold, all_pred)
     b3_f1 = compute_b3_f1(all_gold, all_pred)[2]
-    cc_obj_vals['round'] = np.mean(cc_obj_vals['round'])
-    cc_obj_vals['sdp'] = np.mean(cc_obj_vals['sdp'])
     return b3_f1, vmeasure, cc_obj_vals
 
 
@@ -89,7 +91,9 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
         all_gold, all_pred = [], []
         cc_obj_vals = {
             'sdp': [],
-            'round': []
+            'round': [],
+            'block_idxs': [],
+            'block_sizes': []
         }
         max_pred_id = -1  # In each iteration, add to all blockwise predicted IDs to distinguish from previous blocks
         n_exceptions = 0
@@ -100,13 +104,13 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                 if idx > overfit_batch_idx:
                     break
             data, _, cluster_ids = batch
-            all_gold += list(np.reshape(cluster_ids, (len(cluster_ids),)))
+            block_size = len(cluster_ids)
+            all_gold += list(np.reshape(cluster_ids, (block_size,)))
             data = data.reshape(-1, n_features).float()
             if data.shape[0] == 0:
                 # Only one signature in block; manually assign a unique cluster
                 pred_cluster_ids = [max_pred_id + 1]
             else:
-                block_size = len(cluster_ids)
                 # Forward pass through the e2e model
                 data = data.to(device)
                 try:
@@ -125,10 +129,10 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
             if clustering_fn.__class__ is CCInference:
                 cc_obj_vals['round'].append(clustering_fn.hac_cut_layer.objective_value)
                 cc_obj_vals['sdp'].append(clustering_fn.sdp_layer.objective_value)
+                cc_obj_vals['block_idxs'].append(idx)
+                cc_obj_vals['block_sizes'].append(block_size)
         vmeasure = v_measure_score(all_gold, all_pred)
         b3_f1 = compute_b3_f1(all_gold, all_pred)[2]
-        cc_obj_vals['round'] = np.mean(cc_obj_vals['round'])
-        cc_obj_vals['sdp'] = np.mean(cc_obj_vals['sdp'])
         return (b3_f1, vmeasure, cc_obj_vals) if clustering_fn.__class__ is CCInference else (b3_f1, vmeasure)
 
     y_pred, targets = [], []
