@@ -53,6 +53,7 @@ class SDPLayer(torch.nn.Module):
                 "eps": self.eps
             })[0]
         except:
+            logger.error(f'CvxpyException: Error running forward pass on W_val of shape {W_val.shape}')
             raise CvxpyException()
 
         with torch.no_grad():
