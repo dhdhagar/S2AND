@@ -16,7 +16,7 @@ class EntResModel(torch.nn.Module):
     def __init__(self, n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                  neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                  negative_slope, hidden_config, sdp_max_iters, sdp_eps, use_rounded_loss=True,
-                 scale_sdp_input=True):
+                 scale_sdp_input=False):
         super().__init__()
         # Layers
         self.mlp_layer = MLPLayer(n_features=n_features, neumiss_depth=neumiss_depth, dropout_p=dropout_p,
