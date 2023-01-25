@@ -22,5 +22,6 @@ class UncompressTransformLayer(torch.nn.Module):
             uncompressed_matrix += torch.eye(N, device=device)
 
         if self.scale:
-            uncompressed_matrix /= (N * (N - 1) / 2)  # torch.abs(torch.sum(uncompressed_matrix))
+            uncompressed_matrix = torch.tanh(uncompressed_matrix)
+            # /= (N * (N - 1) / 2)  # torch.abs(torch.sum(uncompressed_matrix))
         return uncompressed_matrix
