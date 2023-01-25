@@ -195,8 +195,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     wandb.log({'epoch': 0, f'{eval_only_split}_{list(eval_metric_to_idx)[0]}_{pairwise_clustering_fn_labels[i]}': eval_scores[0],
                                f'{eval_only_split}_{list(eval_metric_to_idx)[1]}_{pairwise_clustering_fn_labels[i]}': eval_scores[1]})
                     if len(eval_scores) == 3:
-                        log_cc_objective_values(scores=eval_scores, split_name=eval_only_split, log_prefix='Eval',
-                                                verbose=verbose, logger=logger)
+                        log_cc_objective_values(scores=eval_scores,
+                                                split_name=f'{eval_only_split}_{pairwise_clustering_fn_labels[i]}',
+                                                log_prefix='Eval', verbose=verbose, logger=logger)
                 end_time = time.time()
         else:
             # Training
@@ -379,7 +380,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[0],
                                        f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[1]})
                             if len(clustering_scores) == 3:
-                                log_cc_objective_values(scores=clustering_scores, split_name='best_test',
+                                log_cc_objective_values(scores=clustering_scores,
+                                                        split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
                                                         log_prefix='Final', verbose=verbose, logger=logger)
 
 
