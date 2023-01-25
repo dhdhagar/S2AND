@@ -279,7 +279,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             continue
                         if idx > overfit_batch_idx:
                             break
-                    if not pairwise_mode:
+                    if not pairwise_mode and not warmstart_mode:
                         data, target, _ = batch
                     else:
                         data, target = batch
@@ -294,7 +294,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     target = target.flatten().float()
                     if verbose:
                         logger.info(f"Batch shape: {data.shape}")
-                        if not pairwise_mode:
+                        if not pairwise_mode and not warmstart_mode:
                             logger.info(f"Batch matrix size: {block_size}")
 
                     # Forward pass through the e2e or pairwise model
