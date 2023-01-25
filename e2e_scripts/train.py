@@ -65,6 +65,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
         pairwise_mode = hyp['pairwise_mode']
         weighted_loss = hyp['weighted_loss']
+        normalize_loss = hyp['normalize_loss']
         batch_size = hyp['batch_size'] if pairwise_mode else 1  # Force clustering runs to operate on 1 block only
         n_epochs = hyp['n_epochs']
         n_warmstart_epochs = hyp['n_warmstart_epochs']
@@ -102,7 +103,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                                 negative_slope, hidden_config, sdp_max_iters, sdp_eps,
-                                use_rounded_loss=hyp["use_rounded_loss"])
+                                use_rounded_loss=hyp["use_rounded_loss"], scale_sdp_input=hyp["scale_sdp_input"])
             # Define loss
             loss_fn_e2e = lambda pred, gold: torch.norm(gold - pred)
             # Define eval
@@ -144,14 +145,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             pairwise_clustering_fns = [None]
             if pairwise_eval_clustering is not None:
                 if pairwise_eval_clustering == 'cc':
-                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps)]
+                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps, hyp["scale_sdp_input"])]
                     pairwise_clustering_fns[0].eval()
                     pairwise_clustering_fn_labels = ['cc']
                 elif pairwise_eval_clustering == 'hac':
                     pairwise_clustering_fns = [HACInference()]
                     pairwise_clustering_fn_labels = ['hac']
                 elif pairwise_eval_clustering == 'both':
-                    cc_inference = CCInference(sdp_max_iters, sdp_eps)
+                    cc_inference = CCInference(sdp_max_iters, sdp_eps, hyp["scale_sdp_input"])
                     pairwise_clustering_fns = [cc_inference, HACInference(), cc_inference]
                     pairwise_clustering_fns[0].eval()
                     pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
@@ -307,7 +308,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if verbose:
                             logger.info(f"Gold:\n{gold_output}")
                         try:
-                            loss = loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
+                            loss = loss_fn(output.view_as(gold_output), gold_output)
+                            if normalize_loss:
+                                loss /= (2 * block_size)
                         except CvxpyException:
                             n_exceptions += 1
                             logger.info(f'Caught CvxpyException {n_exceptions}: skipping batch')

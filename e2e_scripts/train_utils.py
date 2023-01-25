@@ -44,16 +44,18 @@ DEFAULT_HYPERPARAMS = {
     "hidden_config": None,
     "activation": "leaky_relu",
     "negative_slope": 0.01,
-    "use_rounded_loss": True,
     # Solver config
     "sdp_max_iters": 50000,
     "sdp_eps": 1e-1,
+    "scale_sdp_input": True,
     # Training config
     "batch_size": 10000,  # For pairwise_mode only
     "lr": 1e-4,
     "n_epochs": 5,
     "n_warmstart_epochs": 0,
     "weighted_loss": True,  # For pairwise_mode only; TODO: Think about implementing for e2e
+    "use_rounded_loss": True,  # For e2e only
+    "normalize_loss": True,  # For e2e only
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "step"
     "lr_factor": 0.4,

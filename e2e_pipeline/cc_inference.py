@@ -17,9 +17,9 @@ class CCInference(torch.nn.Module):
     Correlation clustering inference-only model. Expects edge weights and the number of nodes as input.
     """
 
-    def __init__(self, sdp_max_iters, sdp_eps):
+    def __init__(self, sdp_max_iters, sdp_eps, scale_sdp_input):
         super().__init__()
-        self.uncompress_layer = UncompressTransformLayer()
+        self.uncompress_layer = UncompressTransformLayer(scale=scale_sdp_input)
         self.sdp_layer = SDPLayer(max_iters=sdp_max_iters, eps=sdp_eps)
         self.hac_cut_layer = HACCutLayer()
 

@@ -2,8 +2,9 @@ import torch
 import math
 
 class UncompressTransformLayer(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, scale=False):
         super().__init__()
+        self.scale = scale
 
     def forward(self, compressed_matrix, N, make_symmetric=False, ones_diagonal=False):
         device = compressed_matrix.get_device()
@@ -20,4 +21,6 @@ class UncompressTransformLayer(torch.nn.Module):
         if ones_diagonal:
             uncompressed_matrix += torch.eye(N, device=device)
 
+        if self.scale:
+            uncompressed_matrix /= torch.abs(torch.sum(uncompressed_matrix))
         return uncompressed_matrix

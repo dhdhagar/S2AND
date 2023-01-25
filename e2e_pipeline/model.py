@@ -15,14 +15,15 @@ logger = logging.getLogger(__name__)
 class EntResModel(torch.nn.Module):
     def __init__(self, n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                  neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
-                 negative_slope, hidden_config, sdp_max_iters, sdp_eps, use_rounded_loss=True):
+                 negative_slope, hidden_config, sdp_max_iters, sdp_eps, use_rounded_loss=True,
+                 scale_sdp_input=True):
         super().__init__()
         # Layers
         self.mlp_layer = MLPLayer(n_features=n_features, neumiss_depth=neumiss_depth, dropout_p=dropout_p,
                                   dropout_only_once=dropout_only_once, add_neumiss=add_neumiss, neumiss_deq=neumiss_deq,
                                   hidden_dim=hidden_dim, n_hidden_layers=n_hidden_layers, add_batchnorm=add_batchnorm,
                                   activation=activation, negative_slope=negative_slope, hidden_config=hidden_config)
-        self.uncompress_layer = UncompressTransformLayer()
+        self.uncompress_layer = UncompressTransformLayer(scale=scale_sdp_input)
         self.sdp_layer = SDPLayer(max_iters=sdp_max_iters, eps=sdp_eps)
         self.hac_cut_layer = HACCutLayer()
         # Configs
