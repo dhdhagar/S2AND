@@ -115,7 +115,7 @@ for run in finished:
 
     break
 
-mean_std_strings = dict(map(lambda x: (x[0], get_mean_std(x[0])), b3_f1.items()))
+mean_std_strings = dict(map(lambda x: (x[0], get_mean_std(x[1])), b3_f1.items()))
 print(mean_std_strings)
 
 embed()
