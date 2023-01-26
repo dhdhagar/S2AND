@@ -1,5 +1,10 @@
 import wandb
+
+from IPython import embed
+
+
 api = wandb.Api()
+
 
 # Project is specified by <entity/project-name>
 runs = api.runs("dhdhagar/prob-ent-resolution")
