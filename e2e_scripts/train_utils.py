@@ -162,3 +162,11 @@ def log_or_save_blockwise_metrics(scores, split_name, log_prefix, verbose, logge
             torch.save(per_block_metrics, save_fpath)
             wandb.save(save_fname)
             logger.info(f"Saved block metrics to {save_fpath}")
+
+def get_mean_std(arr):
+    _arr = np.array(arr) * 100.
+    mean = np.round(np.mean(_arr), 2)
+    std = np.round(np.std(_arr), 2)
+    plus_minus = u"\u00B1"
+    output_string = f"{mean} {plus_minus} {std}"
+    return output_string, mean, std

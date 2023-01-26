@@ -385,7 +385,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
                                f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
                                f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
-                    log_or_save_blockwise_metrics(scores=test_scores, split_name='best_test', log_prefix='Final',
+                    log_or_save_blockwise_metrics(scores=test_scores, split_name='best_test_cc', log_prefix='Final',
                                                   verbose=verbose, logger=logger, save_dir=run.dir,
                                                   save_metrics=save_block_metrics)
                     # For pairwise-mode:
