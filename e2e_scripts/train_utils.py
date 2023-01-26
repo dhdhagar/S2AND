@@ -1,7 +1,7 @@
 """
     Helper functions and constants for e2e_scripts/train.py
 """
-
+import os
 from collections import defaultdict
 from typing import Dict
 from typing import Tuple
@@ -133,21 +133,32 @@ def compute_b3_f1(true_cluster_ids, pred_cluster_ids):
         pred_cluster_dict[pred_cluster_ids[i]].append(i)
     return b3_precision_recall_fscore(true_cluster_dict, pred_cluster_dict)
 
-def log_cc_objective_values(scores, split_name, log_prefix, verbose, logger, plot=False):
-    frac, round = np.array(scores[2]['sdp']), np.array(scores[2]['round'])
-    # Objective across blocks
-    total_frac_obj = np.sum(frac)
-    total_round_obj = np.sum(round)
-    # Mean approximation ratio across blocks
-    mean_approx_ratio = min(1., np.mean(round / frac))
 
-    if verbose:
-        logger.info(f"{log_prefix}: {split_name}_obj_frac={total_frac_obj}, " +
-                    f"{split_name}_obj_round={total_round_obj}, " +
-                    f"{split_name}_obj_ratio={mean_approx_ratio}")
+def log_or_save_blockwise_metrics(scores, split_name, log_prefix, verbose, logger, save_dir='', save_metrics=False):
+    if len(scores) > 2:
+        per_block_metrics = scores[2]
 
-    wandb.log({f'{split_name}_obj_frac': total_frac_obj,
-               f'{split_name}_obj_round': total_round_obj,
-               f'{split_name}_obj_ratio': mean_approx_ratio})
+        # Log correlation clustering objective values
+        if 'cc_obj_frac' in per_block_metrics and 'cc_obj_round' in per_block_metrics:
+            frac, round = np.array(per_block_metrics['cc_obj_frac']), np.array(per_block_metrics['cc_obj_round'])
+            # Objective across blocks
+            total_frac_obj = np.sum(frac)
+            total_round_obj = np.sum(round)
+            # Mean approximation ratio across blocks
+            mean_approx_ratio = min(1., np.mean(round / frac))
 
-    # TODO: Implement plotting the approx. ratio v/s block sizes
+            if verbose:
+                logger.info(f"{log_prefix}: {split_name}_obj_frac={total_frac_obj}, " +
+                            f"{split_name}_obj_round={total_round_obj}, " +
+                            f"{split_name}_obj_ratio={mean_approx_ratio}")
+
+            wandb.log({f'{split_name}_obj_frac': total_frac_obj,
+                       f'{split_name}_obj_round': total_round_obj,
+                       f'{split_name}_obj_ratio': mean_approx_ratio})
+
+        if save_metrics:
+            save_fname = f'block_metrics_{split_name}.pkl'
+            save_fpath = os.path.join(save_dir, save_fname)
+            torch.save(per_block_metrics, save_fpath)
+            wandb.save(save_fname)
+            logger.info(f"Saved block metrics to {save_fpath}")

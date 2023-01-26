@@ -106,6 +106,10 @@ class Parser(argparse.ArgumentParser):
             help="Whether to save the model (locally in the wandb run dir & in wandb cloud storage)",
         )
         parser.add_argument(
+            "--save_block_metrics", action='store_true',
+            help="Whether to save the block-wise classification and clustering metrics to pickle files in the wandb run",
+        )
+        parser.add_argument(
             "--load_model_from_wandb_run", type=str,
             help="Load model state_dict from a previous wandb run (expects 'entity/project/runid' as input)",
         )

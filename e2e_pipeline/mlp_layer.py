@@ -42,5 +42,9 @@ class MLPLayer(torch.nn.Module):
                   [nn.Dropout(p=dropout_p), nn.Linear(hidden_dim, 1)])
             )
 
+        self.last_output = None  # Stores the most recent result of the forward call
+
     def forward(self, x):
-        return self.mlp_model(x)
+        output = self.mlp_model(x)
+        self.last_output = output.detach()
+        return output
