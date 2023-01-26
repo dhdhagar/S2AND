@@ -4,6 +4,7 @@ import torch
 from collections import defaultdict
 import numpy as np
 import json
+from tqdm import tqdm
 
 from IPython import embed
 
@@ -55,7 +56,7 @@ block_auroc = defaultdict(list)
 block_b3_f1 = defaultdict(list)
 block_cc_ratio = defaultdict(list)
 
-for run in finished:
+for run in tqdm(finished):
     config = json.loads(run.json_config)
     run_summary = run.summary._json_dict
     model = list(set(run.tags).intersection(models))[0]
