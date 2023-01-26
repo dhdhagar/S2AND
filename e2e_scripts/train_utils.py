@@ -23,8 +23,8 @@ DEFAULT_HYPERPARAMS = {
     # Dataset
     "dataset": "pubmed",
     "dataset_random_seed": 1,
-    "subsample_sz_train": -1,
-    "subsample_sz_dev": -1,
+    "subsample_sz_train": 80,
+    "subsample_sz_dev": 100,
     # Run config
     "run_random_seed": 17,
     "pairwise_mode": False,
