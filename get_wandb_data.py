@@ -113,9 +113,6 @@ for run in finished:
         block_cc_ratio[key].append(
             list(np.clip(np.array(metrics_cc['cc_obj_round']) / np.array(metrics_cc['cc_obj_frac']), 0, 1)))
 
-    break
-
 mean_std_strings = dict(map(lambda x: (x[0], get_mean_std(x[1])), b3_f1.items()))
-print(mean_std_strings)
 
 embed()
