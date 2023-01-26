@@ -1,33 +1,107 @@
 import wandb
+import os
+import torch
+from collections import defaultdict
+import numpy as np
 
 from IPython import embed
 
 
 api = wandb.Api()
 
-
 # Project is specified by <entity/project-name>
 runs = api.runs("dhdhagar/prob-ent-resolution")
 
-summary_list, config_list, name_list = [], [], []
+TEMP_DIR = './_temp'
+os.makedirs(TEMP_DIR, exist_ok=True)
+
+finished = []
+failed = []
+other = []
+
+models = {'e2e', 'e2e-warm', 'frac', 'frac-warm', 'mlp'}
+
 for run in runs:
-    # .summary contains the output keys/values for metrics like accuracy.
-    #  We call ._json_dict to omit large files
-    summary_list.append(run.summary._json_dict)
+    # path_id = '/'.join(run.path)
+    if 'icml' in run.tags:
+        if run.state == 'finished':
+            finished.append(run)
+        elif run.state in ['failed', 'crashed']:
+            failed.append(run)
+        else:
+            other.append(run)
 
-    # .config contains the hyperparameters.
-    #  We remove special values that start with _.
-    config_list.append(
-        {k: v for k,v in run.config.items()
-          if not k.startswith('_')})
+print(f'Total finished: {len(finished)}')
+print(f'Total failed: {len(failed)}')
+print(f'Other: {len(other)}')
+print()
 
-    # .name is the human-readable name of the run.
-    name_list.append(run.name)
+
+b3_f1 = defaultdict(list)
+cc_ratio = defaultdict(list)
+auroc = defaultdict(list)
+
+block_sizes = defaultdict(list)
+block_auroc = defaultdict(list)
+block_b3_f1 = defaultdict(list)
+block_cc_ratio = defaultdict(list)
+
+for run in finished:
+    config = run.json_config
+    run_summary = run.summary._json_dict
+    model = set(run.tags).intersection(models)
+    dataset = config['dataset']['value']
+    metrics_cc = None
+    metrics_hac = None
+
+    for file in run.files():
+        fname = file.name
+        if fname == 'block_metrics_best_test_cc.pkl':
+            file.download(root=TEMP_DIR, replace=True)
+            fpath = os.path.join(TEMP_DIR, fname)
+            with open(fpath, 'rb') as fh:
+                metrics_cc = torch.load(fh)
+            os.remove(os.path.join(TEMP_DIR, fname))
+        elif fname == 'block_metrics_best_test_hac.pkl':
+            file.download(root=TEMP_DIR, replace=True)
+            fpath = os.path.join(TEMP_DIR, fname)
+            with open(fpath, 'rb') as fh:
+                metrics_hac = torch.load(fh)
+            os.remove(os.path.join(TEMP_DIR, fname))
+
+    if model == 'mlp':
+        key = f'{model}_{dataset}'
+        key_cc = f'{model}_cc_{dataset}'
+        key_hac = f'{model}_hac_{dataset}'
+
+        b3_f1[key_cc].append(run_summary['best_test_b3_f1_cc'])
+        b3_f1[key_hac].append(run_summary['best_test_b3_f1_hac'])
+        cc_ratio[key_cc].append(run_summary['best_test_cc_obj_ratio'])
+        auroc[key_cc].append(run_summary['best_test_auroc'])
+        auroc[key_hac].append(run_summary['best_test_auroc'])
+
+        block_sizes[key_cc].append(metrics_cc['block_sizes'])
+        block_sizes[key_hac].append(metrics_hac['block_sizes'])
+        block_auroc[key_cc].append(metrics_cc['mlp_auroc'])
+        block_auroc[key_hac].append(metrics_hac['mlp_auroc'])
+        block_b3_f1[key_cc].append(metrics_cc['b3_f1'])
+        block_b3_f1[key_hac].append(metrics_hac['b3_f1'])
+        block_cc_ratio[key_cc].append(list(np.array(metrics_cc['cc_obj_round'])/np.array(metrics_cc['cc_obj_frac'])))
+    else:
+        key = f'{model}_{dataset}'
+
+        b3_f1[key].append(run_summary['best_test_b3_f1'])
+        cc_ratio[key].append(run_summary['best_test_cc_obj_ratio'])
+        # TODO: Add total auroc based on blockwise auroc
+        all_pairs_sizes = np.array(metrics_cc['block_sizes']) * (np.array(metrics_cc['block_sizes']) - 1) / 2
+        run_auroc = np.sum(np.array(metrics_cc['mlp_auroc']) * all_pairs_sizes) / np.sum(all_pairs_sizes)
+        auroc[key].append(run_auroc)
+
+        block_sizes[key].append(metrics_cc['block_sizes'])
+        block_auroc[key].append(metrics_cc['mlp_auroc'])
+        block_b3_f1[key].append(metrics_cc['b3_f1'])
+        block_cc_ratio[key].append(list(np.array(metrics_cc['cc_obj_round']) / np.array(metrics_cc['cc_obj_frac'])))
 
     break
 
 embed()
-
-print(summary_list)
-print(config_list)
-print(name_list)
