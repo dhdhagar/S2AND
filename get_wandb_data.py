@@ -19,7 +19,7 @@ def get_mean_std(arr):
 api = wandb.Api()
 
 # Project is specified by <entity/project-name>
-runs = api.runs("dhdhagar/prob-ent-resolution", filter={"tags": ["icml"]})
+runs = api.runs("dhdhagar/prob-ent-resolution", filters={"tags": ["icml"]})
 
 TEMP_DIR = './_temp'
 os.makedirs(TEMP_DIR, exist_ok=True)
