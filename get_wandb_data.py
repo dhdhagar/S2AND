@@ -59,7 +59,7 @@ block_cc_ratio = defaultdict(list)
 for run in finished:
     config = json.loads(run.json_config)
     run_summary = run.summary._json_dict
-    model = set(run.tags).intersection(models)
+    model = list(set(run.tags).intersection(models))[0]
     dataset = config['dataset']['value']
     metrics_cc = None
     metrics_hac = None
