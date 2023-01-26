@@ -16,7 +16,6 @@ def get_mean_std(arr):
     output_string = f"{mean} {plus_minus} {std}"
     return output_string, mean, std
 
-
 api = wandb.Api()
 
 # Project is specified by <entity/project-name>
@@ -96,7 +95,8 @@ for run in finished:
         block_auroc[key_hac].append(metrics_hac['mlp_auroc'])
         block_b3_f1[key_cc].append(metrics_cc['b3_f1'])
         block_b3_f1[key_hac].append(metrics_hac['b3_f1'])
-        block_cc_ratio[key_cc].append(list(np.array(metrics_cc['cc_obj_round'])/np.array(metrics_cc['cc_obj_frac'])))
+        block_cc_ratio[key_cc].append(
+            list(np.clip(np.array(metrics_cc['cc_obj_round']) / np.array(metrics_cc['cc_obj_frac']), 0, 1)))
     else:
         key = f'{model}_{dataset}'
 
@@ -110,8 +110,12 @@ for run in finished:
         block_sizes[key].append(metrics_cc['block_sizes'])
         block_auroc[key].append(metrics_cc['mlp_auroc'])
         block_b3_f1[key].append(metrics_cc['b3_f1'])
-        block_cc_ratio[key].append(list(np.array(metrics_cc['cc_obj_round']) / np.array(metrics_cc['cc_obj_frac'])))
+        block_cc_ratio[key].append(
+            list(np.clip(np.array(metrics_cc['cc_obj_round']) / np.array(metrics_cc['cc_obj_frac']), 0, 1)))
 
     break
+
+mean_std_strings = dict(map(lambda x: (x[0], get_mean_std(x[0])), b3_f1.items()))
+print(mean_std_strings)
 
 embed()
