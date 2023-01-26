@@ -1561,6 +1561,14 @@ class ANDData:
                         else:
                             different_name_different_cluster.append((s1, s2, 0))
         elif not self.pair_sampling_balanced_homonym_synonym and not self.pair_sampling_balanced_classes: #Important for Blockwise featurization
+            sizes = []
+            for k,v in blocks.items():
+                sizes.append(len(v))
+            print("min", np.min(sizes))
+            print("max", np.max(sizes))
+            print("mean", np.mean(sizes))
+            print("length", len(sizes))
+            raise ValueError("CUSTOM")
             for block_id, signatures in blocks.items():
                 sig_pairs: List[Tuple[str, str, Union[int, float]]] = []
                 cluster_ids: List[str] = []
