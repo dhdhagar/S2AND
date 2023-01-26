@@ -108,6 +108,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             # Define eval
             eval_fn = evaluate
             pairwise_clustering_fns = [None]  # Unused when pairwise_mode is False
+            pairwise_clustering_fn_labels = ['cc']
             val_dataloader_e2e = None
             if n_warmstart_epochs > 0:
                 train_dataloader_pairwise, _, _ = get_dataloaders(hyp["dataset"],
