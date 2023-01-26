@@ -14,6 +14,7 @@ for ((run_seed = 1; run_seed <= ${n_runs}; run_seed++)); do
     run_sbatch.sh e2e_scripts/train.py \
     --pairwise_eval_clustering="both" \
     --skip_initial_eval \
+    --lr_factor=0.4 --lr_scheduler_patience=2 --lr_step_size=2 --lr_gamma=0.4 \
     --silent \
     --load_hyp_from_wandb_run="${run_id}" \
     --run_random_seed=${run_seed} \
