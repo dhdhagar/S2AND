@@ -3,6 +3,7 @@ import os
 import torch
 from collections import defaultdict
 import numpy as np
+import json
 
 from IPython import embed
 
@@ -56,7 +57,7 @@ block_b3_f1 = defaultdict(list)
 block_cc_ratio = defaultdict(list)
 
 for run in finished:
-    config = run.json_config
+    config = json.loads(run.json_config)
     run_summary = run.summary._json_dict
     model = set(run.tags).intersection(models)
     dataset = config['dataset']['value']
