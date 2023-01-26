@@ -26,6 +26,8 @@ for run in runs:
 
     break
 
+embed()
+
 print(summary_list)
 print(config_list)
 print(name_list)
