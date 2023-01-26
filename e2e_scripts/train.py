@@ -18,7 +18,7 @@ from e2e_pipeline.pairwise_model import PairwiseModel
 from e2e_pipeline.sdp_layer import CvxpyException
 from e2e_scripts.evaluate import evaluate, evaluate_pairwise
 from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_matrix_size_from_triu, \
-    uncompress_target_tensor, count_parameters, log_or_save_blockwise_metrics
+    uncompress_target_tensor, count_parameters, log_or_save_blockwise_metrics, get_file_from_wandb
 from utils.parser import Parser
 
 from IPython import embed
@@ -170,10 +170,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         # Load stored model, if available
         state_dict = None
         if load_model_from_wandb_run is not None:
-            state_dict_fpath = wandb.restore('model_state_dict_best.pt',
-                                             run_path=load_model_from_wandb_run).name
-            state_dict = torch.load(state_dict_fpath, device)
-            os.remove(state_dict_fpath)
+            state_dict = get_file_from_wandb('model_state_dict_best.pt', run_id=load_model_from_wandb_run, device=device)
         elif load_model_from_fpath is not None:
             state_dict = torch.load(load_model_from_fpath, device)
         if state_dict is not None:
@@ -505,10 +502,8 @@ if __name__ == '__main__':
         logger.info("Single-run mode")
         try:
             if args['load_hyp_from_wandb_run'] is not None:
-                run_params_fpath = wandb.restore('hyperparameters.json', run_path=args['load_hyp_from_wandb_run']).name
-                with open(run_params_fpath, 'r') as fh:
-                    run_params = json.load(fh)
-                os.remove(run_params_fpath)
+                run_params = get_file_from_wandb('hyperparameters.json', run_id=args['load_hyp_from_wandb_run'],
+                                                 ftype='json')
             else:
                 with open(args['wandb_run_params'], 'r') as fh:
                     run_params = json.load(fh)

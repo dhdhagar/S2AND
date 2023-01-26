@@ -1,6 +1,7 @@
 """
     Helper functions and constants for e2e_scripts/train.py
 """
+import json
 import os
 from collections import defaultdict
 from typing import Dict
@@ -163,6 +164,7 @@ def log_or_save_blockwise_metrics(scores, split_name, log_prefix, verbose, logge
             wandb.save(save_fname)
             logger.info(f"Saved block metrics to {save_fpath}")
 
+
 def get_mean_std(arr):
     _arr = np.array(arr) * 100.
     mean = np.round(np.mean(_arr), 2)
@@ -170,3 +172,16 @@ def get_mean_std(arr):
     plus_minus = u"\u00B1"
     output_string = f"{mean} {plus_minus} {std}"
     return output_string, mean, std
+
+
+def get_file_from_wandb(fname, run_id, ftype='object', device='cpu'):
+    fpath = wandb.restore(fname, run_path=run_id).name
+    if ftype == 'object':
+        obj = torch.load(fpath, device)
+    elif ftype == 'json':
+        with open(fpath, 'r') as fh:
+            obj = json.load(fh)
+    else:
+        raise ValueError(f'Cannot load file type: {ftype}')
+    os.remove(fpath)
+    return obj
