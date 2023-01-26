@@ -31,10 +31,11 @@ def get_auroc_f1(targets, y_pred, thresh_for_f1=0.5, average_mode='macro'):
     return roc_auc, np.round(f1, 3)
 
 
-def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_dataloader=None,
+def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
              tqdm_label='', device=None, verbose=False):
     """
-    clustering_fn, val_dataloader: unused when pairwise_mode is False (only added to keep fn signature identical)
+    clustering_fn, val_dataloader, clustering_threshold
+    : unused when pairwise_mode is False (only added to keep fn signature identical)
     """
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
