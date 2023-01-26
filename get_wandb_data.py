@@ -7,17 +7,26 @@ import numpy as np
 from IPython import embed
 
 
+def get_mean_std(arr):
+    _arr = np.array(arr) * 100.
+    mean = np.round(np.mean(_arr), 2)
+    std = np.round(np.std(_arr), 2)
+    plus_minus = u"\u00B1"
+    output_string = f"{mean} {plus_minus} {std}"
+    return output_string, mean, std
+
+
 api = wandb.Api()
 
 # Project is specified by <entity/project-name>
-runs = api.runs("dhdhagar/prob-ent-resolution")
+runs = api.runs("dhdhagar/prob-ent-resolution", filter={"tags": ["icml"]})
 
 TEMP_DIR = './_temp'
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 finished = []
-failed = []
-other = []
+failed = 0
+other = 0
 
 models = {'e2e', 'e2e-warm', 'frac', 'frac-warm', 'mlp'}
 
@@ -27,13 +36,13 @@ for run in runs:
         if run.state == 'finished':
             finished.append(run)
         elif run.state in ['failed', 'crashed']:
-            failed.append(run)
+            failed += 1
         else:
-            other.append(run)
+            other += 1
 
 print(f'Total finished: {len(finished)}')
-print(f'Total failed: {len(failed)}')
-print(f'Other: {len(other)}')
+print(f'Total failed: {failed}')
+print(f'Other: {other}')
 print()
 
 
