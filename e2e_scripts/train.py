@@ -18,7 +18,7 @@ from e2e_pipeline.pairwise_model import PairwiseModel
 from e2e_pipeline.sdp_layer import CvxpyException
 from e2e_scripts.evaluate import evaluate, evaluate_pairwise
 from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_matrix_size_from_triu, \
-    uncompress_target_tensor, count_parameters, log_cc_objective_values
+    uncompress_target_tensor, count_parameters, log_cc_objective_values, save_to_wandb_run
 from utils.parser import Parser
 
 from IPython import embed
@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
-          load_hyp_from_wandb_run=None, eval_only_split=None, skip_initial_eval=False,
-          pairwise_eval_clustering=None):
+          eval_only_split=None, skip_initial_eval=False, pairwise_eval_clustering=None,
+          debug=False, track_errors=False):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -53,9 +53,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         logger.info("Run hyperparameters:")
         logger.info(hyp)
         # Save hyperparameters as a json file and store in wandb run
-        with open(os.path.join(run.dir, 'hyperparameters.json'), 'w') as fh:
-            json.dump(dict(hyp), fh)
-        wandb.save('hyperparameters.json')
+        save_to_wandb_run(hyp, 'hyperparameters.json', run.dir, logger)
+
+        # Track errors
+        _errors = [] if track_errors else None
 
         # Seed everything
         if hyp['run_random_seed'] is not None:
@@ -201,7 +202,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
                     eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
                                           clustering_threshold=clustering_threshold, val_dataloader=val_dataloader_e2e,
-                                          tqdm_label=eval_only_split, device=device, verbose=verbose)
+                                          tqdm_label=eval_only_split, device=device, verbose=verbose, debug=debug,
+                                          _errors=_errors)
                     if pairwise_clustering_fn.__class__ is HACInference:
                         clustering_threshold = pairwise_clustering_fn.cut_threshold
                     if verbose:
@@ -243,14 +245,16 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     model.eval()
                     if overfit_batch_idx > -1:
                         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                                               tqdm_label='train', device=device, verbose=verbose)
+                                               tqdm_label='train', device=device, verbose=verbose, debug=debug,
+                                               _errors=_errors)
                         if verbose:
                             logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
                                         f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
                         wandb.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                     else:
-                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose)
+                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+                                             debug=debug, _errors=_errors)
                         if verbose:
                             logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
                                         f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
@@ -299,26 +303,54 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                     # Forward pass through the e2e or pairwise model
                     data, target = data.to(device), target.to(device)
-                    output = model(data, N=block_size, warmstart=warmstart_mode, verbose=verbose)
+                    try:
+                        output = model(data, N=block_size, warmstart=warmstart_mode, verbose=verbose)
+                    except CvxpyException as e:
+                        _error_obj = {
+                            'method': 'train_forward',
+                            'model_type': 'e2e' if not pairwise_mode else 'pairwise',
+                            'data_split': 'train',
+                            'model_call_args': {
+                                'data': data.detach().cpu(),
+                                'block_size': block_size
+                            },
+                            'cvxpy_layer_args': e.data
+                        }
+                        if _errors is not None:
+                            _errors.append(_error_obj)
+                        n_exceptions += 1
+                        logger.info(f'Caught CvxpyException in forward call (count -> {n_exceptions}): skipping batch')
+                        continue
 
                     # Calculate the loss
                     if not pairwise_mode and not warmstart_mode:
                         gold_output = uncompress_target_tensor(target, device=device)
                         if verbose:
                             logger.info(f"Gold:\n{gold_output}")
-                        try:
-                            loss = loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
-                        except CvxpyException:
-                            n_exceptions += 1
-                            logger.info(f'Caught CvxpyException {n_exceptions}: skipping batch')
-                            continue
+                        loss = loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
                     else:
                         if verbose:
                             logger.info(f"Gold:\n{target}")
                         loss = loss_fn(output.view_as(target), target)
 
                     optimizer.zero_grad()
-                    loss.backward()
+                    try:
+                        loss.backward()
+                    except:
+                        _error_obj = {
+                            'method': 'train_backward',
+                            'model_type': 'e2e' if not pairwise_mode else 'pairwise',
+                            'data_split': 'train',
+                            'model_call_args': {
+                                'data': data.detach().cpu(),
+                                'block_size': block_size
+                            }
+                        }
+                        if _errors is not None:
+                            _errors.append(_error_obj)
+                        n_exceptions += 1
+                        logger.info(f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
+                        continue
                     optimizer.step()
 
                     if verbose:
@@ -334,7 +366,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     model.eval()
                     if overfit_batch_idx > -1:
                         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                                               tqdm_label='train', device=device, verbose=verbose)
+                                               tqdm_label='train', device=device, verbose=verbose, debug=debug,
+                                               _errors=_errors)
                         if verbose:
                             logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
                                         f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
@@ -346,7 +379,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             elif hyp['lr_scheduler'] == 'step':
                                 scheduler.step()
                     else:
-                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose)
+                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+                                             debug=debug, _errors=_errors)
                         if verbose:
                             logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
                                         f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
@@ -371,11 +405,12 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             end_time = time.time()
 
             if overfit_batch_idx == -1:
-                # Evaluate best dev model on test
+                # Evaluate the best dev model on test
                 model.load_state_dict(best_dev_state_dict)
                 with torch.no_grad():
                     model.eval()
-                    test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose)
+                    test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
+                                          debug=debug, _errors=_errors)
                     if verbose:
                         logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                     f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
@@ -396,7 +431,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                         clustering_fn=pairwise_clustering_fn,
                                                         clustering_threshold=clustering_threshold,
                                                         val_dataloader=val_dataloader_e2e,
-                                                        tqdm_label='test clustering', device=device, verbose=verbose)
+                                                        tqdm_label='test clustering', device=device, verbose=verbose,
+                                                        debug=debug, _errors=_errors)
                             if pairwise_clustering_fn.__class__ is HACInference:
                                 clustering_threshold = pairwise_clustering_fn.cut_threshold
                             if verbose:
@@ -420,6 +456,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
             wandb.save('model_state_dict_best.pt')
             logger.info(f"Saved best model on dev to {os.path.join(run.dir, 'model_state_dict_best.pt')}")
+
+        if _errors is not None:
+            save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
 
         logger.info(f"Run directory: {run.dir}")
         logger.info("End of train() call")
@@ -496,7 +535,9 @@ if __name__ == '__main__':
                                            verbose=not args['silent'],
                                            tags=args['wandb_tags'],
                                            save_model=args['save_model'],
-                                           skip_initial_eval=args['skip_initial_eval']),
+                                           skip_initial_eval=args['skip_initial_eval'],
+                                           debug=args['debug'],
+                                           track_errors=args['track_errors']),
                     count=args['wandb_max_runs'])
 
         logger.info("End of sweep")
@@ -524,8 +565,9 @@ if __name__ == '__main__':
               save_model=args['save_model'],
               load_model_from_wandb_run=args['load_model_from_wandb_run'],
               load_model_from_fpath=args['load_model_from_fpath'],
-              load_hyp_from_wandb_run=args['load_hyp_from_wandb_run'],
               eval_only_split=args['eval_only_split'],
               skip_initial_eval=args['skip_initial_eval'],
-              pairwise_eval_clustering=args['pairwise_eval_clustering'])
+              pairwise_eval_clustering=args['pairwise_eval_clustering'],
+              debug=args['debug'],
+              track_errors=args['track_errors'])
         logger.info("End of run")

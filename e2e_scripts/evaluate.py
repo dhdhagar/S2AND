@@ -23,7 +23,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_dataloader=None,
-             tqdm_label='', device=None, verbose=False):
+             tqdm_label='', device=None, verbose=False, debug=False, _errors=None):
     """
     clustering_fn, val_dataloader: unused when pairwise_mode is False (only added to keep fn signature identical)
     """
@@ -57,9 +57,21 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_da
             data = data.to(device)
             try:
                 _ = model(data, block_size)
-            except CvxpyException:
-                if tqdm_label is not 'dev':
-                    raise CvxpyException()
+            except CvxpyException as e:
+                _error_obj = {
+                    'method': 'eval',
+                    'model_type': 'e2e',
+                    'data_split': tqdm_label,
+                    'model_call_args': {
+                        'data': data.detach().cpu(),
+                        'block_size': block_size
+                    },
+                    'cvxpy_layer_args': e.data
+                }
+                if _errors is not None:
+                    _errors.append(_error_obj)
+                if tqdm_label is not 'dev' and not debug:
+                    raise CvxpyException(data=_error_obj)
                 # If split is dev, skip batch and continue
                 all_gold = all_gold[:-len(cluster_ids)]
                 n_exceptions += 1
@@ -79,7 +91,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_da
 
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
                       thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
-                      tqdm_label='', device=None, verbose=False):
+                      tqdm_label='', device=None, verbose=False, debug=False, _errors=None):
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
 
@@ -116,9 +128,21 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                 try:
                     pred_cluster_ids = clustering_fn(model(data), block_size, min_id=(max_pred_id + 1),
                                                      threshold=clustering_threshold)
-                except CvxpyException:
-                    if tqdm_label is not 'dev':
-                        raise CvxpyException()
+                except CvxpyException as e:
+                    _error_obj = {
+                        'method': 'eval',
+                        'model_type': 'pairwise_cc',
+                        'data_split': tqdm_label,
+                        'model_call_args': {
+                            'data': data.detach().cpu(),
+                            'block_size': block_size
+                        },
+                        'cvxpy_layer_args': e.data
+                    }
+                    if _errors is not None:
+                        _errors.append(_error_obj)
+                    if tqdm_label is not 'dev' and not debug:
+                        raise CvxpyException(data=_error_obj)
                     # If split is dev, skip batch and continue
                     all_gold = all_gold[:-len(cluster_ids)]
                     n_exceptions += 1

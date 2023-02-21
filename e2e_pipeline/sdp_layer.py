@@ -11,8 +11,11 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class CvxpyException(Exception):
-    pass
+    def __init__(self, data=None):
+        self.data = data
+
 
 class SDPLayer(torch.nn.Module):
     def __init__(self, max_iters: int = 50000, eps: float = 1e-3):
@@ -54,7 +57,15 @@ class SDPLayer(torch.nn.Module):
             })[0]
         except:
             logger.error(f'CvxpyException: Error running forward pass on W_val of shape {W_val.shape}')
-            raise CvxpyException()
+            raise CvxpyException(data={
+                                     'W_val': W_val.detach().cpu(),
+                                     'solver_args': {
+                                         "solve_method": "SCS",
+                                         "verbose": verbose,
+                                         "max_iters": self.max_iters,
+                                         "eps": self.eps
+                                     }
+                                 })
 
         with torch.no_grad():
             objective_matrix = W_val * torch.triu(pw_probs, diagonal=1)

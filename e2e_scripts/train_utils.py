@@ -1,7 +1,8 @@
 """
     Helper functions and constants for e2e_scripts/train.py
 """
-
+import os
+import json
 from collections import defaultdict
 from typing import Dict
 from typing import Tuple
@@ -133,6 +134,7 @@ def compute_b3_f1(true_cluster_ids, pred_cluster_ids):
         pred_cluster_dict[pred_cluster_ids[i]].append(i)
     return b3_precision_recall_fscore(true_cluster_dict, pred_cluster_dict)
 
+
 def log_cc_objective_values(scores, split_name, log_prefix, verbose, logger, plot=False):
     frac, round = np.array(scores[2]['sdp']), np.array(scores[2]['round'])
     # Objective across blocks
@@ -151,3 +153,10 @@ def log_cc_objective_values(scores, split_name, log_prefix, verbose, logger, plo
                f'{split_name}_obj_ratio': mean_approx_ratio})
 
     # TODO: Implement plotting the approx. ratio v/s block sizes
+
+
+def save_to_wandb_run(file, fname, fpath, logger):
+    with open(os.path.join(fpath, fname), 'w') as fh:
+        json.dump(file, fh)
+    wandb.save(fname)
+    logger.info(f"Saved {fname} to wandb run.")
