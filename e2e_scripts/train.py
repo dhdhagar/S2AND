@@ -53,7 +53,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         logger.info("Run hyperparameters:")
         logger.info(hyp)
         # Save hyperparameters as a json file and store in wandb run
-        save_to_wandb_run(hyp, 'hyperparameters.json', run.dir, logger)
+        save_to_wandb_run(dict(hyp), 'hyperparameters.json', run.dir, logger)
 
         # Track errors
         _errors = [] if track_errors else None
