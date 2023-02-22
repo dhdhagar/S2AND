@@ -63,7 +63,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_da
                     'model_type': 'e2e',
                     'data_split': tqdm_label,
                     'model_call_args': {
-                        'data': data.detach().cpu(),
+                        'data': data.detach().cpu().numpy(),
                         'block_size': block_size
                     },
                     'cvxpy_layer_args': e.data
@@ -134,7 +134,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                         'model_type': 'pairwise_cc',
                         'data_split': tqdm_label,
                         'model_call_args': {
-                            'data': data.detach().cpu(),
+                            'data': data.detach().cpu().numpy(),
                             'block_size': block_size
                         },
                         'cvxpy_layer_args': e.data

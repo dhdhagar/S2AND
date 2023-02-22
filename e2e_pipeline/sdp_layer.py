@@ -58,7 +58,7 @@ class SDPLayer(torch.nn.Module):
         except:
             logger.error(f'CvxpyException: Error running forward pass on W_val of shape {W_val.shape}')
             raise CvxpyException(data={
-                                     'W_val': W_val.detach().cpu(),
+                                     'W_val': W_val.detach().cpu().numpy(),
                                      'solver_args': {
                                          "solve_method": "SCS",
                                          "verbose": verbose,
