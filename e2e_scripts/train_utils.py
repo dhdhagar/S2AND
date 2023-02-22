@@ -159,4 +159,4 @@ def save_to_wandb_run(file, fname, fpath, logger):
     with open(os.path.join(fpath, fname), 'w') as fh:
         json.dump(file, fh)
     wandb.save(fname)
-    logger.info(f"Saved {fname} to wandb run.")
+    logger.info(f"Saved {fname} to {os.path.join(fpath, fname)}")
