@@ -22,10 +22,12 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, val_dataloader=None,
-             tqdm_label='', device=None, verbose=False, debug=False, _errors=None):
+
+def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
+             val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None):
     """
-    clustering_fn, val_dataloader: unused when pairwise_mode is False (only added to keep fn signature identical)
+    clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
+    (only added to keep fn signature identical)
     """
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
