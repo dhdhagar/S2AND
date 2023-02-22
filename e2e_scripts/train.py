@@ -189,35 +189,49 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 'dev': val_dataloader,
                 'test': test_dataloader
             }
+            start_time = time.time()
             with torch.no_grad():
                 model.eval()
+
+                eval_dataloader = dataloaders[eval_only_split]
+                eval_scores = eval_fn(model, eval_dataloader, tqdm_label=eval_only_split, device=device, verbose=verbose,
+                                      debug=debug, _errors=_errors)
+                if verbose:
+                    logger.info(f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
+                                f"{eval_only_split}_{list(eval_metric_to_idx)[1]}={eval_scores[1]}")
+                # Log eval metrics
+                wandb.log({f'best_{eval_only_split}_{list(eval_metric_to_idx)[0]}': eval_scores[0],
+                           f'best_{eval_only_split}_{list(eval_metric_to_idx)[1]}': eval_scores[1]})
+                if len(eval_scores) == 3:
+                    log_cc_objective_values(scores=eval_scores, split_name=eval_only_split, log_prefix='Eval',
+                                            verbose=verbose, logger=logger)
+
+                # For pairwise-mode:
                 if pairwise_clustering_fns[0] is not None:
-                    assert eval_only_split == 'test'  # Clustering in --eval_only_split implemented only for test set
-                    eval_metric_to_idx = clustering_metrics
-                    eval_dataloader = test_dataloader_e2e
-                else:
-                    eval_dataloader = dataloaders[eval_only_split]
-                    val_dataloader_e2e = None
-                start_time = time.time()
-                clustering_threshold = None
-                for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
-                    eval_scores = eval_fn(model, eval_dataloader, clustering_fn=pairwise_clustering_fn,
-                                          clustering_threshold=clustering_threshold, val_dataloader=val_dataloader_e2e,
-                                          tqdm_label=eval_only_split, device=device, verbose=verbose, debug=debug,
-                                          _errors=_errors)
-                    if pairwise_clustering_fn.__class__ is HACInference:
-                        clustering_threshold = pairwise_clustering_fn.cut_threshold
-                    if verbose:
-                        logger.info(
-                            f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}_{pairwise_clustering_fn_labels[i]}={eval_scores[0]}, " +
-                            f"{eval_only_split}_{list(eval_metric_to_idx)[1]}_{pairwise_clustering_fn_labels[i]}={eval_scores[1]}")
-                    wandb.log({'epoch': 0, f'{eval_only_split}_{list(eval_metric_to_idx)[0]}_{pairwise_clustering_fn_labels[i]}': eval_scores[0],
-                               f'{eval_only_split}_{list(eval_metric_to_idx)[1]}_{pairwise_clustering_fn_labels[i]}': eval_scores[1]})
-                    if len(eval_scores) == 3:
-                        log_cc_objective_values(scores=eval_scores,
-                                                split_name=f'{eval_only_split}_{pairwise_clustering_fn_labels[i]}',
-                                                log_prefix='Eval', verbose=verbose, logger=logger)
-                end_time = time.time()
+                    clustering_threshold = None
+                    for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
+                        clustering_scores = eval_fn(model, test_dataloader_e2e,  # Clustering only implemented for TEST
+                                                    clustering_fn=pairwise_clustering_fn,
+                                                    clustering_threshold=clustering_threshold,
+                                                    val_dataloader=val_dataloader_e2e,
+                                                    tqdm_label='test clustering', device=device, verbose=verbose,
+                                                    debug=debug, _errors=_errors)
+                        if pairwise_clustering_fn.__class__ is HACInference:
+                            clustering_threshold = pairwise_clustering_fn.cut_threshold
+                        if verbose:
+                            logger.info(
+                                f"Eval: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
+                                f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
+                        # Log eval metrics
+                        wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}':
+                                       clustering_scores[0],
+                                   f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}':
+                                       clustering_scores[1]})
+                        if len(clustering_scores) == 3:
+                            log_cc_objective_values(scores=clustering_scores,
+                                                    split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
+                                                    log_prefix='Eval', verbose=verbose, logger=logger)
+            end_time = time.time()
         else:
             # Training
             wandb.watch(model)
