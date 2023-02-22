@@ -197,6 +197,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     eval_dataloader = test_dataloader_e2e
                 else:
                     eval_dataloader = dataloaders[eval_only_split]
+                    val_dataloader_e2e = None
                 start_time = time.time()
                 clustering_threshold = None
                 for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
