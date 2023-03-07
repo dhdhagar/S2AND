@@ -10,5 +10,6 @@
     "lr_scheduler": {"values": ["plateau", "step"]},
     "subsample_sz_train": {"value": 80},
     "subsample_sz_dev": {"value": 100},
-    "activation": {"values": ["leaky_relu", "relu"]}
+    "activation": {"values": ["leaky_relu", "relu"]},
+    "sdp_scale": {"value":  true}
 }
