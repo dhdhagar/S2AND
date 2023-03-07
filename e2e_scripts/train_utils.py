@@ -49,6 +49,7 @@ DEFAULT_HYPERPARAMS = {
     # Solver config
     "sdp_max_iters": 50000,
     "sdp_eps": 1e-1,
+    "sdp_scale": False,
     # Training config
     "batch_size": 10000,  # For pairwise_mode only
     "lr": 1e-4,

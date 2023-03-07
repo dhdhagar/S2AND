@@ -83,6 +83,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         negative_slope = hyp["negative_slope"]
         sdp_max_iters = hyp["sdp_max_iters"]
         sdp_eps = hyp["sdp_eps"]
+        sdp_scale = hyp["sdp_scale"]
         overfit_batch_idx = hyp['overfit_batch_idx']
         clustering_metrics = {'b3_f1': 0, 'vmeasure': 1}
         pairwise_metrics = {'auroc': 0, 'f1': 1}
@@ -102,7 +103,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         if not pairwise_mode:
             model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
-                                negative_slope, hidden_config, sdp_max_iters, sdp_eps,
+                                negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
                                 use_rounded_loss=hyp["use_rounded_loss"])
             # Define loss
             loss_fn_e2e = lambda pred, gold: torch.norm(gold - pred)
@@ -145,14 +146,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             pairwise_clustering_fns = [None]
             if pairwise_eval_clustering is not None:
                 if pairwise_eval_clustering == 'cc':
-                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps)]
+                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps, sdp_scale)]
                     pairwise_clustering_fns[0].eval()
                     pairwise_clustering_fn_labels = ['cc']
                 elif pairwise_eval_clustering == 'hac':
                     pairwise_clustering_fns = [HACInference()]
                     pairwise_clustering_fn_labels = ['hac']
                 elif pairwise_eval_clustering == 'both':
-                    cc_inference = CCInference(sdp_max_iters, sdp_eps)
+                    cc_inference = CCInference(sdp_max_iters, sdp_eps, sdp_scale)
                     pairwise_clustering_fns = [cc_inference, HACInference(), cc_inference]
                     pairwise_clustering_fns[0].eval()
                     pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']

@@ -18,10 +18,11 @@ class CvxpyException(Exception):
 
 
 class SDPLayer(torch.nn.Module):
-    def __init__(self, max_iters: int = 50000, eps: float = 1e-3):
+    def __init__(self, max_iters: int = 50000, eps: float = 1e-3, scale_input=False):
         super().__init__()
         self.max_iters = max_iters
         self.eps = eps
+        self.scale_input = scale_input
         self.objective_value = None  # Stores the last run objective value
 
     def build_and_solve_sdp(self, W_val, N, verbose=False):
@@ -77,6 +78,9 @@ class SDPLayer(torch.nn.Module):
         return objective_value_MA, pw_probs
 
     def forward(self, edge_weights_uncompressed, N, verbose=False):
-        objective_value, pw_probs = self.build_and_solve_sdp(edge_weights_uncompressed, N, verbose)
+        W_val = edge_weights_uncompressed
+        if self.scale_input:
+            W_val /= torch.max(torch.abs(W_val))
+        objective_value, pw_probs = self.build_and_solve_sdp(W_val, N, verbose)
         self.objective_value = objective_value
         return pw_probs
