@@ -56,6 +56,7 @@ DEFAULT_HYPERPARAMS = {
     "n_epochs": 5,
     "n_warmstart_epochs": 0,
     "weighted_loss": True,  # For pairwise_mode only; TODO: Think about implementing for e2e
+    "normalize_loss": True,  # For e2e mode only
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "step"
     "lr_factor": 0.4,

@@ -66,6 +66,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
         pairwise_mode = hyp['pairwise_mode']
         weighted_loss = hyp['weighted_loss']
+        normalize_loss = hyp['normalize_loss']
         batch_size = hyp['batch_size'] if pairwise_mode else 1  # Force clustering runs to operate on 1 block only
         n_epochs = hyp['n_epochs']
         n_warmstart_epochs = hyp['n_warmstart_epochs']
@@ -343,7 +344,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         gold_output = uncompress_target_tensor(target, device=device)
                         if verbose:
                             logger.info(f"Gold:\n{gold_output}")
-                        loss = loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
+                        loss = loss_fn(output.view_as(gold_output), gold_output) / (
+                            (2 * block_size) if normalize_loss else 1)
                     else:
                         if verbose:
                             logger.info(f"Gold:\n{target}")
