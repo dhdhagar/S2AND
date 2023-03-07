@@ -80,7 +80,11 @@ class SDPLayer(torch.nn.Module):
     def forward(self, edge_weights_uncompressed, N, verbose=False):
         W_val = edge_weights_uncompressed
         if self.scale_input:
-            W_val /= torch.max(torch.abs(W_val))
+            scale_factor = torch.max(torch.abs(W_val))
+            if verbose:
+                logger.info(f"Scaling W_val by {scale_factor}")
+            W_val /= scale_factor
         objective_value, pw_probs = self.build_and_solve_sdp(W_val, N, verbose)
         self.objective_value = objective_value
+        embed()
         return pw_probs
