@@ -80,7 +80,8 @@ class SDPLayer(torch.nn.Module):
     def forward(self, edge_weights_uncompressed, N, verbose=False):
         W_val = edge_weights_uncompressed
         if self.scale_input:
-            scale_factor = torch.max(torch.abs(W_val))
+            with torch.no_grad():
+                scale_factor = torch.max(torch.abs(W_val))
             if verbose:
                 logger.info(f"Scaling W_val by {scale_factor}")
             W_val /= scale_factor
