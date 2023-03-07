@@ -87,5 +87,4 @@ class SDPLayer(torch.nn.Module):
             W_val /= scale_factor
         objective_value, pw_probs = self.build_and_solve_sdp(W_val, N, verbose)
         self.objective_value = objective_value
-        embed()
         return pw_probs
