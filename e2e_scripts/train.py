@@ -308,7 +308,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             grad_acc_steps.append(_seen_blk)
                             _seen_pw = 0
                             _seen_blk = 0
-                    grad_acc_steps = reversed(grad_acc_steps)
+                    grad_acc_steps = list(reversed(grad_acc_steps))
 
 
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
