@@ -65,6 +65,7 @@ DEFAULT_HYPERPARAMS = {
     "lr_step_size": 2,
     "lr_gamma": 0.4,
     "weight_decay": 0.01,
+    "gradient_accumulation": 1,  # Set to 1 for no gradient accumulation; takes number of pairwise mentions as value
     "dev_opt_metric": 'b3_f1',  # e2e: {'b3_f1', 'vmeasure'}; pairwise: {'auroc', 'f1'}
     "overfit_batch_idx": -1
 }

@@ -85,6 +85,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         sdp_max_iters = hyp["sdp_max_iters"]
         sdp_eps = hyp["sdp_eps"]
         sdp_scale = hyp["sdp_scale"]
+        grad_acc = hyp["gradient_accumulation"]
         overfit_batch_idx = hyp['overfit_batch_idx']
         clustering_metrics = {'b3_f1': 0, 'vmeasure': 1}
         pairwise_metrics = {'auroc': 0, 'f1': 1}
@@ -292,6 +293,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 wandb.log({'epoch': i + 1})
                 running_loss = []
                 n_exceptions = 0
+
+                grad_acc_count = 0
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
                                                    desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
                                                    disable=(not verbose))):
@@ -351,9 +354,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             logger.info(f"Gold:\n{target}")
                         loss = loss_fn(output.view_as(target), target)
 
-                    optimizer.zero_grad()
                     try:
                         loss.backward()
+                        grad_acc_count += len(data)
                     except:
                         _error_obj = {
                             'method': 'train_backward',
@@ -369,7 +372,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         n_exceptions += 1
                         logger.info(f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
                         continue
-                    optimizer.step()
+                    if grad_acc_count >= grad_acc:
+                        optimizer.step()
 
                     if verbose:
                         logger.info(f"Loss = {loss.item()}")
@@ -392,10 +396,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         wandb.log({f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                         if use_lr_scheduler:
-                            if hyp['lr_scheduler'] == 'plateau':
-                                scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
-                            elif hyp['lr_scheduler'] == 'step':
-                                scheduler.step()
+                            if grad_acc_count >= grad_acc:
+                                if hyp['lr_scheduler'] == 'plateau':
+                                    scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
+                                elif hyp['lr_scheduler'] == 'step':
+                                    scheduler.step()
                     else:
                         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
                                              debug=debug, _errors=_errors)
@@ -414,11 +419,17 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             best_dev_scores = dev_scores
                             best_dev_state_dict = copy.deepcopy(model.state_dict())
                         if use_lr_scheduler:
-                            if hyp['lr_scheduler'] == 'plateau':
-                                scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
-                            elif hyp['lr_scheduler'] == 'step':
-                                scheduler.step()
+                            if grad_acc_count >= grad_acc:
+                                if hyp['lr_scheduler'] == 'plateau':
+                                    scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
+                                elif hyp['lr_scheduler'] == 'step':
+                                    scheduler.step()
                 model.train()
+
+                if grad_acc_count >= grad_acc:
+                    grad_acc_count = 0
+                    optimizer.zero_grad()
+
 
             end_time = time.time()
 
