@@ -349,7 +349,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if verbose:
                             logger.info(f"Gold:\n{gold_output}")
                         loss = loss_fn(output.view_as(gold_output), gold_output) / (
-                            (2 * block_size) if normalize_loss else 1)
+                            (2 * block_size) if normalize_loss else 1) / (grad_acc / (16.897689768976896*(16.897689768976896-1)/2))  # hardcoding the mean block size for qian
                     else:
                         if verbose:
                             logger.info(f"Gold:\n{target}")
