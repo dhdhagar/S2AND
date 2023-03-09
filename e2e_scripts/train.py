@@ -296,6 +296,21 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                 grad_acc_count = 0
                 optimizer.zero_grad()
+                if grad_acc > 1:
+                    grad_acc_steps = []
+                    _seen_pw = 0
+                    _seen_blk = 0
+                    for d in _train_dataloader.dataset:
+                        _blk_sz = len(d[1])
+                        _seen_pw += _blk_sz
+                        _seen_blk += 1
+                        if _seen_pw >= grad_acc:
+                            grad_acc_steps.append(_seen_blk)
+                            _seen_pw = 0
+                            _seen_blk = 0
+                    grad_acc_steps = reversed(grad_acc_steps)
+
+
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
                                                    desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
                                                    disable=(not verbose))):
@@ -349,7 +364,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if verbose:
                             logger.info(f"Gold:\n{gold_output}")
                         loss = loss_fn(output.view_as(gold_output), gold_output) / (
-                            (2 * block_size) if normalize_loss else 1) / (grad_acc / (16.897689768976896*(16.897689768976896-1)/2))  # hardcoding the mean block size for qian
+                            (2 * block_size) if normalize_loss else 1) / (1 if grad_acc == 1 else grad_acc_steps.pop())
                     else:
                         if verbose:
                             logger.info(f"Gold:\n{target}")
@@ -373,7 +388,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         n_exceptions += 1
                         logger.info(f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
                         continue
-                    if grad_acc_count >= grad_acc:
+                    if pairwise_mode or grad_acc_count >= grad_acc:
                         optimizer.step()
                         optimizer.zero_grad()
                         grad_acc_count = 0
