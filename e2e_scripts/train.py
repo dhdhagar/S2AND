@@ -295,6 +295,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 n_exceptions = 0
 
                 grad_acc_count = 0
+                optimizer.zero_grad()
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
                                                    desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
                                                    disable=(not verbose))):
