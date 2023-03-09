@@ -345,7 +345,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if verbose:
                             logger.info(f"Gold:\n{gold_output}")
                         loss = loss_fn(output.view_as(gold_output), gold_output) / (
-                            (2 * block_size) if normalize_loss else 1)
+                            (block_size * (block_size - 1)) if normalize_loss else 1)  # (2 * block_size)
                     else:
                         if verbose:
                             logger.info(f"Gold:\n{target}")
