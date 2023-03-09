@@ -364,7 +364,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if verbose:
                             logger.info(f"Gold:\n{gold_output}")
                         loss = loss_fn(output.view_as(gold_output), gold_output) / (
-                            (2 * block_size) if normalize_loss else 1) / (1 if grad_acc == 1 else grad_acc_steps.pop())
+                            (2 * block_size) if normalize_loss else 1) / (1 if grad_acc == 1 else grad_acc_steps[-1])
                     else:
                         if verbose:
                             logger.info(f"Gold:\n{target}")
@@ -392,6 +392,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         optimizer.step()
                         optimizer.zero_grad()
                         grad_acc_count = 0
+                        grad_acc_steps.pop()
 
                     if verbose:
                         logger.info(f"Loss = {loss.item()}")
