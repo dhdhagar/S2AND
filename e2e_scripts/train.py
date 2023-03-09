@@ -374,6 +374,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         continue
                     if grad_acc_count >= grad_acc:
                         optimizer.step()
+                        optimizer.zero_grad()
+                        grad_acc_count = 0
 
                     if verbose:
                         logger.info(f"Loss = {loss.item()}")
@@ -396,11 +398,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         wandb.log({f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                         if use_lr_scheduler:
-                            if grad_acc_count >= grad_acc:
-                                if hyp['lr_scheduler'] == 'plateau':
-                                    scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
-                                elif hyp['lr_scheduler'] == 'step':
-                                    scheduler.step()
+                            if hyp['lr_scheduler'] == 'plateau':
+                                scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
+                            elif hyp['lr_scheduler'] == 'step':
+                                scheduler.step()
                     else:
                         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
                                              debug=debug, _errors=_errors)
@@ -419,18 +420,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             best_dev_scores = dev_scores
                             best_dev_state_dict = copy.deepcopy(model.state_dict())
                         if use_lr_scheduler:
-                            if grad_acc_count >= grad_acc:
-                                if hyp['lr_scheduler'] == 'plateau':
-                                    scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
-                                elif hyp['lr_scheduler'] == 'step':
-                                    scheduler.step()
+                            if hyp['lr_scheduler'] == 'plateau':
+                                scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
+                            elif hyp['lr_scheduler'] == 'step':
+                                scheduler.step()
                 model.train()
-
-                if grad_acc_count >= grad_acc:
-                    grad_acc_count = 0
-                    optimizer.zero_grad()
-
-
             end_time = time.time()
 
             if overfit_batch_idx == -1:
