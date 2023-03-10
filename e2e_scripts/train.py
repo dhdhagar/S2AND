@@ -308,6 +308,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             grad_acc_steps.append(_seen_blk)
                             _seen_pw = 0
                             _seen_blk = 0
+                    if _seen_blk > 0:
+                        grad_acc_steps.append(_seen_blk)
                     grad_acc_steps = list(reversed(grad_acc_steps))
 
 
@@ -388,7 +390,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         n_exceptions += 1
                         logger.info(f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
                         continue
-                    if pairwise_mode or grad_acc_count >= grad_acc:
+                    if pairwise_mode or (idx == len(_train_dataloader.dataset) - 1) or grad_acc_count >= grad_acc:
                         optimizer.step()
                         optimizer.zero_grad()
                         grad_acc_count = 0
