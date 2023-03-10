@@ -85,7 +85,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         sdp_max_iters = hyp["sdp_max_iters"]
         sdp_eps = hyp["sdp_eps"]
         sdp_scale = hyp["sdp_scale"]
-        grad_acc = hyp["gradient_accumulation"]
+        grad_acc = hyp['batch_size'] if hyp["gradient_accumulation"] else 1
         overfit_batch_idx = hyp['overfit_batch_idx']
         clustering_metrics = {'b3_f1': 0, 'vmeasure': 1}
         pairwise_metrics = {'auroc': 0, 'f1': 1}

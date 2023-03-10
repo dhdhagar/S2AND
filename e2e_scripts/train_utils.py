@@ -48,8 +48,8 @@ DEFAULT_HYPERPARAMS = {
     "use_rounded_loss": True,
     # Solver config
     "sdp_max_iters": 50000,
-    "sdp_eps": 1e-1,
-    "sdp_scale": False,
+    "sdp_eps": 1e-6,
+    "sdp_scale": True,
     # Training config
     "batch_size": 10000,  # For pairwise_mode only
     "lr": 1e-4,
@@ -65,7 +65,7 @@ DEFAULT_HYPERPARAMS = {
     "lr_step_size": 2,
     "lr_gamma": 0.4,
     "weight_decay": 0.01,
-    "gradient_accumulation": 1,  # Set to 1 for no gradient accumulation; takes number of pairwise mentions as value
+    "gradient_accumulation": True,  # if True, accumulate gradient from batch_size number of pairwise examples
     "dev_opt_metric": 'b3_f1',  # e2e: {'b3_f1', 'vmeasure'}; pairwise: {'auroc', 'f1'}
     "overfit_batch_idx": -1
 }

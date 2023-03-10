@@ -12,6 +12,5 @@
     "subsample_sz_dev": {"value": 100},
     "activation": {"values": ["leaky_relu", "relu"]},
     "use_rounded_loss": {"value": false},
-    "n_warmstart_epochs": {"value":  2},
-    "sdp_scale": {"value":  true}
+    "n_warmstart_epochs": {"value":  2}
 }

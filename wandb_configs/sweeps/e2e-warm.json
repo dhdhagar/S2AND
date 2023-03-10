@@ -11,6 +11,5 @@
     "subsample_sz_train": {"value": 80},
     "subsample_sz_dev": {"value": 100},
     "activation": {"values": ["leaky_relu", "relu"]},
-    "n_warmstart_epochs": {"value":  2},
-    "sdp_scale": {"value":  true}
+    "n_warmstart_epochs": {"value":  2}
 }
