@@ -296,7 +296,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                 grad_acc_count = 0
                 optimizer.zero_grad()
-                if grad_acc > 1:
+                if not pairwise_mode and grad_acc > 1:
                     grad_acc_steps = []
                     _seen_pw = 0
                     _seen_blk = 0
@@ -374,7 +374,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                     try:
                         loss.backward()
-                        grad_acc_count += len(data)
+                        if not pairwise_mode and grad_acc > 1:
+                            grad_acc_count += len(data)
                     except:
                         _error_obj = {
                             'method': 'train_backward',
@@ -390,11 +391,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         n_exceptions += 1
                         logger.info(f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
                         continue
-                    if pairwise_mode or (idx == len(_train_dataloader.dataset) - 1) or grad_acc_count >= grad_acc:
+                    if pairwise_mode or (
+                            idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
                         optimizer.step()
                         optimizer.zero_grad()
-                        grad_acc_count = 0
-                        grad_acc_steps.pop()
+                        if grad_acc > 1:
+                            grad_acc_count = 0
+                            grad_acc_steps.pop()
 
                     if verbose:
                         logger.info(f"Loss = {loss.item()}")
