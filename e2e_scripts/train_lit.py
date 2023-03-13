@@ -12,6 +12,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.plugins import DDPPlugin
 
 from tqdm import tqdm
 
@@ -59,7 +60,7 @@ class LitE2EModel(pl.LightningModule):
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("train_loss", loss, batch_size=1, sync_dist=True)
-        self.logger_fn({'train_loss': loss.item()})
+        self.logger_fn({'train_loss': loss.detach().item()})
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -76,7 +77,7 @@ class LitE2EModel(pl.LightningModule):
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("val_loss", loss, batch_size=1, sync_dist=True)
-        self.logger_fn({'val_loss': loss.item()})
+        self.logger_fn({'val_loss': loss.detach().item()})
 
     def test_step(self, batch, batch_idx):
         # this is the test loop
@@ -92,7 +93,7 @@ class LitE2EModel(pl.LightningModule):
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("test_loss", loss, batch_size=1, sync_dist=True)
-        self.logger_fn({'test_loss': loss.item()})
+        self.logger_fn({'test_loss': loss.detach().item()})
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
@@ -357,7 +358,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor="val_loss", mode="min")
             trainer = pl.Trainer(max_epochs=10, callbacks=[EarlyStopping(monitor="val_loss", mode="min"),
                                                            checkpoint_callback], accelerator="gpu",
-                                 devices=torch.cuda.device_count(), accumulate_grad_batches=5)
+                                 devices=torch.cuda.device_count(), accumulate_grad_batches=5,
+                                 strategy="ddp_find_unused_parameters_false", val_check_interval=0.5, precision=16,
+                                 log_every_n_steps=5)
             trainer.fit(model=lit_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
             # for i in range(n_epochs):

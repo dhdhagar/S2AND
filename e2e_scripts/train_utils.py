@@ -86,16 +86,16 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
 
     train_dataset = S2BlocksDataset(read_blockwise_features(train_pkl), convert_nan=convert_nan, nan_value=nan_value,
                                     scale=normalize, subsample_sz=subsample_sz_train, pairwise_mode=pairwise_mode)
-    train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=batch_size)
+    train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=batch_size, num_workers=8, pin_memory=True)
 
     val_dataset = S2BlocksDataset(read_blockwise_features(val_pkl), convert_nan=convert_nan, nan_value=nan_value,
                                   scale=normalize, scaler=train_dataset.scaler, subsample_sz=subsample_sz_dev,
                                   pairwise_mode=pairwise_mode)
-    val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size)
+    val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size, num_workers=8, pin_memory=True)
 
     test_dataset = S2BlocksDataset(read_blockwise_features(test_pkl), convert_nan=convert_nan, nan_value=nan_value,
                                    scale=normalize, scaler=train_dataset.scaler, pairwise_mode=pairwise_mode)
-    test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
+    test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=batch_size, num_workers=8, pin_memory=True)
 
     return train_dataloader, val_dataloader, test_dataloader
 
