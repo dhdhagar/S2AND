@@ -54,7 +54,7 @@ class LitE2EModel(pl.LightningModule):
         target = target.flatten().float()
 
         output = self.model(data, N=block_size, warmstart=False, verbose=True)
-        gold_output = uncompress_target_tensor(target, device='cpu')
+        gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         return loss
 
@@ -69,7 +69,7 @@ class LitE2EModel(pl.LightningModule):
         target = target.flatten().float()
 
         output = self.model(data, N=block_size, warmstart=False, verbose=True)
-        gold_output = uncompress_target_tensor(target, device='cpu')
+        gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("val_loss", loss)
 
@@ -84,7 +84,7 @@ class LitE2EModel(pl.LightningModule):
         target = target.flatten().float()
 
         output = self.model(data, N=block_size, warmstart=False, verbose=True)
-        gold_output = uncompress_target_tensor(target, device='cpu')
+        gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("test_loss", loss)
 
