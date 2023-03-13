@@ -47,7 +47,7 @@ class LitE2EModel(pl.LightningModule):
         if data.shape[0] == 0:
             # Block contains only one signature
             return None  # Skips the training step
-        if self.hyp['add_batchnorm'] and data.shape[0] == 1:
+        if self.hyp['batchnorm'] and data.shape[0] == 1:
             # Block contains only one signature pair; batchnorm throws error
             return None
         block_size = get_matrix_size_from_triu(data)
