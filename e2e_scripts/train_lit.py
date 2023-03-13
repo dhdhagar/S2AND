@@ -174,7 +174,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             # Define loss
             loss_fn_e2e = lambda pred, gold: torch.norm(gold - pred)
 
-            lit_model = LitE2EModel(model, loss_fn_e2e, n_features=n_features)
+            lit_model = LitE2EModel(model, loss_fn_e2e, n_features, hyp)
 
             # Define eval
             eval_fn = evaluate
