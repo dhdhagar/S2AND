@@ -11,6 +11,7 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.loggers import WandbLogger
 
 from tqdm import tqdm
 
@@ -33,12 +34,13 @@ logger = logging.getLogger(__name__)
 
 
 class LitE2EModel(pl.LightningModule):
-    def __init__(self, model, loss_fn, n_features, hyp):
+    def __init__(self, model, loss_fn, n_features, hyp, logger_fn):
         super().__init__()
         self.model = model
         self.n_features = n_features
         self.loss_fn = loss_fn
         self.hyp = hyp
+        self.logger_fn = logger_fn
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
@@ -57,6 +59,7 @@ class LitE2EModel(pl.LightningModule):
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("train_loss", loss, batch_size=1, sync_dist=True)
+        self.logger_fn({'train_loss': loss.item()})
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -73,6 +76,7 @@ class LitE2EModel(pl.LightningModule):
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("val_loss", loss, batch_size=1, sync_dist=True)
+        self.logger_fn({'val_loss': loss.item()})
 
     def test_step(self, batch, batch_idx):
         # this is the test loop
@@ -88,6 +92,7 @@ class LitE2EModel(pl.LightningModule):
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("test_loss", loss, batch_size=1, sync_dist=True)
+        self.logger_fn({'test_loss': loss.item()})
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
@@ -175,7 +180,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             # Define loss
             loss_fn_e2e = lambda pred, gold: torch.norm(gold - pred)
 
-            lit_model = LitE2EModel(model, loss_fn_e2e, n_features, hyp)
+            lit_model = LitE2EModel(model, loss_fn_e2e, n_features, hyp, wandb.log)
 
             # Define eval
             eval_fn = evaluate
@@ -527,7 +532,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             if overfit_batch_idx == -1:
                 # Evaluate the best dev model on test
                 # model.load_state_dict(best_dev_state_dict)
-                best_model = LitE2EModel.load_from_checkpoint(checkpoint_callback.best_model_path)
+                best_model = LitE2EModel.load_from_checkpoint(checkpoint_callback.best_model_path, model=model,
+                                                              loss_fn=loss_fn_e2e, n_features=n_features, hyp=hyp,
+                                                              logger_fn=wandb.log)
                 model = best_model.model
                 with torch.no_grad():
                     model.eval()
