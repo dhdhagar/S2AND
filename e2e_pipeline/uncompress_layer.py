@@ -6,8 +6,8 @@ class UncompressTransformLayer(torch.nn.Module):
         super().__init__()
 
     def forward(self, compressed_matrix, N, make_symmetric=False, ones_diagonal=False):
-        # device = compressed_matrix.get_device()
-        triu_indices = torch.triu_indices(N, N, offset=1)  # , device=device)
+        device = compressed_matrix.get_device()
+        triu_indices = torch.triu_indices(N, N, offset=1).to(device)
         if make_symmetric:
             sym_indices = torch.stack((torch.cat((triu_indices[0], triu_indices[1])),
                                        torch.cat((triu_indices[1], triu_indices[0]))))
@@ -18,6 +18,6 @@ class UncompressTransformLayer(torch.nn.Module):
             uncompressed_matrix = (torch.sparse_coo_tensor(triu_indices, compressed_matrix, [N, N])).to_dense()
 
         if ones_diagonal:
-            uncompressed_matrix += torch.eye(N)  # , device=device)
+            uncompressed_matrix += torch.eye(N).to(device)
 
         return uncompressed_matrix
