@@ -359,8 +359,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             trainer = pl.Trainer(max_epochs=10, callbacks=[EarlyStopping(monitor="val_loss", mode="min"),
                                                            checkpoint_callback], accelerator="gpu",
                                  devices=torch.cuda.device_count(), accumulate_grad_batches=5,
-                                 strategy="ddp_find_unused_parameters_false", val_check_interval=0.5, precision=16,
-                                 log_every_n_steps=5)
+                                 val_check_interval=0.5, precision=16, log_every_n_steps=5)
             trainer.fit(model=lit_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
             # for i in range(n_epochs):
