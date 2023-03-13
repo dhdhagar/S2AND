@@ -55,7 +55,7 @@ class LitE2EModel(pl.LightningModule):
         block_size = get_matrix_size_from_triu(data)
         target = target.flatten().float()
 
-        output = self.model(data, N=block_size, warmstart=False, verbose=True)
+        output = self.model(data, N=block_size, warmstart=False, verbose=False)
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("train_loss", loss, batch_size=1, sync_dist=True)
@@ -72,7 +72,7 @@ class LitE2EModel(pl.LightningModule):
         block_size = get_matrix_size_from_triu(data)
         target = target.flatten().float()
 
-        output = self.model(data, N=block_size, warmstart=False, verbose=True)
+        output = self.model(data, N=block_size, warmstart=False, verbose=False)
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("val_loss", loss, batch_size=1, sync_dist=True)
@@ -88,7 +88,7 @@ class LitE2EModel(pl.LightningModule):
         block_size = get_matrix_size_from_triu(data)
         target = target.flatten().float()
 
-        output = self.model(data, N=block_size, warmstart=False, verbose=True)
+        output = self.model(data, N=block_size, warmstart=False, verbose=False)
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
         self.log("test_loss", loss, batch_size=1, sync_dist=True)
@@ -256,7 +256,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         if state_dict is not None:
             model.load_state_dict(state_dict)
             logger.info(f'Loaded stored model.')
-        model.to(device)
+        # model.to(device)
 
         if eval_only_split is not None:
             # Run inference and exit
@@ -357,7 +357,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor="val_loss", mode="min")
             trainer = pl.Trainer(max_epochs=10, callbacks=[EarlyStopping(monitor="val_loss", mode="min"),
                                                            checkpoint_callback], accelerator="gpu",
-                                 devices=torch.cuda.device_count())
+                                 devices=torch.cuda.device_count(), accumulate_grad_batches=5)
             trainer.fit(model=lit_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
             # for i in range(n_epochs):
@@ -536,6 +536,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                               loss_fn=loss_fn_e2e, n_features=n_features, hyp=hyp,
                                                               logger_fn=wandb.log)
                 model = best_model.model
+                model.to(device)
                 with torch.no_grad():
                     model.eval()
                     test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
