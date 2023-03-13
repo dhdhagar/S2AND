@@ -56,7 +56,7 @@ class LitE2EModel(pl.LightningModule):
         output = self.model(data, N=block_size, warmstart=False, verbose=True)
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
-        self.log("train_loss", loss, batch_size=1)
+        self.log("train_loss", loss, batch_size=1, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -72,7 +72,7 @@ class LitE2EModel(pl.LightningModule):
         output = self.model(data, N=block_size, warmstart=False, verbose=True)
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
-        self.log("val_loss", loss, batch_size=1)
+        self.log("val_loss", loss, batch_size=1, sync_dist=True)
 
     def test_step(self, batch, batch_idx):
         # this is the test loop
@@ -87,7 +87,7 @@ class LitE2EModel(pl.LightningModule):
         output = self.model(data, N=block_size, warmstart=False, verbose=True)
         gold_output = uncompress_target_tensor(target, device=self.device)
         loss = self.loss_fn(output.view_as(gold_output), gold_output) / (2 * block_size)
-        self.log("test_loss", loss, batch_size=1)
+        self.log("test_loss", loss, batch_size=1, sync_dist=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
@@ -351,7 +351,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             # start_time = time.time()  # Tracks full training runtime
             checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor="val_loss", mode="min")
             trainer = pl.Trainer(max_epochs=10, callbacks=[EarlyStopping(monitor="val_loss", mode="min"),
-                                                           checkpoint_callback])
+                                                           checkpoint_callback], accelerator="gpu",
+                                 devices=torch.cuda.device_count())
             trainer.fit(model=lit_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
             # for i in range(n_epochs):
