@@ -79,12 +79,12 @@ class SDPLayer(torch.nn.Module):
                                          "eps": self.eps
                                      }
                                  })
-        objective_value_MA = get_max_agree_objective(self, W_val, pw_prob_matrix, verbose=verbose)
+        objective_value_MA = get_max_agree_objective(W_val, pw_prob_matrix, verbose=verbose)
         return objective_value_MA, pw_prob_matrix
 
     def get_sigmoid_matrix(self, W_val, N, verbose=False):
         pw_prob_matrix = torch.sigmoid(W_val)
-        objective_value_MA = get_max_agree_objective(self, W_val, pw_prob_matrix, verbose=verbose)
+        objective_value_MA = get_max_agree_objective(W_val, pw_prob_matrix, verbose=verbose)
         return objective_value_MA, pw_prob_matrix
 
     def forward(self, edge_weights_uncompressed, N, use_sdp=True, return_triu=False, verbose=False):
