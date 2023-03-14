@@ -134,11 +134,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                   hyp["subsample_sz_dev"],
                                                                   True, hyp['batch_size'])
                 # Define loss
-                pos_weight = None
-                if weighted_loss and overfit_batch_idx == -1:
-                    n_pos = train_dataloader_pairwise.dataset[:][1].sum()
-                    pos_weight = torch.tensor((len(train_dataloader_pairwise.dataset) - n_pos) / n_pos)
-                loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+                loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
         else:
             model = PairwiseModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                   neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,

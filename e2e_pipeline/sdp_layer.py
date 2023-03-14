@@ -56,6 +56,7 @@ class SDPLayer(torch.nn.Module):
                 "max_iters": self.max_iters,
                 "eps": self.eps
             })[0]
+            pw_prob_matrix = torch.clamp(pw_prob_matrix, min=0, max=1)  # Fix to prevent invalid solution values
         except:
             logger.error(f'CvxpyException: Error running forward pass on W_val of shape {W_val.shape}')
             raise CvxpyException(data={
