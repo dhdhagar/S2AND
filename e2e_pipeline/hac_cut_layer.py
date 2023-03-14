@@ -34,7 +34,7 @@ class HACCutLayer(torch.nn.Module):
         round_matrix = torch.eye(D, device=device)
 
         # Take the upper triangular and mask the other values with a large number
-        _MAX_DIST = max(torch.abs(X)) * _MAX_DIST
+        _MAX_DIST = torch.max(torch.abs(X)) * _MAX_DIST
         Y = _MAX_DIST * torch.ones(D, D, device=device).tril() + (max_similarity - X if use_similarities else X).triu(1)
         # Compute the dissimilarity minima per row
         values, indices = torch.min(Y, dim=1)
@@ -132,7 +132,7 @@ class HACCutLayer(torch.nn.Module):
     def forward(self, X, W, use_similarities=True, return_triu=False):
         solution = X + (self.get_rounded_solution(X, W,
                                                   use_similarities=use_similarities,
-                                                  max_similarity=max(X)) - X).detach()
+                                                  max_similarity=torch.max(X)) - X).detach()
         if return_triu:
             triu_indices = torch.triu_indices(len(solution), len(solution), offset=1)
             return solution[triu_indices[0], triu_indices[1]]
