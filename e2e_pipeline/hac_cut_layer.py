@@ -100,7 +100,7 @@ class HACCutLayer(torch.nn.Module):
             # Energy calculations
             clustering[max_node] = clustering[parent_1] + clustering[parent_2]
             leaf_indices = torch.where(clustering[max_node])[0]
-            leaf_edges = torch.meshgrid(leaf_indices, leaf_indices)
+            leaf_edges = torch.meshgrid(leaf_indices, leaf_indices, indexing='ij')
             energy[max_node] = energy[parent_1] + energy[parent_2]
             merge_energy = torch.sum(weights[leaf_edges])
             if merge_energy >= energy[max_node]:
