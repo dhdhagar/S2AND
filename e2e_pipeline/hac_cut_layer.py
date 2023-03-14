@@ -123,9 +123,14 @@ class HACCutLayer(torch.nn.Module):
         self.round_matrix = round_matrix
         self.cluster_labels = clustering[-1]
         self.parents = parents
-        objective_matrix = weights * torch.triu(round_matrix, diagonal=1)
-        self.objective_value = (energy[max_node] - torch.sum(objective_matrix[objective_matrix < 0])).item()  # MA
+        with torch.no_grad():
+            objective_matrix = weights * torch.triu(round_matrix, diagonal=1)
+            self.objective_value = (energy[max_node] - torch.sum(objective_matrix[objective_matrix < 0])).item()  # MA
         return self.round_matrix
 
-    def forward(self, X, W, use_similarities=True):
-        return X + (self.get_rounded_solution(X, W, use_similarities=use_similarities) - X).detach()
+    def forward(self, X, W, use_similarities=True, return_triu=False):
+        solution = X + (self.get_rounded_solution(X, W, use_similarities=use_similarities) - X).detach()
+        if return_triu:
+            triu_indices = torch.triu_indices(len(solution), len(solution), offset=1)
+            return solution[triu_indices[0], triu_indices[1]]
+        return solution

@@ -50,7 +50,7 @@ class SDPLayer(torch.nn.Module):
 
         # Forward pass through the SDP cvxpylayer
         try:
-            pw_probs = self.cvxpy_layer(W_val, solver_args={
+            pw_prob_matrix = self.cvxpy_layer(W_val, solver_args={
                 "solve_method": "SCS",
                 "verbose": verbose,
                 "max_iters": self.max_iters,
@@ -69,15 +69,15 @@ class SDPLayer(torch.nn.Module):
                                  })
 
         with torch.no_grad():
-            objective_matrix = W_val * torch.triu(pw_probs, diagonal=1)
+            objective_matrix = W_val * torch.triu(pw_prob_matrix, diagonal=1)
             objective_value_IC = torch.sum(objective_matrix).item()
             objective_value_MA = objective_value_IC - torch.sum(objective_matrix[objective_matrix < 0]).item()
             if verbose:
                 logger.info(f'SDP objective: intra-cluster={objective_value_IC}, max-agree={objective_value_MA}')
 
-        return objective_value_MA, pw_probs
+        return objective_value_MA, pw_prob_matrix
 
-    def forward(self, edge_weights_uncompressed, N, verbose=False):
+    def forward(self, edge_weights_uncompressed, N, return_triu=False, verbose=False):
         W_val = edge_weights_uncompressed
         if self.scale_input:
             with torch.no_grad():
@@ -85,6 +85,9 @@ class SDPLayer(torch.nn.Module):
             if verbose:
                 logger.info(f"Scaling W_val by {scale_factor}")
             W_val /= scale_factor
-        objective_value, pw_probs = self.build_and_solve_sdp(W_val, N, verbose)
+        objective_value, pw_prob_matrix = self.build_and_solve_sdp(W_val, N, verbose)
         self.objective_value = objective_value
-        return pw_probs
+        if return_triu:
+            triu_indices = torch.triu_indices(len(pw_prob_matrix), len(pw_prob_matrix), offset=1)
+            return pw_prob_matrix[triu_indices[0], triu_indices[1]]
+        return pw_prob_matrix
