@@ -46,6 +46,7 @@ DEFAULT_HYPERPARAMS = {
     "activation": "leaky_relu",
     "negative_slope": 0.01,
     "use_rounded_loss": True,
+    "use_sdp": True,
     # Solver config
     "sdp_max_iters": 50000,
     "sdp_eps": 1e-3,

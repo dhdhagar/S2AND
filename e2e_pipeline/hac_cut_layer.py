@@ -13,7 +13,7 @@ class HACCutLayer(torch.nn.Module):
     Takes fractional SDP output as input, and simultaneously builds & cuts avg. HAC tree to get rounded solution.
     Executes straight-through estimator as the backward pass.
     """
-    def get_rounded_solution(self, X, weights, _MAX_DIST=10, use_similarities=True, max_similarity=1, verbose=False):
+    def get_rounded_solution(self, X, weights, _MAX_DIST=1000, use_similarities=True, max_similarity=1, verbose=False):
         """
         X is a symmetric NxN matrix of fractional, decision values with a 1-diagonal (output from the SDP layer)
         weights is an NxN upper-triangular (shift 1) matrix of edge weights
@@ -34,7 +34,8 @@ class HACCutLayer(torch.nn.Module):
         round_matrix = torch.eye(D, device=device)
 
         # Take the upper triangular and mask the other values with a large number
-        Y = _MAX_DIST * torch.ones(D, D, device=device).tril() + (max_similarity-X if use_similarities else X).triu(1)
+        _MAX_DIST = max(torch.abs(X)) * _MAX_DIST
+        Y = _MAX_DIST * torch.ones(D, D, device=device).tril() + (max_similarity - X if use_similarities else X).triu(1)
         # Compute the dissimilarity minima per row
         values, indices = torch.min(Y, dim=1)
 
@@ -129,7 +130,9 @@ class HACCutLayer(torch.nn.Module):
         return self.round_matrix
 
     def forward(self, X, W, use_similarities=True, return_triu=False):
-        solution = X + (self.get_rounded_solution(X, W, use_similarities=use_similarities) - X).detach()
+        solution = X + (self.get_rounded_solution(X, W,
+                                                  use_similarities=use_similarities,
+                                                  max_similarity=max(X)) - X).detach()
         if return_triu:
             triu_indices = torch.triu_indices(len(solution), len(solution), offset=1)
             return solution[triu_indices[0], triu_indices[1]]

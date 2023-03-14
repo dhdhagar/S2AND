@@ -106,7 +106,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                                 negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
-                                use_rounded_loss=hyp["use_rounded_loss"], return_triu_on_train=True)  # TODO: Control with flag
+                                use_rounded_loss=hyp["use_rounded_loss"], return_triu_on_train=True,  # TODO: Control with flag
+                                use_sdp=hyp["use_sdp"])
             # Define loss
             # loss_fn_e2e = lambda pred, gold: torch.norm(gold - pred)
             pos_weight = None

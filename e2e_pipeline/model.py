@@ -16,7 +16,7 @@ class EntResModel(torch.nn.Module):
     def __init__(self, n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                  neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                  negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale=False, use_rounded_loss=True,
-                 return_triu_on_train=False):
+                 return_triu_on_train=False, use_sdp=True):
         super().__init__()
         # Layers
         self.mlp_layer = MLPLayer(n_features=n_features, neumiss_depth=neumiss_depth, dropout_p=dropout_p,
@@ -29,6 +29,7 @@ class EntResModel(torch.nn.Module):
         # Configs
         self.use_rounded_loss = use_rounded_loss
         self.return_triu_on_train = return_triu_on_train
+        self.use_sdp = use_sdp
 
     def forward(self, x, N, warmstart=False, verbose=False):
         edge_weights = torch.squeeze(self.mlp_layer(x))
@@ -43,13 +44,17 @@ class EntResModel(torch.nn.Module):
             logger.info(f"Size of W_matrix = {edge_weights_uncompressed.size()}")
             logger.info(f"\n{edge_weights_uncompressed}")
 
-        output_probs = self.sdp_layer(edge_weights_uncompressed, N, return_triu=(
-                    self.training and not self.use_rounded_loss and self.return_triu_on_train))
-        if verbose:
-            logger.info(f"Size of X = {output_probs.size()}")
-            logger.info(f"\n{output_probs}")
-        if self.training and not self.use_rounded_loss:
-            return output_probs
+        if self.use_sdp:
+            output_probs = self.sdp_layer(edge_weights_uncompressed, N, return_triu=(
+                        self.training and not self.use_rounded_loss and self.return_triu_on_train))
+            if verbose:
+                logger.info(f"Size of X = {output_probs.size()}")
+                logger.info(f"\n{output_probs}")
+            if self.training and not self.use_rounded_loss:
+                return output_probs
+        else:
+            output_probs = edge_weights_uncompressed  # TODO: torch.sigmoid(edge_weights_uncompressed) instead?
+
         pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed,
                                              return_triu=(self.training and self.return_triu_on_train))
         if verbose:
