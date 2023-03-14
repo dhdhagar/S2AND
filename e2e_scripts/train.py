@@ -353,6 +353,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     try:
                         output = model(data, N=block_size, warmstart=warmstart_mode, verbose=verbose)
                     except CvxpyException as e:
+                        logger.info(e)
                         _error_obj = {
                             'method': 'train_forward',
                             'model_type': 'e2e' if not pairwise_mode else 'pairwise',
@@ -366,9 +367,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if _errors is not None:
                             _errors.append(_error_obj)
                             save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
-                        n_exceptions += 1
-                        logger.info(f'Caught CvxpyException in forward call (count -> {n_exceptions}): skipping batch')
-                        continue
+                        if debug:
+                            n_exceptions += 1
+                            logger.info(
+                                f'Caught CvxpyException in forward call (count -> {n_exceptions}): skipping batch')
+                            continue
 
                     # Calculate the loss
                     if not pairwise_mode and not warmstart_mode:
@@ -393,22 +396,26 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         loss.backward()
                         if not pairwise_mode and grad_acc > 1:
                             grad_acc_count += len(data)
-                    except:
-                        _error_obj = {
-                            'method': 'train_backward',
-                            'model_type': 'e2e' if not pairwise_mode else 'pairwise',
-                            'data_split': 'train',
-                            'model_call_args': {
-                                'data': data.detach().cpu(),
-                                'block_size': block_size
+                    except Exception as e:
+                        logger.info(e)
+                        if isinstance(e, CvxpyException):
+                            _error_obj = {
+                                'method': 'train_backward',
+                                'model_type': 'e2e' if not pairwise_mode else 'pairwise',
+                                'data_split': 'train',
+                                'model_call_args': {
+                                    'data': data.detach().cpu(),
+                                    'block_size': block_size
+                                }
                             }
-                        }
-                        if _errors is not None:
-                            _errors.append(_error_obj)
-                            save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
-                        n_exceptions += 1
-                        logger.info(f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
-                        continue
+                            if _errors is not None:
+                                _errors.append(_error_obj)
+                                save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
+                            if debug:
+                                n_exceptions += 1
+                                logger.info(
+                                    f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
+                                continue
                     if pairwise_mode or (
                             idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
                         optimizer.step()

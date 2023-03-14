@@ -61,6 +61,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             try:
                 _ = model(data, block_size)
             except CvxpyException as e:
+                logger.info(e)
                 _error_obj = {
                     'method': 'eval',
                     'model_type': 'e2e',
@@ -74,7 +75,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
                 if _errors is not None:
                     _errors.append(_error_obj)
                     save_to_wandb_run({'errors': _errors}, 'errors.json', run_dir, logger)
-                if tqdm_label is not 'dev' and not debug:
+                if not debug:  # if tqdm_label is not 'dev' and not debug:
                     raise CvxpyException(data=_error_obj)
                 # If split is dev, skip batch and continue
                 all_gold = all_gold[:-len(cluster_ids)]
@@ -133,6 +134,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                     pred_cluster_ids = clustering_fn(model(data), block_size, min_id=(max_pred_id + 1),
                                                      threshold=clustering_threshold)
                 except CvxpyException as e:
+                    logger.info(e)
                     _error_obj = {
                         'method': 'eval',
                         'model_type': 'pairwise_cc',
@@ -146,7 +148,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                     if _errors is not None:
                         _errors.append(_error_obj)
                         save_to_wandb_run({'errors': _errors}, 'errors.json', run_dir, logger)
-                    if tqdm_label is not 'dev' and not debug:
+                    if not debug:  # if tqdm_label is not 'dev' and not debug:
                         raise CvxpyException(data=_error_obj)
                     # If split is dev, skip batch and continue
                     all_gold = all_gold[:-len(cluster_ids)]
