@@ -47,13 +47,16 @@ class EntResModel(torch.nn.Module):
         if self.use_sdp:
             output_probs = self.sdp_layer(edge_weights_uncompressed, N, return_triu=(
                         self.training and not self.use_rounded_loss and self.return_triu_on_train))
-            if verbose:
-                logger.info(f"Size of X = {output_probs.size()}")
-                logger.info(f"\n{output_probs}")
-            if self.training and not self.use_rounded_loss:
-                return output_probs
         else:
-            output_probs = edge_weights_uncompressed  # TODO: torch.sigmoid(edge_weights_uncompressed) instead?
+            if self.training and not self.use_rounded_loss:
+                output_probs = torch.sigmoid(edge_weights)
+            else:
+                output_probs = edge_weights_uncompressed  # TODO: torch.sigmoid(edge_weights_uncompressed) instead?
+        if verbose:
+            logger.info(f"Size of X = {output_probs.size()}")
+            logger.info(f"\n{output_probs}")
+        if self.training and not self.use_rounded_loss:
+            return output_probs
 
         pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed,
                                              return_triu=(self.training and self.return_triu_on_train))
