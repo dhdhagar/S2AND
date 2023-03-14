@@ -428,8 +428,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     running_loss.append(loss.item())
                     wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
 
-                if verbose:
-                    logger.info(f"Epoch loss = {np.mean(running_loss)}")
+                logger.info(f"Epoch loss = {np.mean(running_loss)}")
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 with torch.no_grad():
@@ -438,9 +437,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                                tqdm_label='train', device=device, verbose=verbose, debug=debug,
                                                _errors=_errors)
-                        if verbose:
-                            logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
-                                        f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
+                        logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
+                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
                         wandb.log({f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                         if use_lr_scheduler:
@@ -451,16 +449,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     else:
                         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
                                              debug=debug, _errors=_errors)
-                        if verbose:
-                            logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
-                                        f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
+                        logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
                         wandb.log({f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1],
                                    f'train_epoch_loss': np.mean(running_loss)})
                         dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                         if dev_opt_score > best_dev_score:
-                            if verbose:
-                                logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
+                            logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
                             best_epoch = i
                             best_dev_score = dev_opt_score
                             best_dev_scores = dev_scores
@@ -480,9 +476,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     model.eval()
                     test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
                                           debug=debug, _errors=_errors)
-                    if verbose:
-                        logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
-                                    f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
+                    logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
+                                f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
                     # Log final metrics
                     wandb.log({'best_dev_epoch': best_epoch + 1,
                                f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
@@ -491,7 +486,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
                     if len(test_scores) == 3:
                         log_cc_objective_values(scores=test_scores, split_name='best_test', log_prefix='Final',
-                                                verbose=verbose, logger=logger)
+                                                verbose=True, logger=logger)
                     # For pairwise-mode:
                     if pairwise_clustering_fns[0] is not None:
                         clustering_threshold = None
@@ -504,16 +499,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                         debug=debug, _errors=_errors)
                             if pairwise_clustering_fn.__class__ is HACInference:
                                 clustering_threshold = pairwise_clustering_fn.cut_threshold
-                            if verbose:
-                                logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
-                                            f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
+                            logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
+                                        f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
                             # Log final metrics
                             wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[0],
                                        f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[1]})
                             if len(clustering_scores) == 3:
                                 log_cc_objective_values(scores=clustering_scores,
                                                         split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
-                                                        log_prefix='Final', verbose=verbose, logger=logger)
+                                                        log_prefix='Final', verbose=True, logger=logger)
 
 
         run.summary["z_model_parameters"] = count_parameters(model)
