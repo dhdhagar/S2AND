@@ -323,8 +323,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 optimizer.zero_grad()
 
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
-                                                   desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
-                                                   disable=(not verbose))):
+                                                   desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}")):
                     if overfit_batch_idx > -1:
                         if idx < overfit_batch_idx:
                             continue
