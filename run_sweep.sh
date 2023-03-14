@@ -2,10 +2,10 @@
 
 dataset=${1:-"pubmed"}
 n_seed_start=${2:-1}
-n_seed_end=${2:-5}
-model=${3:-"e2e"}  # Used as prefix and to pick up the right sweep file
-gpu_name=${4:-"gypsum-1080ti"}
-sweep_prefix=${5:-""}
+n_seed_end=${3:-5}
+model=${4:-"e2e"}  # Used as prefix and to pick up the right sweep file
+gpu_name=${5:-"gypsum-1080ti"}
+sweep_prefix=${6:-""}
 
 for ((i = ${n_seed_start}; i <= ${n_seed_end}; i++)); do
   JOB_DESC=${model}_${dataset}_sweep${i} && JOB_NAME=${JOB_DESC}_$(date +%s) && \
