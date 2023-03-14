@@ -13,7 +13,7 @@ import torch
 from e2e_pipeline.cc_inference import CCInference
 from e2e_pipeline.hac_inference import HACInference
 from e2e_pipeline.sdp_layer import CvxpyException
-from e2e_scripts.train_utils import compute_b3_f1
+from e2e_scripts.train_utils import compute_b3_f1, save_to_wandb_run
 
 from IPython import embed
 
@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
-             val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None):
+             val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None,
+             run_dir='./'):
     """
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
     (only added to keep fn signature identical)
@@ -72,6 +73,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
                 }
                 if _errors is not None:
                     _errors.append(_error_obj)
+                    save_to_wandb_run({'errors': _errors}, 'errors.json', run_dir, logger)
                 if tqdm_label is not 'dev' and not debug:
                     raise CvxpyException(data=_error_obj)
                 # If split is dev, skip batch and continue
@@ -93,7 +95,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
 
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
                       thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
-                      tqdm_label='', device=None, verbose=False, debug=False, _errors=None):
+                      tqdm_label='', device=None, verbose=False, debug=False, _errors=None, run_dir='./'):
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
 
@@ -143,6 +145,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                     }
                     if _errors is not None:
                         _errors.append(_error_obj)
+                        save_to_wandb_run({'errors': _errors}, 'errors.json', run_dir, logger)
                     if tqdm_label is not 'dev' and not debug:
                         raise CvxpyException(data=_error_obj)
                     # If split is dev, skip batch and continue

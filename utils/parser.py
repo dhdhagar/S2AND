@@ -139,6 +139,6 @@ class Parser(argparse.ArgumentParser):
             help="Enable debugging mode, where train-eval flows do not quit on known errors in order to allow tracking",
         )
         parser.add_argument(
-            "--track_errors", action="store_true",
-            help="Enable error logging for SDP forward and backward passes",
+            "--no_error_tracking", action="store_true",
+            help="Disable error logging for SDP forward and backward passes",
         )

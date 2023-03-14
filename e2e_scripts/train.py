@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
           eval_only_split=None, skip_initial_eval=False, pairwise_eval_clustering=None,
-          debug=False, track_errors=False):
+          debug=False, track_errors=True):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -365,6 +365,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         }
                         if _errors is not None:
                             _errors.append(_error_obj)
+                            save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
                         n_exceptions += 1
                         logger.info(f'Caught CvxpyException in forward call (count -> {n_exceptions}): skipping batch')
                         continue
@@ -404,6 +405,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         }
                         if _errors is not None:
                             _errors.append(_error_obj)
+                            save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
                         n_exceptions += 1
                         logger.info(f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
                         continue
@@ -598,7 +600,7 @@ if __name__ == '__main__':
                                            save_model=args['save_model'],
                                            skip_initial_eval=args['skip_initial_eval'],
                                            debug=args['debug'],
-                                           track_errors=args['track_errors']),
+                                           track_errors=not args['no_error_tracking']),
                     count=args['wandb_max_runs'])
 
         logger.info("End of sweep")
@@ -630,5 +632,5 @@ if __name__ == '__main__':
               skip_initial_eval=args['skip_initial_eval'],
               pairwise_eval_clustering=args['pairwise_eval_clustering'],
               debug=args['debug'],
-              track_errors=args['track_errors'])
+              track_errors=not args['no_error_tracking'])
         logger.info("End of run")
