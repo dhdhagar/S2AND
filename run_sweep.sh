@@ -1,12 +1,13 @@
 #!/bin/bash -e
 
 dataset=${1:-"pubmed"}
-n_seeds=${2:-5}
+n_seed_start=${2:-1}
+n_seed_end=${2:-5}
 model=${3:-"e2e"}  # Used as prefix and to pick up the right sweep file
 gpu_name=${4:-"gypsum-1080ti"}
 sweep_prefix=${5:-""}
 
-for ((i = 1; i <= ${n_seeds}; i++)); do
+for ((i = ${n_seed_start}; i <= ${n_seed_end}; i++)); do
   JOB_DESC=${model}_${dataset}_sweep${i} && JOB_NAME=${JOB_DESC}_$(date +%s) && \
   sbatch -J ${JOB_NAME} -e jobs/${JOB_NAME}.err -o jobs/${JOB_NAME}.log \
     --partition=${gpu_name} --gres=gpu:1 --mem=100G --time=12:00:00 \
