@@ -469,8 +469,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 model.train()
             end_time = time.time()
 
+            # Save model
+            if save_model:
+                torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
+                wandb.save('model_state_dict_best.pt')
+                logger.info(f"Saved best model on dev to {os.path.join(run.dir, 'model_state_dict_best.pt')}")
+
+            # Evaluate the best dev model on test
             if overfit_batch_idx == -1:
-                # Evaluate the best dev model on test
                 model.load_state_dict(best_dev_state_dict)
                 with torch.no_grad():
                     model.eval()
@@ -513,12 +519,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         run.summary["z_model_parameters"] = count_parameters(model)
         run.summary["z_run_time"] = round(end_time - start_time)
         run.summary["z_run_dir_path"] = run.dir
-
-        # Save models
-        if save_model:
-            torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
-            wandb.save('model_state_dict_best.pt')
-            logger.info(f"Saved best model on dev to {os.path.join(run.dir, 'model_state_dict_best.pt')}")
 
         if _errors is not None:
             save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
