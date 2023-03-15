@@ -307,7 +307,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                       eval_metric_to_idx=eval_metric_to_idx,
                                                       val_dataloader=val_dataloader, logger=logger, run=run))
                 _PROC_init_eval.start()
-                _PROC_init_eval.join()
                 # with torch.no_grad():
                 #     model.eval()
                 #     if overfit_batch_idx > -1:
@@ -465,6 +464,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
 
                 logger.info(f"Epoch loss = {np.mean(running_loss)}")
+                _PROC_init_eval.join()
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 with torch.no_grad():
