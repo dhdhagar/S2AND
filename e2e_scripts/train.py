@@ -37,8 +37,16 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 
+def check_process(proc, return_dict, logger, run):
+    if return_dict['state'] == 'done':
+        proc.join()
+        return_dict['state'] = 'finish'
+        logger.info(return_dict['local'])
+        run.log(return_dict['wandb'])
+
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
               eval_metric_to_idx, val_dataloader, run_dir, return_dict):
+    return_dict['state'] = 'start'
     _model = copy_and_load_model(model, run_dir, device)
     with torch.no_grad():
         _model.eval()
@@ -57,6 +65,7 @@ def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbo
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
             return_dict['wandb'] = {'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
+    return_dict['state'] = 'done'
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
@@ -77,6 +86,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         init_args.update({'group': group})
     if local:
         init_args.update({'mode': 'disabled'})
+
+    # Parallel process for validation runs
+    _manager = Manager()
+    _return_dict = _manager.dict()
+    _return_dict['state'] = 'initial'
 
     # Start wandb run
     with wandb.init(**init_args) as run:
@@ -300,16 +314,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
-                _manager = Manager()
-                _return_dict = _manager.dict()
-                _PROC_init_eval = Process(target=init_eval,
-                                          kwargs=dict(model=model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
-                                                      train_dataloader=train_dataloader, device=device, verbose=verbose,
-                                                      debug=debug, _errors=_errors,
-                                                      eval_metric_to_idx=eval_metric_to_idx,
-                                                      val_dataloader=val_dataloader, run_dir=run.dir,
-                                                      return_dict=_return_dict))
-                _PROC_init_eval.start()
+                _proc = Process(target=init_eval,
+                                kwargs=dict(model=model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                            train_dataloader=train_dataloader, device=device, verbose=verbose,
+                                            debug=debug, _errors=_errors,
+                                            eval_metric_to_idx=eval_metric_to_idx,
+                                            val_dataloader=val_dataloader, run_dir=run.dir,
+                                            return_dict=_return_dict))
+                _proc.start()
                 # with torch.no_grad():
                 #     model.eval()
                 #     if overfit_batch_idx > -1:
@@ -363,7 +375,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 optimizer.zero_grad()
 
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
-                                                   desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}")):
+                                                   desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
+                                                   position=1)):
+                    check_process(_proc, _return_dict, logger, run)
                     if overfit_batch_idx > -1:
                         if idx < overfit_batch_idx:
                             continue
@@ -467,11 +481,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
 
                 logger.info(f"Epoch loss = {np.mean(running_loss)}")
-
-                if _PROC_init_eval.is_alive():
-                    _PROC_init_eval.join()
-                    logger.info(_return_dict['local'])
-                    wandb.log(_return_dict['wandb'])
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 with torch.no_grad():
