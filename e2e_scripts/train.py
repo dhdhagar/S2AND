@@ -301,8 +301,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
                 _PROC_init_eval = Process(target=init_eval,
-                             args=(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
-                                   eval_metric_to_idx, val_dataloader, logger, run))
+                                          kwargs=dict(model=model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                                      train_dataloader=train_dataloader, device=device, verbose=verbose,
+                                                      debug=debug, _errors=_errors,
+                                                      eval_metric_to_idx=eval_metric_to_idx,
+                                                      val_dataloader=val_dataloader, logger=logger, run=run))
                 _PROC_init_eval.start()
                 _PROC_init_eval.join()
                 # with torch.no_grad():
