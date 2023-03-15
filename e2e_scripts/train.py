@@ -37,21 +37,49 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 
-def check_process(proc, return_dict, logger, run):
-    if return_dict['state'] == 'done':
-        proc.join()
-        return_dict['state'] = 'finish'
-        logger.info(return_dict['local'])
-        run.log(return_dict['wandb'])
+def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
+                  scheduler, eval_metric_to_idx, dev_opt_metric, i, _model,
+                  best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict,
+                  sync=False):
+    if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] == 'start'):
+        _proc.join()
+        _return_dict['_state'] = 'finish'
+        if _return_dict['_method'] == 'init_eval':
+            logger.info(_return_dict['local'])
+            run.log(_return_dict['wandb'])
+        elif _return_dict['_method'] == 'dev_eval':
+            logger.info(_return_dict['local'])
+            run.log(_return_dict['wandb'])
+            if overfit_batch_idx > -1:
+                if use_lr_scheduler:
+                    if hyp['lr_scheduler'] == 'plateau':
+                        scheduler.step(_return_dict['train_scores'][eval_metric_to_idx[dev_opt_metric]])
+                    elif hyp['lr_scheduler'] == 'step':
+                        scheduler.step()
+            else:
+                dev_scores = _return_dict['dev_scores']
+                dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
+                if dev_opt_score > best_dev_score:
+                    logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
+                    best_epoch = i
+                    best_dev_score = dev_opt_score
+                    best_dev_scores = dev_scores
+                    best_dev_state_dict = copy.deepcopy(_model.state_dict())
+                if use_lr_scheduler:
+                    if hyp['lr_scheduler'] == 'plateau':
+                        scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
+                    elif hyp['lr_scheduler'] == 'step':
+                        scheduler.step()
+    return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
-              eval_metric_to_idx, val_dataloader, run_dir, return_dict):
-    return_dict['state'] = 'start'
-    _model = copy_and_load_model(model, run_dir, device)
+              eval_metric_to_idx, val_dataloader, return_dict):
+    return_dict['_state'] = 'start'
+    return_dict['_method'] = 'init_eval'
     with torch.no_grad():
-        _model.eval()
+        model.eval()
         if overfit_batch_idx > -1:
-            train_scores = eval_fn(_model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
+            train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                    tqdm_label='train', device=device, verbose=verbose, debug=debug,
                                    _errors=_errors, tqdm_position=0)
             return_dict['local'] = f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
@@ -59,13 +87,41 @@ def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbo
             return_dict['wandb'] = {'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                     f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
         else:
-            dev_scores = eval_fn(_model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+            dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
                                  debug=debug, _errors=_errors, tqdm_position=0)
             return_dict['local'] = f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
             return_dict['wandb'] = {'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
-    return_dict['state'] = 'done'
+    del model
+    return_dict['_state'] = 'done'
+
+
+def dev_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
+              eval_metric_to_idx, val_dataloader, return_dict, i):
+    return_dict['_state'] = 'start'
+    return_dict['_method'] = 'dev_eval'
+    with torch.no_grad():
+        model.eval()
+        if overfit_batch_idx > -1:
+            train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
+                                   tqdm_label='train', device=device, verbose=verbose, debug=debug,
+                                   _errors=_errors)
+            return_dict['local'] = f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
+                                   f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
+            return_dict['wandb'] = {f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
+            return_dict['train_scores'] = train_scores
+        else:
+            dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+                                 debug=debug, _errors=_errors)
+            return_dict['local'] = f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
+                                   f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
+            return_dict['wandb'] = {f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+                                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
+            return_dict['dev_scores'] = dev_scores
+    del model
+    return_dict['_state'] = 'done'
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
@@ -90,7 +146,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
     # Parallel process for validation runs
     _manager = Manager()
     _return_dict = _manager.dict()
-    _return_dict['state'] = 'initial'
+    _return_dict['_state'] = 'initial'
 
     # Start wandb run
     with wandb.init(**init_args) as run:
@@ -314,31 +370,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
+                _model = copy_and_load_model(model, run.dir, device)
                 _proc = Process(target=init_eval,
-                                kwargs=dict(model=model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                kwargs=dict(model=_model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                             train_dataloader=train_dataloader, device=device, verbose=verbose,
                                             debug=debug, _errors=_errors,
                                             eval_metric_to_idx=eval_metric_to_idx,
-                                            val_dataloader=val_dataloader, run_dir=run.dir,
+                                            val_dataloader=val_dataloader,
                                             return_dict=_return_dict))
                 _proc.start()
-                # with torch.no_grad():
-                #     model.eval()
-                #     if overfit_batch_idx > -1:
-                #         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                #                                tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                #                                _errors=_errors)
-                #         logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
-                #                     f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
-                #         wandb.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
-                #                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
-                #     else:
-                #         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
-                #                              debug=debug, _errors=_errors)
-                #         logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
-                #                     f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
-                #         wandb.log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
-                #                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
 
             if not pairwise_mode and grad_acc > 1:
                 grad_acc_steps = []
@@ -377,7 +417,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
                                                    desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
                                                    position=1)):
-                    check_process(_proc, _return_dict, logger, run)
+                    # check_process(_proc, _return_dict, logger, run)
+                    _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
+                                                  hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, _model,
+                                                  best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict)
                     if overfit_batch_idx > -1:
                         if idx < overfit_batch_idx:
                             continue
@@ -481,46 +524,62 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
 
                 logger.info(f"Epoch loss = {np.mean(running_loss)}")
+                wandb.log({f'train_epoch_loss': np.mean(running_loss)})
 
                 # Get model performance on dev (or 'train' for overfitting runs)
-                with torch.no_grad():
-                    model.eval()
-                    if overfit_batch_idx > -1:
-                        train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                                               tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                               _errors=_errors)
-                        logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
-                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
-                        wandb.log({f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
-                                   f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
-                        if use_lr_scheduler:
-                            if hyp['lr_scheduler'] == 'plateau':
-                                scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
-                            elif hyp['lr_scheduler'] == 'step':
-                                scheduler.step()
-                    else:
-                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
-                                             debug=debug, _errors=_errors)
-                        logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
-                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
-                        wandb.log({f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
-                                   f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1],
-                                   f'train_epoch_loss': np.mean(running_loss)})
-                        dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
-                        if dev_opt_score > best_dev_score:
-                            logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
-                            best_epoch = i
-                            best_dev_score = dev_opt_score
-                            best_dev_scores = dev_scores
-                            best_dev_state_dict = copy.deepcopy(model.state_dict())
-                        if use_lr_scheduler:
-                            if hyp['lr_scheduler'] == 'plateau':
-                                scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
-                            elif hyp['lr_scheduler'] == 'step':
-                                scheduler.step()
-                model.train()
+                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
+                _model = copy_and_load_model(model, run.dir, device)
+                _proc = Process(target=dev_eval,
+                                kwargs=dict(model=_model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                            train_dataloader=train_dataloader, device=device, verbose=verbose,
+                                            debug=debug, _errors=_errors,
+                                            eval_metric_to_idx=eval_metric_to_idx,
+                                            val_dataloader=val_dataloader,
+                                            return_dict=_return_dict, i=i))
+                _proc.start()
+                # with torch.no_grad():
+                #     model.eval()
+                #     if overfit_batch_idx > -1:
+                #         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
+                #                                tqdm_label='train', device=device, verbose=verbose, debug=debug,
+                #                                _errors=_errors)
+                #         logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
+                #                     f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
+                #         wandb.log({f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+                #                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
+                #         if use_lr_scheduler:
+                #             if hyp['lr_scheduler'] == 'plateau':
+                #                 scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
+                #             elif hyp['lr_scheduler'] == 'step':
+                #                 scheduler.step()
+                #     else:
+                #         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+                #                              debug=debug, _errors=_errors)
+                #         logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                #                     f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
+                #         wandb.log({f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+                #                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1],
+                #                    f'train_epoch_loss': np.mean(running_loss)})
+                #         dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
+                #         if dev_opt_score > best_dev_score:
+                #             logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
+                #             best_epoch = i
+                #             best_dev_score = dev_opt_score
+                #             best_dev_scores = dev_scores
+                #             best_dev_state_dict = copy.deepcopy(model.state_dict())
+                #         if use_lr_scheduler:
+                #             if hyp['lr_scheduler'] == 'plateau':
+                #                 scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
+                #             elif hyp['lr_scheduler'] == 'step':
+                #                 scheduler.step()
+                # model.train()
             end_time = time.time()
 
+            _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
+                                          hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, _model,
+                                          best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict,
+                                          sync=True)
+            best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
             # Save model
             if save_model:
                 torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
@@ -533,7 +592,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 with torch.no_grad():
                     model.eval()
                     test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
-                                          debug=debug, _errors=_errors)
+                                          debug=debug, _errors=_errors, tqdm_position=2)
                     logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                 f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
                     # Log final metrics
@@ -554,7 +613,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                         clustering_threshold=clustering_threshold,
                                                         val_dataloader=val_dataloader_e2e,
                                                         tqdm_label='test clustering', device=device, verbose=verbose,
-                                                        debug=debug, _errors=_errors)
+                                                        debug=debug, _errors=_errors, tqdm_position=2)
                             if pairwise_clustering_fn.__class__ is HACInference:
                                 clustering_threshold = pairwise_clustering_fn.cut_threshold
                             logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
