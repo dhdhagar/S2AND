@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
-              eval_metric_to_idx, val_dataloader, logger, run_dir, wandb_log):
+              eval_metric_to_idx, val_dataloader, logger, run_dir):
     _model = copy_and_load_model(model, run_dir, device)
     with torch.no_grad():
         _model.eval()
@@ -48,15 +48,15 @@ def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbo
                                    _errors=_errors)
             logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
                         f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
-            wandb_log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
-                       f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
+            # wandb_log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+            #            f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
         else:
             dev_scores = eval_fn(_model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
                                  debug=debug, _errors=_errors)
             logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
                         f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
-            wandb_log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
-                       f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
+            # wandb_log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+            #            f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
@@ -302,7 +302,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 # Get initial model performance on dev (or 'train' for overfitting runs)
                 p1 = Process(target=init_eval,
                              args=(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
-                                   eval_metric_to_idx, val_dataloader, logger, run.dir, wandb.log))
+                                   eval_metric_to_idx, val_dataloader, logger, run.dir))
                 p1.start()
                 # with torch.no_grad():
                 #     model.eval()
