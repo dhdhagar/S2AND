@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
           eval_only_split=None, skip_initial_eval=False, pairwise_eval_clustering=None,
-          debug=False, track_errors=True):
+          debug=False, track_errors=True, local=False):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -45,6 +45,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         init_args.update({'tags': tags})
     if group is not None:
         init_args.update({'group': group})
+    if local:
+        init_args.update({'mode': 'disabled'})
 
     # Start wandb run
     with wandb.init(**init_args) as run:
@@ -596,7 +598,8 @@ if __name__ == '__main__':
                                            save_model=args['save_model'],
                                            skip_initial_eval=args['skip_initial_eval'],
                                            debug=args['debug'],
-                                           track_errors=not args['no_error_tracking']),
+                                           track_errors=not args['no_error_tracking'],
+                                           local=args['local']),
                     count=args['wandb_max_runs'])
 
         logger.info("End of sweep")
@@ -628,5 +631,6 @@ if __name__ == '__main__':
               skip_initial_eval=args['skip_initial_eval'],
               pairwise_eval_clustering=args['pairwise_eval_clustering'],
               debug=args['debug'],
-              track_errors=not args['no_error_tracking'])
+              track_errors=not args['no_error_tracking'],
+              local=args['local'])
         logger.info("End of run")

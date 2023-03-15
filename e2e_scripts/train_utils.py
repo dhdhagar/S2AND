@@ -58,7 +58,7 @@ DEFAULT_HYPERPARAMS = {
     "lr": 4e-3,
     "n_epochs": 5,
     "n_warmstart_epochs": 0,
-    "weighted_loss": True,
+    "weighted_loss": False,
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "plateau", "step"
     "lr_factor": 0.4,

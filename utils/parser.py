@@ -142,3 +142,7 @@ class Parser(argparse.ArgumentParser):
             "--no_error_tracking", action="store_true",
             help="Disable error logging for SDP forward and backward passes",
         )
+        parser.add_argument(
+            "--local", action="store_true",
+            help="Run script with wandb disabled",
+        )
