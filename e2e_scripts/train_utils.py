@@ -67,7 +67,7 @@ DEFAULT_HYPERPARAMS = {
     "lr_step_size": 2,
     "lr_gamma": 0.4,
     "weight_decay": 0.01,
-    "gradient_accumulation": True,  # e2e only; accumulate over <batch_size> pairwise examples
+    "gradient_accumulation": False,  # e2e only; accumulate over <batch_size> pairwise examples
     "dev_opt_metric": 'b3_f1',  # e2e: {'b3_f1', 'vmeasure'}; pairwise: {'auroc', 'f1'}
     "overfit_batch_idx": -1
 }
@@ -168,7 +168,7 @@ def save_to_wandb_run(file, fname, fpath, logger):
 
 
 class FrobeniusLoss:
-    def __init__(self, weight: Optional[Tensor] = None, reduction: str = 'mean') -> None:
+    def __init__(self, weight: Optional[Tensor] = None, reduction: str = 'original') -> None:
         self.weight = weight
         self.reduction = reduction
 
@@ -177,7 +177,7 @@ class FrobeniusLoss:
         normalization = 1.
         if self.reduction == 'mean':
             normalization = n * (n - 1)
-        elif self.reduction == 'original':
+        elif self.reduction == 'original':  # TODO: Probably want to not use this
             normalization = 2 * n
         if self.weight is None:
             return torch.norm((target - input)) / normalization
