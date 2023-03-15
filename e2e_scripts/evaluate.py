@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
              val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None,
-             run_dir='./'):
+             run_dir='./', tqdm_position=None):
     """
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
     (only added to keep fn signature identical)
@@ -42,7 +42,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
     }
     max_pred_id = -1
     n_exceptions = 0
-    for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
+    for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}', position=tqdm_position)):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
                 continue
@@ -96,7 +96,8 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
 
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
                       thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
-                      tqdm_label='', device=None, verbose=False, debug=False, _errors=None, run_dir='./'):
+                      tqdm_label='', device=None, verbose=False, debug=False, _errors=None, run_dir='./',
+                      tqdm_position=None):
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
 
@@ -114,7 +115,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
         }
         max_pred_id = -1  # In each iteration, add to all blockwise predicted IDs to distinguish from previous blocks
         n_exceptions = 0
-        for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
+        for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}', position=tqdm_position)):
             if overfit_batch_idx > -1:
                 if idx < overfit_batch_idx:
                     continue
@@ -167,7 +168,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
         return (b3_f1, vmeasure, cc_obj_vals) if clustering_fn.__class__ is CCInference else (b3_f1, vmeasure)
 
     y_pred, targets = [], []
-    for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}')):
+    for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Evaluating {tqdm_label}', position=tqdm_position)):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
                 continue

@@ -22,7 +22,7 @@ from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_ma
     copy_and_load_model
 from utils.parser import Parser
 
-from torch.multiprocessing import Pool, Process, set_start_method
+from torch.multiprocessing import Pool, Process, set_start_method, Manager
 
 try:
     set_start_method('spawn')
@@ -38,25 +38,25 @@ logger = logging.getLogger(__name__)
 
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
-              eval_metric_to_idx, val_dataloader, logger, run):
-    _model = copy_and_load_model(model, run.dir, device)
+              eval_metric_to_idx, val_dataloader, run_dir, return_dict):
+    _model = copy_and_load_model(model, run_dir, device)
     with torch.no_grad():
         _model.eval()
         if overfit_batch_idx > -1:
             train_scores = eval_fn(_model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                    tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                   _errors=_errors)
-            logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
-                        f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
-            run.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
-                       f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
+                                   _errors=_errors, tqdm_position=0)
+            return_dict['local'] = f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
+                                   f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
+            return_dict['wandb'] = {'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
         else:
             dev_scores = eval_fn(_model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
-                                 debug=debug, _errors=_errors)
-            logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
-                        f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
-            run.log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
-                       f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
+                                 debug=debug, _errors=_errors, tqdm_position=0)
+            return_dict['local'] = f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
+                                   f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
+            return_dict['wandb'] = {'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+                                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
@@ -300,12 +300,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
+                _manager = Manager()
+                _return_dict = _manager.dict()
                 _PROC_init_eval = Process(target=init_eval,
                                           kwargs=dict(model=model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                                       train_dataloader=train_dataloader, device=device, verbose=verbose,
                                                       debug=debug, _errors=_errors,
                                                       eval_metric_to_idx=eval_metric_to_idx,
-                                                      val_dataloader=val_dataloader, logger=logger, run=run))
+                                                      val_dataloader=val_dataloader, run_dir=run.dir,
+                                                      return_dict=_return_dict))
                 _PROC_init_eval.start()
                 # with torch.no_grad():
                 #     model.eval()
@@ -464,7 +467,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
 
                 logger.info(f"Epoch loss = {np.mean(running_loss)}")
-                _PROC_init_eval.join()
+
+                if _PROC_init_eval.is_alive():
+                    _PROC_init_eval.join()
+                    logger.info(_return_dict['local'])
+                    wandb.log(_return_dict['wandb'])
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 with torch.no_grad():
