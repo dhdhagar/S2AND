@@ -208,9 +208,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 eval_dataloader = dataloaders[eval_only_split]
                 eval_scores = eval_fn(model, eval_dataloader, tqdm_label=eval_only_split, device=device, verbose=verbose,
                                       debug=debug, _errors=_errors)
-                if verbose:
-                    logger.info(f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
-                                f"{eval_only_split}_{list(eval_metric_to_idx)[1]}={eval_scores[1]}")
+                logger.info(f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
+                            f"{eval_only_split}_{list(eval_metric_to_idx)[1]}={eval_scores[1]}")
                 # Log eval metrics
                 wandb.log({f'best_{eval_only_split}_{list(eval_metric_to_idx)[0]}': eval_scores[0],
                            f'best_{eval_only_split}_{list(eval_metric_to_idx)[1]}': eval_scores[1]})
@@ -230,10 +229,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                     debug=debug, _errors=_errors)
                         if pairwise_clustering_fn.__class__ is HACInference:
                             clustering_threshold = pairwise_clustering_fn.cut_threshold
-                        if verbose:
-                            logger.info(
-                                f"Eval: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
-                                f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
+                        logger.info(
+                            f"Eval: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
+                            f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
                         # Log eval metrics
                         wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}':
                                        clustering_scores[0],
@@ -274,17 +272,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                                tqdm_label='train', device=device, verbose=verbose, debug=debug,
                                                _errors=_errors)
-                        if verbose:
-                            logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
-                                        f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
+                        logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
+                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
                         wandb.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
                     else:
                         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
                                              debug=debug, _errors=_errors)
-                        if verbose:
-                            logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
-                                        f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
+                        logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
                         wandb.log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
 
