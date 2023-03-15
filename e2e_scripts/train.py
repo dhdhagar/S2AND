@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
-              eval_metric_to_idx, val_dataloader, logger, run_dir=run.dir, wandb_log=wandb.log):
+              eval_metric_to_idx, val_dataloader, logger, run_dir, wandb_log):
     _model = copy_and_load_model(model, run_dir, device)
     with torch.no_grad():
         _model.eval()
