@@ -41,26 +41,26 @@ class SDPLayer(torch.nn.Module):
         Returns a symmetric NxN matrix of fractional, decision values with a 1-diagonal
         """
         # Initialize the cvxpy layer
-        self.X = cp.Variable((N, N), PSD=True)
-        self.W = cp.Parameter((N, N))
+        X = cp.Variable((N, N), PSD=True)
+        W = cp.Parameter((N, N))
 
         # build out constraint set
         constraints = [
-            cp.diag(self.X) == np.ones((N,)),
-            self.X[:N, :] >= 0,
+            cp.diag(X) == np.ones((N,)),
+            X[:N, :] >= 0,
         ]
 
         # create problem
-        self.prob = cp.Problem(cp.Maximize(cp.trace(self.W @ self.X)), constraints)
+        prob = cp.Problem(cp.Maximize(cp.trace(W @ X)), constraints)
         # Note: maximizing the trace is equivalent to maximizing the sum_E (w_uv * X_uv) objective
         # because W is upper-triangular and X is symmetric
 
         # Build the SDP cvxpylayer
-        self.cvxpy_layer = CvxpyLayer(self.prob, parameters=[self.W], variables=[self.X])
+        cvxpy_layer = CvxpyLayer(prob, parameters=[W], variables=[X])
 
         # Forward pass through the SDP cvxpylayer
         try:
-            pw_prob_matrix = self.cvxpy_layer(W_val, solver_args={
+            pw_prob_matrix = cvxpy_layer(W_val, solver_args={
                 "solve_method": "SCS",
                 "verbose": verbose,
                 "max_iters": self.max_iters,

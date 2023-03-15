@@ -417,7 +417,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
                                                    desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
                                                    position=1)):
-                    # check_process(_proc, _return_dict, logger, run)
                     _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
                                                   hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, _model,
                                                   best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict)
