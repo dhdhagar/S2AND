@@ -18,7 +18,7 @@ from e2e_pipeline.pairwise_model import PairwiseModel
 from e2e_pipeline.sdp_layer import CvxpyException
 from e2e_scripts.evaluate import evaluate, evaluate_pairwise
 from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_matrix_size_from_triu, \
-    uncompress_target_tensor, count_parameters, log_cc_objective_values, save_to_wandb_run
+    uncompress_target_tensor, count_parameters, log_cc_objective_values, save_to_wandb_run, FrobeniusLoss
 from utils.parser import Parser
 
 from IPython import embed
@@ -66,7 +66,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
         pairwise_mode = hyp['pairwise_mode']
         weighted_loss = hyp['weighted_loss']
-        # normalize_loss = hyp['normalize_loss']
+        e2e_loss = hyp['e2e_loss']
         batch_size = hyp['batch_size'] if pairwise_mode else 1  # Force clustering runs to operate on 1 block only
         n_epochs = hyp['n_epochs']
         n_warmstart_epochs = hyp['n_warmstart_epochs']
@@ -106,10 +106,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             model = EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                                 negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
-                                use_rounded_loss=hyp["use_rounded_loss"], return_triu_on_train=True,  # TODO: Control with flag
+                                use_rounded_loss=hyp["use_rounded_loss"], return_triu_on_train=(e2e_loss == "bce"),
                                 use_sdp=hyp["use_sdp"])
             # Define loss
-            # loss_fn_e2e = lambda pred, gold: torch.norm(gold - pred)
+            if e2e_loss not in ["frob", "bce"]:
+                raise ValueError("Invalid value for e2e_loss")
+            loss_fn_e2e = FrobeniusLoss() if e2e_loss == 'frob' else torch.nn.BCELoss()
+
             pos_weight = None
             if weighted_loss:
                 if overfit_batch_idx > -1:
@@ -121,7 +124,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         _n_pos += train_dataloader.dataset[_i][1].sum()
                         _n_total += len(train_dataloader.dataset[_i][1])
                         pos_weight = (_n_total - _n_pos) / _n_pos
-            loss_fn_e2e = torch.nn.BCELoss()
             # Define eval
             eval_fn = evaluate
             pairwise_clustering_fns = [None]  # Unused when pairwise_mode is False
@@ -370,19 +372,17 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                     # Calculate the loss
                     if not pairwise_mode and not warmstart_mode:
-                        # gold_output = uncompress_target_tensor(target, device=device)
+                        grad_acc_denom = 1 if grad_acc == 1 else grad_acc_steps[grad_acc_idx]
+                        if e2e_loss != "bce":
+                            target = uncompress_target_tensor(target, device=device)
                         if verbose:
-                            logger.info(f"Gold:\n{target}")  # gold_output
+                            logger.info(f"Gold:\n{target}")
                         if pos_weight is not None:
-                            with torch.no_grad():
-                                loss_weight = target * pos_weight + (1 - target)
+                            loss_weight = target * pos_weight + (1 - target)
                             loss_fn.weight = loss_weight
-                        loss = loss_fn(output.view_as(target), target) / (
-                            1 if grad_acc == 1 else grad_acc_steps[grad_acc_idx])
-                        # loss = loss_fn(output.view_as(gold_output), gold_output) / (
-                        #     (block_size * (block_size - 1)) if normalize_loss else 1) / (  # (2 * block_size)
-                        #            1 if grad_acc == 1 else grad_acc_steps[-1])
+                        loss = loss_fn(output.view_as(target), target) / grad_acc_denom
                     else:
+                        # Pairwise or warmstart mode
                         if verbose:
                             logger.info(f"Gold:\n{target}")
                         loss = loss_fn(output.view_as(target), target)

@@ -5,13 +5,14 @@ import os
 import json
 from collections import defaultdict
 from typing import Dict
-from typing import Tuple
+from typing import Tuple, Optional
 import math
 import pickle
 from torch.utils.data import DataLoader
 from s2and.consts import PREPROCESSED_DATA_DIR
 from s2and.data import S2BlocksDataset
 from s2and.eval import b3_precision_recall_fscore
+from torch import Tensor
 import torch
 import numpy as np
 import wandb
@@ -47,26 +48,26 @@ DEFAULT_HYPERPARAMS = {
     "negative_slope": 0.01,
     "use_rounded_loss": True,
     "use_sdp": True,
+    "e2e_loss": "frob",  # e2e only: "frob", "bce"
     # Solver config
     "sdp_max_iters": 50000,
     "sdp_eps": 1e-3,
     "sdp_scale": True,
     # Training config
-    "batch_size": 10000,  # For pairwise_mode only
+    "batch_size": 10000,  # pairwise only; used by e2e if gradient_accumulation is true
     "lr": 4e-3,
     "n_epochs": 5,
     "n_warmstart_epochs": 0,
     "weighted_loss": True,
-    # "normalize_loss": True,  # For e2e mode only
     "use_lr_scheduler": True,
-    "lr_scheduler": "plateau",  # "step"
+    "lr_scheduler": "plateau",  # "plateau", "step"
     "lr_factor": 0.4,
     "lr_min": 1e-6,
     "lr_scheduler_patience": 2,
     "lr_step_size": 2,
     "lr_gamma": 0.4,
     "weight_decay": 0.01,
-    "gradient_accumulation": True,  # if True, accumulate gradient from batch_size number of pairwise examples
+    "gradient_accumulation": True,  # e2e only; accumulate over <batch_size> pairwise examples
     "dev_opt_metric": 'b3_f1',  # e2e: {'b3_f1', 'vmeasure'}; pairwise: {'auroc', 'f1'}
     "overfit_batch_idx": -1
 }
@@ -164,3 +165,20 @@ def save_to_wandb_run(file, fname, fpath, logger):
         json.dump(file, fh)
     wandb.save(fname)
     logger.info(f"Saved {fname} to {os.path.join(fpath, fname)}")
+
+
+class FrobeniusLoss:
+    def __init__(self, weight: Optional[Tensor] = None, reduction: str = 'mean') -> None:
+        self.weight = weight
+        self.reduction = reduction
+
+    def __call__(self, input: Tensor, target: Tensor) -> Tensor:
+        n = len(target)
+        normalization = 1.
+        if self.reduction == 'mean':
+            normalization = n * (n - 1)
+        elif self.reduction == 'original':
+            normalization = 2 * n
+        if self.weight is None:
+            return torch.norm((target - input)) / normalization
+        return torch.norm(self.weight * (target - input)) / normalization
