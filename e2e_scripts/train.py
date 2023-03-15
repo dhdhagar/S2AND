@@ -38,9 +38,8 @@ logger = logging.getLogger(__name__)
 
 
 def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
-                  scheduler, eval_metric_to_idx, dev_opt_metric, i, _model,
-                  best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict,
-                  sync=False):
+                  scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
+                  best_dev_scores, best_dev_state_dict, sync=False):
     if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] == 'start'):
         _proc.join()
         _return_dict['_state'] = 'finish'
@@ -57,6 +56,7 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
                     elif hyp['lr_scheduler'] == 'step':
                         scheduler.step()
             else:
+                _state_dict = _return_dict['state_dict']
                 dev_scores = _return_dict['dev_scores']
                 dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                 if dev_opt_score > best_dev_score:
@@ -64,7 +64,7 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
                     best_epoch = i
                     best_dev_score = dev_opt_score
                     best_dev_scores = dev_scores
-                    best_dev_state_dict = copy.deepcopy(_model.state_dict())
+                    best_dev_state_dict = copy.deepcopy(_state_dict)
                 if use_lr_scheduler:
                     if hyp['lr_scheduler'] == 'plateau':
                         scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
@@ -120,6 +120,7 @@ def dev_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbos
             return_dict['wandb'] = {f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
             return_dict['dev_scores'] = dev_scores
+        return_dict['state_dict'] = copy.deepcopy(model.state_dict())
     del model
     return_dict['_state'] = 'done'
 
@@ -418,8 +419,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                    desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
                                                    position=1)):
                     _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
-                                                  hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, _model,
-                                                  best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict)
+                                                  hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch,
+                                                  best_dev_score, best_dev_scores, best_dev_state_dict)
                     if overfit_batch_idx > -1:
                         if idx < overfit_batch_idx:
                             continue
@@ -575,9 +576,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             end_time = time.time()
 
             _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
-                                          hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, _model,
-                                          best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict,
-                                          sync=True)
+                                          hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch,
+                                          best_dev_score, best_dev_scores, best_dev_state_dict, sync=True)
             best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
             # Save model
             if save_model:
