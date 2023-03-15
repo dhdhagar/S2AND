@@ -1,6 +1,7 @@
 """
     Helper functions and constants for e2e_scripts/train.py
 """
+import copy
 import os
 import json
 from collections import defaultdict
@@ -182,3 +183,13 @@ class FrobeniusLoss:
         if self.weight is None:
             return torch.norm((target - input)) / normalization
         return torch.norm(self.weight * (target - input)) / normalization
+
+
+def copy_and_load_model(model, run_dir, device):
+    _model = copy.deepcopy(model)
+    _PATH = os.path.join(run_dir, '_temp_state_dict.pt')
+    torch.save(model.state_dict(), _PATH)
+    _STATE_DICT = torch.load(_PATH, device)
+    _model.load_state_dict(_STATE_DICT)
+    os.remove(_PATH)
+    return _model

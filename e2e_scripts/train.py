@@ -18,8 +18,16 @@ from e2e_pipeline.pairwise_model import PairwiseModel
 from e2e_pipeline.sdp_layer import CvxpyException
 from e2e_scripts.evaluate import evaluate, evaluate_pairwise
 from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_matrix_size_from_triu, \
-    uncompress_target_tensor, count_parameters, log_cc_objective_values, save_to_wandb_run, FrobeniusLoss
+    uncompress_target_tensor, count_parameters, log_cc_objective_values, save_to_wandb_run, FrobeniusLoss, \
+    copy_and_load_model
 from utils.parser import Parser
+
+from torch.multiprocessing import Pool, Process, set_start_method
+
+try:
+    set_start_method('spawn')
+except RuntimeError:
+    pass
 
 from IPython import embed
 
@@ -27,6 +35,28 @@ from IPython import embed
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
+              eval_metric_to_idx, val_dataloader, logger, run_dir=run.dir, wandb_log=wandb.log):
+    _model = copy_and_load_model(model, run_dir, device)
+    with torch.no_grad():
+        _model.eval()
+        if overfit_batch_idx > -1:
+            train_scores = eval_fn(_model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
+                                   tqdm_label='train', device=device, verbose=verbose, debug=debug,
+                                   _errors=_errors)
+            logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
+                        f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
+            wandb_log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+                       f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
+        else:
+            dev_scores = eval_fn(_model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+                                 debug=debug, _errors=_errors)
+            logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                        f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
+            wandb_log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+                       f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
@@ -270,23 +300,27 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
-                with torch.no_grad():
-                    model.eval()
-                    if overfit_batch_idx > -1:
-                        train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                                               tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                               _errors=_errors)
-                        logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
-                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
-                        wandb.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
-                                   f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
-                    else:
-                        dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
-                                             debug=debug, _errors=_errors)
-                        logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
-                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
-                        wandb.log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
-                                   f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
+                p1 = Process(target=init_eval,
+                             args=(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
+                                   eval_metric_to_idx, val_dataloader, logger, run.dir, wandb.log))
+                p1.start()
+                # with torch.no_grad():
+                #     model.eval()
+                #     if overfit_batch_idx > -1:
+                #         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
+                #                                tqdm_label='train', device=device, verbose=verbose, debug=debug,
+                #                                _errors=_errors)
+                #         logger.info(f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
+                #                     f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
+                #         wandb.log({'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+                #                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
+                #     else:
+                #         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+                #                              debug=debug, _errors=_errors)
+                #         logger.info(f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                #                     f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
+                #         wandb.log({'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+                #                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]})
 
             if not pairwise_mode and grad_acc > 1:
                 grad_acc_steps = []
