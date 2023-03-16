@@ -94,7 +94,7 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
             return_dict['wandb'] = {'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                     f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
         else:
-            dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+            dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev 0', device=device, verbose=verbose,
                                  debug=debug, _errors=_errors, tqdm_position=0)
             return_dict['local'] = f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
@@ -124,7 +124,7 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
                                     f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
             return_dict['train_scores'] = train_scores
         else:
-            dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+            dev_scores = eval_fn(model, val_dataloader, tqdm_label=f'dev {i+1}', device=device, verbose=verbose,
                                  debug=debug, _errors=_errors)
             return_dict['local'] = f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
@@ -544,6 +544,20 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         logger.info(f"Loss = {loss.item()}")
                     running_loss.append(loss.item())
                     wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
+
+                # Sync to get previous epoch's dev eval
+                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
+                                                                                                  logger, run,
+                                                                                                  overfit_batch_idx,
+                                                                                                  use_lr_scheduler,
+                                                                                                  hyp, scheduler,
+                                                                                                  eval_metric_to_idx,
+                                                                                                  dev_opt_metric, i - 1,
+                                                                                                  best_epoch,
+                                                                                                  best_dev_score,
+                                                                                                  best_dev_scores,
+                                                                                                  best_dev_state_dict,
+                                                                                                  sync=True)
 
                 logger.info(f"Epoch loss = {np.mean(running_loss)}")
                 wandb.log({f'train_epoch_loss': np.mean(running_loss)})
