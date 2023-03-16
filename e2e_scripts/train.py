@@ -156,10 +156,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
     # Parallel process for validation runs
     _proc = None
-    _manager = Manager()
-    _manager.shutdown()
-    # _return_dict = _manager.dict()
-    # _return_dict['_state'] = 'initial'
+    with Manager() as _manager:
+        _return_dict = _manager.dict()
+        _return_dict['_state'] = 'initial'
 
     # Start wandb run
     with wandb.init(**init_args) as run:
