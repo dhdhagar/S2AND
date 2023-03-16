@@ -82,7 +82,7 @@ if __name__ == '__main__':
         }
 
     with open(save_fpath, 'w') as fh:
-        json.dump(result)
+        json.dump(result, fh)
 
     if args.interactive:
         embed()
