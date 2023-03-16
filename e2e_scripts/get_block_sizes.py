@@ -89,7 +89,7 @@ if __name__ == '__main__':
                 'mean': np.mean(_full_bkl_sizes),
                 'median': np.median(_full_bkl_sizes)
             }
-            _seen_blk_across.union(_seen_blk)
+            _seen_blk_across = _seen_blk_across.union(_seen_blk)
         result[dataset]['mean_across_seeds'] = {
             'n_blocks': np.mean([result[dataset][seed]['full']['n_blocks'] for seed in range(1, n_seeds + 1)]),
             'min': np.mean([result[dataset][seed]['full']['min'] for seed in range(1, n_seeds + 1)]),
