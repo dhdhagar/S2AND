@@ -26,7 +26,7 @@ from utils.parser import Parser
 from torch.multiprocessing import Process, set_start_method, Manager
 
 try:
-    set_start_method('spawn')
+    set_start_method('spawn', force=True)
 except RuntimeError:
     pass
 
