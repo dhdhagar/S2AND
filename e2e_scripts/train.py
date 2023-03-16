@@ -382,6 +382,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             eval_metric_to_idx=eval_metric_to_idx,
                                             val_dataloader=val_dataloader,
                                             return_dict=_return_dict))
+                del _model
                 _proc.start()
 
             if not pairwise_mode and grad_acc > 1:
@@ -538,6 +539,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             debug=debug, _errors=_errors, eval_metric_to_idx=eval_metric_to_idx,
                                             val_dataloader=val_dataloader, return_dict=_return_dict, i=i,
                                             run_dir=run.dir))
+                del _model
                 _proc.start()
                 # with torch.no_grad():
                 #     model.eval()
