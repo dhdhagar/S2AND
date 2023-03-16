@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import logging
 import random
@@ -385,6 +386,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             val_dataloader=val_dataloader,
                                             return_dict=_return_dict))
                 _proc.start()
+                _proc.start()
+                sys.exit(0)
 
             if not pairwise_mode and grad_acc > 1:
                 grad_acc_steps = []
@@ -640,11 +643,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         logger.info(f"Run directory: {run.dir}")
         logger.info("End of train() call")
 
-        _proc.terminate()
-        _manager.shutdown()
-        del _return_dict
-        del _manager
-        del _proc
 
 if __name__ == '__main__':
     # Read cmd line args
