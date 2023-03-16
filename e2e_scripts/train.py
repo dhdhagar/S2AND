@@ -126,8 +126,6 @@ def dev_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbos
         return_dict['state_dict_path'] = copy_and_load_model(model, run_dir, device, store_only=True)
 
     del model
-    del train_dataloader
-    del val_dataloader
     return_dict['_state'] = 'done'
 
 
@@ -642,6 +640,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         logger.info(f"Run directory: {run.dir}")
         logger.info("End of train() call")
 
+        _proc.terminate()
+        _manager.shutdown()
+        del _return_dict
+        del _manager
+        del _proc
 
 if __name__ == '__main__':
     # Read cmd line args
