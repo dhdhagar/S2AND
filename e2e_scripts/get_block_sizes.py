@@ -99,8 +99,15 @@ if __name__ == '__main__':
         }
         result[dataset]['n_blocks'] = len(_seen_blk_across)
 
+        logger.info(f'Dataset: {dataset}')
+        logger.info(f'  Blocks covered: {result[dataset]["n_blocks"]}')
+        logger.info(f'  Across seed stats:')
+        for k, v in result[dataset]['mean_across_seeds'].items():
+            logger.info(f'      {k}: {v}')
+
     with open(save_fpath, 'w') as fh:
         json.dump(result, fh, cls=NpEncoder)
+    logger.info(f'Saved results to {save_fpath}')
 
     if args.interactive:
         embed()
