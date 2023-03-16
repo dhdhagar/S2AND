@@ -23,7 +23,7 @@ from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_ma
     copy_and_load_model
 from utils.parser import Parser
 
-from multiprocessing import Process, set_start_method, Manager
+from torch.multiprocessing import Process, set_start_method, Manager
 
 try:
     set_start_method('spawn', force=True)
@@ -75,7 +75,7 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
     return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict
 
 
-def dummy(state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
+def dummy(model, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
           eval_metric_to_idx, val_dataloader, return_dict):
     pass
 
@@ -156,8 +156,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
     # Parallel process for validation runs
     _proc = None
-    _return_dict = Manager().dict()
-    _return_dict['_state'] = 'initial'
+    # _return_dict = Manager().dict()
+    # _return_dict['_state'] = 'initial'
 
     # Start wandb run
     with wandb.init(**init_args) as run:
@@ -383,10 +383,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
                 _procs = []
-                # _model = copy_and_load_model(model, run.dir, device='cpu')
+                _model = copy_and_load_model(model, run.dir, device)
                 _state_dict_path = copy_and_load_model(model, run.dir, device, store_only=True)
                 _proc = Process(target=dummy,  # init_eval,
-                                kwargs=dict(state_dict_path=_state_dict_path,
+                                kwargs=dict(model=_model, state_dict_path=_state_dict_path,
                                             overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                             train_dataloader=train_dataloader, device=device, verbose=verbose,
                                             debug=debug, _errors=_errors,
@@ -394,9 +394,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             val_dataloader=val_dataloader,
                                             return_dict=None))  # _return_dict
                 _proc.start()
-                _procs.append(_proc)
-                for _proc in _procs:
-                    _proc.join()
+                _proc.join()
                 skip_to_end = True
             if not skip_to_end:
                 if not pairwise_mode and grad_acc > 1:
