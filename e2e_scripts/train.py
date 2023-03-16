@@ -56,7 +56,6 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
                     elif hyp['lr_scheduler'] == 'step':
                         scheduler.step()
             else:
-                _state_dict = _return_dict['state_dict']
                 dev_scores = _return_dict['dev_scores']
                 dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                 if dev_opt_score > best_dev_score:
@@ -64,7 +63,8 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
                     best_epoch = i
                     best_dev_score = dev_opt_score
                     best_dev_scores = dev_scores
-                    best_dev_state_dict = copy.deepcopy(_state_dict)
+                    best_dev_state_dict = torch.load(_return_dict['state_dict_path'], device)
+                    os.remove(_return_dict['state_dict_path'])
                 if use_lr_scheduler:
                     if hyp['lr_scheduler'] == 'plateau':
                         scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
@@ -98,7 +98,7 @@ def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbo
 
 
 def dev_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
-              eval_metric_to_idx, val_dataloader, return_dict, i):
+              eval_metric_to_idx, val_dataloader, return_dict, i, run_dir):
     return_dict['_state'] = 'start'
     return_dict['_method'] = 'dev_eval'
     with torch.no_grad():
@@ -120,7 +120,8 @@ def dev_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbos
             return_dict['wandb'] = {f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
             return_dict['dev_scores'] = dev_scores
-        return_dict['state_dict'] = copy.deepcopy(model.state_dict())
+        return_dict['state_dict_path'] = copy_and_load_model(model, run_dir, device, store_only=True)
+
     del model
     return_dict['_state'] = 'done'
 
@@ -532,10 +533,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 _proc = Process(target=dev_eval,
                                 kwargs=dict(model=_model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                             train_dataloader=train_dataloader, device=device, verbose=verbose,
-                                            debug=debug, _errors=_errors,
-                                            eval_metric_to_idx=eval_metric_to_idx,
-                                            val_dataloader=val_dataloader,
-                                            return_dict=_return_dict, i=i))
+                                            debug=debug, _errors=_errors, eval_metric_to_idx=eval_metric_to_idx,
+                                            val_dataloader=val_dataloader, return_dict=_return_dict, i=i,
+                                            run_dir=run.dir))
                 _proc.start()
                 # with torch.no_grad():
                 #     model.eval()

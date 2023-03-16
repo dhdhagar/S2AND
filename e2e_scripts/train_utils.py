@@ -9,6 +9,7 @@ from typing import Dict
 from typing import Tuple, Optional
 import math
 import pickle
+from time import time
 from torch.utils.data import DataLoader
 from s2and.consts import PREPROCESSED_DATA_DIR
 from s2and.data import S2BlocksDataset
@@ -185,10 +186,12 @@ class FrobeniusLoss:
         return torch.norm(self.weight * (target - input)) / normalization
 
 
-def copy_and_load_model(model, run_dir, device):
+def copy_and_load_model(model, run_dir, device, store_only=False):
     _model = copy.deepcopy(model)
-    _PATH = os.path.join(run_dir, '_temp_state_dict.pt')
+    _PATH = os.path.join(run_dir, f'_temp_state_dict_{int(time())}.pt')
     torch.save(model.state_dict(), _PATH)
+    if store_only:
+        return _PATH
     _STATE_DICT = torch.load(_PATH, device)
     _model.load_state_dict(_STATE_DICT)
     os.remove(_PATH)
