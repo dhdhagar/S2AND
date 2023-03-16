@@ -157,6 +157,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
     # Parallel process for validation runs
     _proc = None
     _manager = Manager()
+    _manager.start()
     _return_dict = _manager.dict()
     # _return_dict['_state'] = 'initial'
 
@@ -395,6 +396,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             return_dict=None))  # _return_dict
                 _proc.start()
                 _proc.join()
+                _manager.shutdown()
                 skip_to_end = True
             if not skip_to_end:
                 if not pairwise_mode and grad_acc > 1:
