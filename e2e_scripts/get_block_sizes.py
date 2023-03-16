@@ -6,6 +6,7 @@ import os
 import numpy as np
 import pickle
 from time import time
+from tqdm import tqdm
 
 from IPython import embed
 
@@ -21,6 +22,9 @@ class Parser(argparse.ArgumentParser):
             "--src", type=str
         )
         self.add_argument(
+            "--unique", action="store_true",
+        )
+        self.add_argument(
             "--interactive", action="store_true",
         )
 
@@ -32,14 +36,14 @@ if __name__ == '__main__':
     logger.info(args.__dict__)
 
     root = "data/preprocessed_data"
-    save_fpath = './data_block_sizes.json'
+    save_fpath = f'./data_block_sizes{"_" + int(time()) if args.unique else ""}.json'
     ignore = ['pubmed_OLD']
     n_seeds = 5
     splits = ['train', 'val', 'test']
 
     result = {}
 
-    for dataset_path in glob.glob(os.path.join(root, "*")):
+    for dataset_path in tqdm(glob.glob(os.path.join(root, "*"))):
         dataset = dataset_path.split('/')[-1]
         if dataset in ignore:
             continue
