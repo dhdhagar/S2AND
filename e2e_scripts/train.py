@@ -40,36 +40,37 @@ logger = logging.getLogger(__name__)
 def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
                   scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
                   best_dev_scores, best_dev_state_dict, sync=False):
-    if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] == 'start'):
-        _proc.join()
-        _return_dict['_state'] = 'finish'
-        if _return_dict['_method'] == 'init_eval':
-            logger.info(_return_dict['local'])
-            run.log(_return_dict['wandb'])
-        elif _return_dict['_method'] == 'dev_eval':
-            logger.info(_return_dict['local'])
-            run.log(_return_dict['wandb'])
-            if overfit_batch_idx > -1:
-                if use_lr_scheduler:
-                    if hyp['lr_scheduler'] == 'plateau':
-                        scheduler.step(_return_dict['train_scores'][eval_metric_to_idx[dev_opt_metric]])
-                    elif hyp['lr_scheduler'] == 'step':
-                        scheduler.step()
-            else:
-                dev_scores = _return_dict['dev_scores']
-                dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
-                if dev_opt_score > best_dev_score:
-                    logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
-                    best_epoch = i
-                    best_dev_score = dev_opt_score
-                    best_dev_scores = dev_scores
-                    best_dev_state_dict = torch.load(_return_dict['state_dict_path'], device)
-                    os.remove(_return_dict['state_dict_path'])
-                if use_lr_scheduler:
-                    if hyp['lr_scheduler'] == 'plateau':
-                        scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
-                    elif hyp['lr_scheduler'] == 'step':
-                        scheduler.step()
+    if _proc is not None:
+        if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] == 'start'):
+            _proc.join()
+            _return_dict['_state'] = 'finish'
+            if _return_dict['_method'] == 'init_eval':
+                logger.info(_return_dict['local'])
+                run.log(_return_dict['wandb'])
+            elif _return_dict['_method'] == 'dev_eval':
+                logger.info(_return_dict['local'])
+                run.log(_return_dict['wandb'])
+                if overfit_batch_idx > -1:
+                    if use_lr_scheduler:
+                        if hyp['lr_scheduler'] == 'plateau':
+                            scheduler.step(_return_dict['train_scores'][eval_metric_to_idx[dev_opt_metric]])
+                        elif hyp['lr_scheduler'] == 'step':
+                            scheduler.step()
+                else:
+                    dev_scores = _return_dict['dev_scores']
+                    dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
+                    if dev_opt_score > best_dev_score:
+                        logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
+                        best_epoch = i
+                        best_dev_score = dev_opt_score
+                        best_dev_scores = dev_scores
+                        best_dev_state_dict = torch.load(_return_dict['state_dict_path'], device)
+                        os.remove(_return_dict['state_dict_path'])
+                    if use_lr_scheduler:
+                        if hyp['lr_scheduler'] == 'plateau':
+                            scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
+                        elif hyp['lr_scheduler'] == 'step':
+                            scheduler.step()
     return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
@@ -146,6 +147,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         init_args.update({'mode': 'disabled'})
 
     # Parallel process for validation runs
+    _proc = None
     _manager = Manager()
     _return_dict = _manager.dict()
     _return_dict['_state'] = 'initial'
