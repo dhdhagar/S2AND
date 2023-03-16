@@ -59,6 +59,7 @@ if __name__ == '__main__':
         if dataset in ignore:
             continue
         result[dataset] = {}
+        _seen_blk_across = set()
         for seed in range(1, n_seeds+1):
             result[dataset][seed] = {}
             _seen_blk = set()
@@ -88,6 +89,7 @@ if __name__ == '__main__':
                 'mean': np.mean(_full_bkl_sizes),
                 'median': np.median(_full_bkl_sizes)
             }
+            _seen_blk_across.union(_seen_blk)
         result[dataset]['mean_across_seeds'] = {
             'n_blocks': np.mean([result[dataset][seed]['full']['n_blocks'] for seed in range(1, n_seeds + 1)]),
             'min': np.mean([result[dataset][seed]['full']['min'] for seed in range(1, n_seeds + 1)]),
@@ -95,6 +97,7 @@ if __name__ == '__main__':
             'mean': np.mean([result[dataset][seed]['full']['mean'] for seed in range(1, n_seeds + 1)]),
             'median': np.mean([result[dataset][seed]['full']['median'] for seed in range(1, n_seeds + 1)])
         }
+        result[dataset]['n_blocks'] = len(_seen_blk_across)
 
     with open(save_fpath, 'w') as fh:
         json.dump(result, fh, cls=NpEncoder)
