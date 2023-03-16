@@ -23,7 +23,7 @@ from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_ma
     copy_and_load_model
 from utils.parser import Parser
 
-from torch.multiprocessing import Pool, Process, set_start_method, Manager
+from torch.multiprocessing import Process, set_start_method, Manager
 
 try:
     set_start_method('spawn')
@@ -156,13 +156,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
     # Parallel process for validation runs
     _proc = None
-
-    try:
-        with Manager() as _manager:
-            _return_dict = _manager.dict()
-            _return_dict['_state'] = 'initial'
-    except Exception as e:
-        embed()
+    _return_dict = Manager().dict()
+    _return_dict['_state'] = 'initial'
 
     # Start wandb run
     with wandb.init(**init_args) as run:
@@ -387,6 +382,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
+                _procs = []
                 # _model = copy_and_load_model(model, run.dir, device='cpu')
                 _state_dict_path = copy_and_load_model(model, run.dir, device, store_only=True)
                 _proc = Process(target=dummy,  # init_eval,
@@ -398,7 +394,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             val_dataloader=val_dataloader,
                                             return_dict=None))  # _return_dict
                 _proc.start()
-                _proc.join()
+                _procs.append(_proc)
+                for _proc in _procs:
+                    _proc.join()
                 skip_to_end = True
             if not skip_to_end:
                 if not pairwise_mode and grad_acc > 1:
