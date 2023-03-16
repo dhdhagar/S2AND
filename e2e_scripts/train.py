@@ -42,7 +42,7 @@ def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_s
                   scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
                   best_dev_scores, best_dev_state_dict, sync=False):
     if _proc is not None:
-        if _return_dict['_state'] == 'done' or sync:
+        if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] == 'start'):
             _proc.join()
             _return_dict['_state'] = 'finish'
             if _return_dict['_method'] == 'init_eval':
