@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import sys
@@ -66,7 +67,6 @@ def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_s
                         best_dev_score = dev_opt_score
                         best_dev_scores = dev_scores
                         best_dev_state_dict = torch.load(_return_dict['state_dict_path'], device)
-                    os.remove(_return_dict['state_dict_path'])
                     if use_lr_scheduler:
                         if hyp['lr_scheduler'] == 'plateau':
                             scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
@@ -81,7 +81,6 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
     return_dict['_method'] = 'init_eval'
     model = model_class(*model_args)
     model.load_state_dict(torch.load(state_dict_path))
-    os.remove(state_dict_path)
     model.to(device)
     with torch.no_grad():
         model.eval()
@@ -640,7 +639,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             _all_errors = save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
             if len(_all_errors['errors']) > 0:
                 logger.warning(f'Errors were encountered during the run. LOGS: {os.path.join(run.dir, "errors.json")}')
-
+        # Cleanup
+        for filename in glob.glob(os.path.join(run.dir, "_temp_state_dict*")):
+            os.remove(filename)
         logger.info(f"Run directory: {run.dir}")
         logger.info("End of train() call")
 
