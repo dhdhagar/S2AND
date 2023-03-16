@@ -391,7 +391,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 # _model = copy_and_load_model(model, run.dir, device)
                 _state_dict_path = copy_and_load_model(model, run.dir, device, store_only=True)
                 _proc = Process(target=dummy,  # init_eval,
-                                kwargs=dict(model_args=model_init_args, state_dict_path=_state_dict_path,
+                                kwargs=dict(model_class=EntResModel, model_args=model_init_args, state_dict_path=_state_dict_path,
                                             overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                             train_dataloader=train_dataloader, device=device, verbose=verbose,
                                             debug=debug, _errors=_errors,
