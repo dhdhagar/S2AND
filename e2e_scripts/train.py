@@ -77,6 +77,7 @@ def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbo
               eval_metric_to_idx, val_dataloader, return_dict):
     return_dict['_state'] = 'start'
     return_dict['_method'] = 'init_eval'
+    model.cuda()
     with torch.no_grad():
         model.eval()
         if overfit_batch_idx > -1:
@@ -102,6 +103,7 @@ def dev_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbos
               eval_metric_to_idx, val_dataloader, return_dict, i, run_dir):
     return_dict['_state'] = 'start'
     return_dict['_method'] = 'dev_eval'
+    model.cuda()
     with torch.no_grad():
         model.eval()
         if overfit_batch_idx > -1:
@@ -374,7 +376,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
-                _model = copy_and_load_model(model, run.dir, device)
+                _model = copy_and_load_model(model, run.dir, device='cpu')
                 _proc = Process(target=init_eval,
                                 kwargs=dict(model=_model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                             train_dataloader=train_dataloader, device=device, verbose=verbose,
@@ -382,7 +384,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             eval_metric_to_idx=eval_metric_to_idx,
                                             val_dataloader=val_dataloader,
                                             return_dict=_return_dict))
-                del _model
                 _proc.start()
 
             if not pairwise_mode and grad_acc > 1:
@@ -532,14 +533,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
-                _model = copy_and_load_model(model, run.dir, device)
+                _model = copy_and_load_model(model, run.dir, device='cpu')
                 _proc = Process(target=dev_eval,
                                 kwargs=dict(model=_model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                             train_dataloader=train_dataloader, device=device, verbose=verbose,
                                             debug=debug, _errors=_errors, eval_metric_to_idx=eval_metric_to_idx,
                                             val_dataloader=val_dataloader, return_dict=_return_dict, i=i,
                                             run_dir=run.dir))
-                del _model
                 _proc.start()
                 # with torch.no_grad():
                 #     model.eval()
