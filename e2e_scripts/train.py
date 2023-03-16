@@ -75,8 +75,9 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
     return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict
 
 
-def dummy(model, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
+def dummy(model_class, model_init_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
           eval_metric_to_idx, val_dataloader, return_dict):
+    model = model_class(*model_init_args)
     del model
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
@@ -222,6 +223,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                 use_rounded_loss=hyp["use_rounded_loss"],
                                 return_triu_on_train=(e2e_loss == "bce"),
                                 use_sdp=hyp["use_sdp"])
+            model_init_args = (n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
+                               neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                               negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
+                               hyp["use_rounded_loss"], (e2e_loss == "bce"), hyp["use_sdp"])
             # Define loss
             if e2e_loss not in ["frob", "bce"]:
                 raise ValueError("Invalid value for e2e_loss")
@@ -383,10 +388,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
                 _procs = []
-                _model = copy_and_load_model(model, run.dir, device)
+                # _model = copy_and_load_model(model, run.dir, device)
                 _state_dict_path = copy_and_load_model(model, run.dir, device, store_only=True)
                 _proc = Process(target=dummy,  # init_eval,
-                                kwargs=dict(model=_model, state_dict_path=_state_dict_path,
+                                kwargs=dict(model_args=model_init_args, state_dict_path=_state_dict_path,
                                             overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                             train_dataloader=train_dataloader, device=device, verbose=verbose,
                                             debug=debug, _errors=_errors,
@@ -395,7 +400,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             return_dict=None))  # _return_dict
                 _proc.start()
                 _proc.join()
-                del _model
                 skip_to_end = True
             if not skip_to_end:
                 if not pairwise_mode and grad_acc > 1:
