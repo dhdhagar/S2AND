@@ -15,6 +15,17 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
+
 class Parser(argparse.ArgumentParser):
     def __init__(self):
         super().__init__()
@@ -86,7 +97,7 @@ if __name__ == '__main__':
         }
 
     with open(save_fpath, 'w') as fh:
-        json.dump(result, fh)
+        json.dump(result, fh, cls=NpEncoder)
 
     if args.interactive:
         embed()
