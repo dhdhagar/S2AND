@@ -17,7 +17,7 @@ for ((i = ${n_seed_start}; i <= ${n_seed_end}; i++)); do
     --pairwise_eval_clustering="both" \
     --skip_initial_eval \
     --silent \
-    --wandb_sweep_name="${sweep_prefix}_${model}_${dataset}_${i}" \
+    --wandb_sweep_name="${sweep_prefix}${model}_${dataset}_${i}" \
     --wandb_sweep_params="wandb_configs/sweeps/${model}.json" \
     --wandb_tags="${model},${dataset},seed_${i}"
   echo "    Logs: jobs/${JOB_NAME}.err"
