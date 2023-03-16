@@ -386,7 +386,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             val_dataloader=val_dataloader,
                                             return_dict=_return_dict))
                 _proc.start()
-                _proc.start()
+                _proc.join()
                 sys.exit(0)
 
             if not pairwise_mode and grad_acc > 1:
