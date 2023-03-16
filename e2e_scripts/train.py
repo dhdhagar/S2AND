@@ -38,7 +38,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 
-def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
+def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
                   scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
                   best_dev_scores, best_dev_state_dict, sync=False):
     if _proc is not None:
@@ -138,7 +138,7 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
           eval_only_split=None, skip_initial_eval=False, pairwise_eval_clustering=None,
-          debug=False, track_errors=True, local=False):
+          debug=False, track_errors=True, local=False, sync_dev=False):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -428,9 +428,19 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 for (idx, batch) in enumerate(tqdm(_train_dataloader,
                                                    desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
                                                    position=1)):
-                    _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
-                                                  hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i-1, best_epoch,
-                                                  best_dev_score, best_dev_scores, best_dev_state_dict)
+                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc,
+                                                                                                      _return_dict,
+                                                                                                      logger, run,
+                                                                                                      overfit_batch_idx,
+                                                                                                      use_lr_scheduler,
+                                                                                                      hyp, scheduler,
+                                                                                                      eval_metric_to_idx,
+                                                                                                      dev_opt_metric,
+                                                                                                      i - 1, best_epoch,
+                                                                                                      best_dev_score,
+                                                                                                      best_dev_scores,
+                                                                                                      best_dev_state_dict,
+                                                                                                      sync=sync_dev)
                     if overfit_batch_idx > -1:
                         if idx < overfit_batch_idx:
                             continue
@@ -539,7 +549,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 wandb.log({f'train_epoch_loss': np.mean(running_loss)})
 
                 # Get model performance on dev (or 'train' for overfitting runs)
-                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
                 _state_dict_path = copy_and_load_model(model, run.dir, device, store_only=True)
                 _proc = Process(target=dev_eval,
                                 kwargs=dict(model_class=model.__class__, model_args=model_args,
@@ -551,10 +560,18 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 _proc.start()
             end_time = time.time()
 
-            _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
-                                          hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch,
-                                          best_dev_score, best_dev_scores, best_dev_state_dict, sync=True)
-            best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
+            best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
+                                                                                             logger, run,
+                                                                                             overfit_batch_idx,
+                                                                                             use_lr_scheduler,
+                                                                                             hyp, scheduler,
+                                                                                             eval_metric_to_idx,
+                                                                                             dev_opt_metric, i,
+                                                                                             best_epoch,
+                                                                                             best_dev_score,
+                                                                                             best_dev_scores,
+                                                                                             best_dev_state_dict,
+                                                                                             sync=True)
             # Save model
             if save_model:
                 torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
@@ -690,7 +707,8 @@ if __name__ == '__main__':
                                            skip_initial_eval=args['skip_initial_eval'],
                                            debug=args['debug'],
                                            track_errors=not args['no_error_tracking'],
-                                           local=args['local']),
+                                           local=args['local'],
+                                           sync_dev=args['sync_dev']),
                     count=args['wandb_max_runs'])
 
         logger.info("End of sweep")
@@ -723,5 +741,6 @@ if __name__ == '__main__':
               pairwise_eval_clustering=args['pairwise_eval_clustering'],
               debug=args['debug'],
               track_errors=not args['no_error_tracking'],
-              local=args['local'])
+              local=args['local'],
+              sync_dev=args['sync_dev'])
         logger.info("End of run")

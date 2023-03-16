@@ -146,3 +146,7 @@ class Parser(argparse.ArgumentParser):
             "--local", action="store_true",
             help="Run script with wandb disabled",
         )
+        parser.add_argument(
+            "--sync_dev", action="store_true",
+            help="Whether to force dev evaluations to run synchronously",
+        )
