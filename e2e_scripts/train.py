@@ -78,6 +78,7 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
 def dummy(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
           eval_metric_to_idx, val_dataloader, return_dict):
     model = model_class(*model_args)
+    model.cuda()
     del model
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
