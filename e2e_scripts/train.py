@@ -395,128 +395,86 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             return_dict=_return_dict))
                 _proc.start()
                 _proc.join()
-                sys.exit(0)
-
-            if not pairwise_mode and grad_acc > 1:
-                grad_acc_steps = []
-                _seen_pw = 0
-                _seen_blk = 0
-                for d in train_dataloader.dataset:
-                    _blk_sz = len(d[1])
-                    _seen_pw += _blk_sz
-                    _seen_blk += 1
-                    if _seen_pw >= grad_acc:
+                skip_to_end = True
+            if not skip_to_end:
+                if not pairwise_mode and grad_acc > 1:
+                    grad_acc_steps = []
+                    _seen_pw = 0
+                    _seen_blk = 0
+                    for d in train_dataloader.dataset:
+                        _blk_sz = len(d[1])
+                        _seen_pw += _blk_sz
+                        _seen_blk += 1
+                        if _seen_pw >= grad_acc:
+                            grad_acc_steps.append(_seen_blk)
+                            _seen_pw = 0
+                            _seen_blk = 0
+                    if _seen_blk > 0:
                         grad_acc_steps.append(_seen_blk)
-                        _seen_pw = 0
-                        _seen_blk = 0
-                if _seen_blk > 0:
-                    grad_acc_steps.append(_seen_blk)
 
-            model.train()
-            start_time = time.time()  # Tracks full training runtime
-            for i in range(n_epochs):
-                _train_dataloader = train_dataloader
-                loss_fn = loss_fn_e2e if not pairwise_mode else loss_fn_pairwise
-                warmstart_mode = not pairwise_mode and i < n_warmstart_epochs
+                model.train()
+                start_time = time.time()  # Tracks full training runtime
+                for i in range(n_epochs):
+                    _train_dataloader = train_dataloader
+                    loss_fn = loss_fn_e2e if not pairwise_mode else loss_fn_pairwise
+                    warmstart_mode = not pairwise_mode and i < n_warmstart_epochs
 
-                if warmstart_mode:
-                    _train_dataloader = train_dataloader_pairwise
-                    loss_fn = loss_fn_pairwise
+                    if warmstart_mode:
+                        _train_dataloader = train_dataloader_pairwise
+                        loss_fn = loss_fn_pairwise
 
-                wandb.log({'epoch': i + 1})
-                running_loss = []
-                n_exceptions = 0
+                    wandb.log({'epoch': i + 1})
+                    running_loss = []
+                    n_exceptions = 0
 
-                grad_acc_count = 0
-                grad_acc_idx = 0
-                optimizer.zero_grad()
+                    grad_acc_count = 0
+                    grad_acc_idx = 0
+                    optimizer.zero_grad()
 
-                for (idx, batch) in enumerate(tqdm(_train_dataloader,
-                                                   desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
-                                                   position=1)):
-                    _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
-                                                  hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch,
-                                                  best_dev_score, best_dev_scores, best_dev_state_dict)
-                    if overfit_batch_idx > -1:
-                        if idx < overfit_batch_idx:
-                            continue
-                        if idx > overfit_batch_idx:
-                            break
-                    if not pairwise_mode and not warmstart_mode:
-                        data, target, _ = batch
-                    else:
-                        data, target = batch
-                    data = data.reshape(-1, n_features).float()
-                    if data.shape[0] == 0:
-                        # Block contains only one signature
-                        continue
-                    if add_batchnorm and data.shape[0] == 1:
-                        # Block contains only one signature pair; batchnorm throws error
-                        continue
-                    block_size = get_matrix_size_from_triu(data)
-                    target = target.flatten().float()
-                    if verbose:
-                        logger.info(f"Batch shape: {data.shape}")
+                    for (idx, batch) in enumerate(tqdm(_train_dataloader,
+                                                       desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
+                                                       position=1)):
+                        _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
+                                                      hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch,
+                                                      best_dev_score, best_dev_scores, best_dev_state_dict)
+                        if overfit_batch_idx > -1:
+                            if idx < overfit_batch_idx:
+                                continue
+                            if idx > overfit_batch_idx:
+                                break
                         if not pairwise_mode and not warmstart_mode:
-                            logger.info(f"Batch matrix size: {block_size}")
-
-                    # Forward pass through the e2e or pairwise model
-                    data, target = data.to(device), target.to(device)
-                    try:
-                        output = model(data, N=block_size, warmstart=warmstart_mode, verbose=verbose)
-                    except CvxpyException as e:
-                        logger.info(e)
-                        _error_obj = {
-                            'method': 'train_forward',
-                            'model_type': 'e2e' if not pairwise_mode else 'pairwise',
-                            'data_split': 'train',
-                            'model_call_args': {
-                                'data': data.detach().cpu(),
-                                'block_size': block_size
-                            },
-                            'cvxpy_layer_args': e.data
-                        }
-                        if _errors is not None:
-                            _errors.append(_error_obj)
-                            save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
-                        if debug:
-                            n_exceptions += 1
-                            logger.info(
-                                f'Caught CvxpyException in forward call (count -> {n_exceptions}): skipping batch')
+                            data, target, _ = batch
+                        else:
+                            data, target = batch
+                        data = data.reshape(-1, n_features).float()
+                        if data.shape[0] == 0:
+                            # Block contains only one signature
                             continue
-
-                    # Calculate the loss
-                    if not pairwise_mode and not warmstart_mode:
-                        grad_acc_denom = 1 if grad_acc == 1 else grad_acc_steps[grad_acc_idx]
-                        if e2e_loss != "bce":
-                            target = uncompress_target_tensor(target, device=device)
+                        if add_batchnorm and data.shape[0] == 1:
+                            # Block contains only one signature pair; batchnorm throws error
+                            continue
+                        block_size = get_matrix_size_from_triu(data)
+                        target = target.flatten().float()
                         if verbose:
-                            logger.info(f"Gold:\n{target}")
-                        if pos_weight is not None:
-                            loss_weight = target * pos_weight + (1 - target)
-                            loss_fn.weight = loss_weight
-                        loss = loss_fn(output.view_as(target), target) / grad_acc_denom
-                    else:
-                        # Pairwise or warmstart mode
-                        if verbose:
-                            logger.info(f"Gold:\n{target}")
-                        loss = loss_fn(output.view_as(target), target)
+                            logger.info(f"Batch shape: {data.shape}")
+                            if not pairwise_mode and not warmstart_mode:
+                                logger.info(f"Batch matrix size: {block_size}")
 
-                    try:
-                        loss.backward()
-                        if not pairwise_mode and grad_acc > 1:
-                            grad_acc_count += len(data)
-                    except Exception as e:
-                        logger.info(e)
-                        if isinstance(e, CvxpyException):
+                        # Forward pass through the e2e or pairwise model
+                        data, target = data.to(device), target.to(device)
+                        try:
+                            output = model(data, N=block_size, warmstart=warmstart_mode, verbose=verbose)
+                        except CvxpyException as e:
+                            logger.info(e)
                             _error_obj = {
-                                'method': 'train_backward',
+                                'method': 'train_forward',
                                 'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                                 'data_split': 'train',
                                 'model_call_args': {
                                     'data': data.detach().cpu(),
                                     'block_size': block_size
-                                }
+                                },
+                                'cvxpy_layer_args': e.data
                             }
                             if _errors is not None:
                                 _errors.append(_error_obj)
@@ -524,129 +482,171 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             if debug:
                                 n_exceptions += 1
                                 logger.info(
-                                    f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
+                                    f'Caught CvxpyException in forward call (count -> {n_exceptions}): skipping batch')
                                 continue
-                    if pairwise_mode or (
-                            idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
-                        optimizer.step()
-                        optimizer.zero_grad()
-                        if grad_acc > 1:
-                            grad_acc_count = 0
-                            grad_acc_idx += 1
 
-                    if verbose:
-                        logger.info(f"Loss = {loss.item()}")
-                    running_loss.append(loss.item())
-                    wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
+                        # Calculate the loss
+                        if not pairwise_mode and not warmstart_mode:
+                            grad_acc_denom = 1 if grad_acc == 1 else grad_acc_steps[grad_acc_idx]
+                            if e2e_loss != "bce":
+                                target = uncompress_target_tensor(target, device=device)
+                            if verbose:
+                                logger.info(f"Gold:\n{target}")
+                            if pos_weight is not None:
+                                loss_weight = target * pos_weight + (1 - target)
+                                loss_fn.weight = loss_weight
+                            loss = loss_fn(output.view_as(target), target) / grad_acc_denom
+                        else:
+                            # Pairwise or warmstart mode
+                            if verbose:
+                                logger.info(f"Gold:\n{target}")
+                            loss = loss_fn(output.view_as(target), target)
 
-                logger.info(f"Epoch loss = {np.mean(running_loss)}")
-                wandb.log({f'train_epoch_loss': np.mean(running_loss)})
+                        try:
+                            loss.backward()
+                            if not pairwise_mode and grad_acc > 1:
+                                grad_acc_count += len(data)
+                        except Exception as e:
+                            logger.info(e)
+                            if isinstance(e, CvxpyException):
+                                _error_obj = {
+                                    'method': 'train_backward',
+                                    'model_type': 'e2e' if not pairwise_mode else 'pairwise',
+                                    'data_split': 'train',
+                                    'model_call_args': {
+                                        'data': data.detach().cpu(),
+                                        'block_size': block_size
+                                    }
+                                }
+                                if _errors is not None:
+                                    _errors.append(_error_obj)
+                                    save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
+                                if debug:
+                                    n_exceptions += 1
+                                    logger.info(
+                                        f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
+                                    continue
+                        if pairwise_mode or (
+                                idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
+                            optimizer.step()
+                            optimizer.zero_grad()
+                            if grad_acc > 1:
+                                grad_acc_count = 0
+                                grad_acc_idx += 1
 
-                # Get model performance on dev (or 'train' for overfitting runs)
+                        if verbose:
+                            logger.info(f"Loss = {loss.item()}")
+                        running_loss.append(loss.item())
+                        wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
+
+                    logger.info(f"Epoch loss = {np.mean(running_loss)}")
+                    wandb.log({f'train_epoch_loss': np.mean(running_loss)})
+
+                    # Get model performance on dev (or 'train' for overfitting runs)
+                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
+                    _model = copy_and_load_model(model, run.dir, device='cpu')
+                    _proc = Process(target=dev_eval,
+                                    kwargs=dict(model=_model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                                train_dataloader=train_dataloader, device=device, verbose=verbose,
+                                                debug=debug, _errors=_errors, eval_metric_to_idx=eval_metric_to_idx,
+                                                val_dataloader=val_dataloader, return_dict=_return_dict, i=i,
+                                                run_dir=run.dir))
+                    _proc.start()
+                    # with torch.no_grad():
+                    #     model.eval()
+                    #     if overfit_batch_idx > -1:
+                    #         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
+                    #                                tqdm_label='train', device=device, verbose=verbose, debug=debug,
+                    #                                _errors=_errors)
+                    #         logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
+                    #                     f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
+                    #         wandb.log({f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
+                    #                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
+                    #         if use_lr_scheduler:
+                    #             if hyp['lr_scheduler'] == 'plateau':
+                    #                 scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
+                    #             elif hyp['lr_scheduler'] == 'step':
+                    #                 scheduler.step()
+                    #     else:
+                    #         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
+                    #                              debug=debug, _errors=_errors)
+                    #         logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
+                    #                     f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
+                    #         wandb.log({f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
+                    #                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1],
+                    #                    f'train_epoch_loss': np.mean(running_loss)})
+                    #         dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
+                    #         if dev_opt_score > best_dev_score:
+                    #             logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
+                    #             best_epoch = i
+                    #             best_dev_score = dev_opt_score
+                    #             best_dev_scores = dev_scores
+                    #             best_dev_state_dict = copy.deepcopy(model.state_dict())
+                    #         if use_lr_scheduler:
+                    #             if hyp['lr_scheduler'] == 'plateau':
+                    #                 scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
+                    #             elif hyp['lr_scheduler'] == 'step':
+                    #                 scheduler.step()
+                    # model.train()
+                end_time = time.time()
+
+                _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
+                                              hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch,
+                                              best_dev_score, best_dev_scores, best_dev_state_dict, sync=True)
                 best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
-                _model = copy_and_load_model(model, run.dir, device='cpu')
-                _proc = Process(target=dev_eval,
-                                kwargs=dict(model=_model, overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
-                                            train_dataloader=train_dataloader, device=device, verbose=verbose,
-                                            debug=debug, _errors=_errors, eval_metric_to_idx=eval_metric_to_idx,
-                                            val_dataloader=val_dataloader, return_dict=_return_dict, i=i,
-                                            run_dir=run.dir))
-                _proc.start()
-                # with torch.no_grad():
-                #     model.eval()
-                #     if overfit_batch_idx > -1:
-                #         train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                #                                tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                #                                _errors=_errors)
-                #         logger.info(f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " +
-                #                     f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}")
-                #         wandb.log({f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
-                #                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]})
-                #         if use_lr_scheduler:
-                #             if hyp['lr_scheduler'] == 'plateau':
-                #                 scheduler.step(train_scores[eval_metric_to_idx[dev_opt_metric]])
-                #             elif hyp['lr_scheduler'] == 'step':
-                #                 scheduler.step()
-                #     else:
-                #         dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev', device=device, verbose=verbose,
-                #                              debug=debug, _errors=_errors)
-                #         logger.info(f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " +
-                #                     f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}")
-                #         wandb.log({f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
-                #                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1],
-                #                    f'train_epoch_loss': np.mean(running_loss)})
-                #         dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
-                #         if dev_opt_score > best_dev_score:
-                #             logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
-                #             best_epoch = i
-                #             best_dev_score = dev_opt_score
-                #             best_dev_scores = dev_scores
-                #             best_dev_state_dict = copy.deepcopy(model.state_dict())
-                #         if use_lr_scheduler:
-                #             if hyp['lr_scheduler'] == 'plateau':
-                #                 scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
-                #             elif hyp['lr_scheduler'] == 'step':
-                #                 scheduler.step()
-                # model.train()
-            end_time = time.time()
+                # Save model
+                if save_model:
+                    torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
+                    wandb.save('model_state_dict_best.pt')
+                    logger.info(f"Saved best model on dev to {os.path.join(run.dir, 'model_state_dict_best.pt')}")
 
-            _proc_results = check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler,
-                                          hyp, scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch,
-                                          best_dev_score, best_dev_scores, best_dev_state_dict, sync=True)
-            best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _proc_results
-            # Save model
-            if save_model:
-                torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
-                wandb.save('model_state_dict_best.pt')
-                logger.info(f"Saved best model on dev to {os.path.join(run.dir, 'model_state_dict_best.pt')}")
-
-            # Evaluate the best dev model on test
-            if overfit_batch_idx == -1:
-                model.load_state_dict(best_dev_state_dict)
-                with torch.no_grad():
-                    model.eval()
-                    test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
-                                          debug=debug, _errors=_errors, tqdm_position=2)
-                    logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
-                                f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
-                    # Log final metrics
-                    wandb.log({'best_dev_epoch': best_epoch + 1,
-                               f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
-                               f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
-                               f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
-                               f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
-                    if len(test_scores) == 3:
-                        log_cc_objective_values(scores=test_scores, split_name='best_test', log_prefix='Final',
-                                                verbose=True, logger=logger)
-                    # For pairwise-mode:
-                    if pairwise_clustering_fns[0] is not None:
-                        clustering_threshold = None
-                        for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
-                            clustering_scores = eval_fn(model, test_dataloader_e2e,
-                                                        clustering_fn=pairwise_clustering_fn,
-                                                        clustering_threshold=clustering_threshold,
-                                                        val_dataloader=val_dataloader_e2e,
-                                                        tqdm_label='test clustering', device=device, verbose=verbose,
-                                                        debug=debug, _errors=_errors, tqdm_position=2)
-                            if pairwise_clustering_fn.__class__ is HACInference:
-                                clustering_threshold = pairwise_clustering_fn.cut_threshold
-                            logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
-                                        f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
-                            # Log final metrics
-                            wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[0],
-                                       f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[1]})
-                            if len(clustering_scores) == 3:
-                                log_cc_objective_values(scores=clustering_scores,
-                                                        split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
-                                                        log_prefix='Final', verbose=True, logger=logger)
+                # Evaluate the best dev model on test
+                if overfit_batch_idx == -1:
+                    model.load_state_dict(best_dev_state_dict)
+                    with torch.no_grad():
+                        model.eval()
+                        test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
+                                              debug=debug, _errors=_errors, tqdm_position=2)
+                        logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
+                                    f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
+                        # Log final metrics
+                        wandb.log({'best_dev_epoch': best_epoch + 1,
+                                   f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
+                                   f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
+                                   f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
+                                   f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
+                        if len(test_scores) == 3:
+                            log_cc_objective_values(scores=test_scores, split_name='best_test', log_prefix='Final',
+                                                    verbose=True, logger=logger)
+                        # For pairwise-mode:
+                        if pairwise_clustering_fns[0] is not None:
+                            clustering_threshold = None
+                            for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
+                                clustering_scores = eval_fn(model, test_dataloader_e2e,
+                                                            clustering_fn=pairwise_clustering_fn,
+                                                            clustering_threshold=clustering_threshold,
+                                                            val_dataloader=val_dataloader_e2e,
+                                                            tqdm_label='test clustering', device=device, verbose=verbose,
+                                                            debug=debug, _errors=_errors, tqdm_position=2)
+                                if pairwise_clustering_fn.__class__ is HACInference:
+                                    clustering_threshold = pairwise_clustering_fn.cut_threshold
+                                logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
+                                            f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
+                                # Log final metrics
+                                wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[0],
+                                           f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[1]})
+                                if len(clustering_scores) == 3:
+                                    log_cc_objective_values(scores=clustering_scores,
+                                                            split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
+                                                            log_prefix='Final', verbose=True, logger=logger)
 
 
-        run.summary["z_model_parameters"] = count_parameters(model)
-        run.summary["z_run_time"] = round(end_time - start_time)
-        run.summary["z_run_dir_path"] = run.dir
+        # run.summary["z_model_parameters"] = count_parameters(model)
+        # run.summary["z_run_time"] = round(end_time - start_time)
+        # run.summary["z_run_dir_path"] = run.dir
 
-        if _errors is not None:
-            save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
+        # if _errors is not None:
+        #     save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
 
         logger.info(f"Run directory: {run.dir}")
         logger.info("End of train() call")
