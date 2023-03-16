@@ -156,9 +156,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
     # Parallel process for validation runs
     _proc = None
-    _manager = Manager()
-    _return_dict = _manager.dict()
-    _return_dict['_state'] = 'initial'
+    # _manager = Manager()
+    # _return_dict = _manager.dict()
+    # _return_dict['_state'] = 'initial'
 
     # Start wandb run
     with wandb.init(**init_args) as run:
@@ -392,7 +392,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             debug=debug, _errors=_errors,
                                             eval_metric_to_idx=eval_metric_to_idx,
                                             val_dataloader=val_dataloader,
-                                            return_dict=_return_dict))
+                                            return_dict=None))  # _return_dict
                 _proc.start()
                 _proc.join()
                 skip_to_end = True
