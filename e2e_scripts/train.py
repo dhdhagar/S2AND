@@ -77,7 +77,7 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
 
 def dummy(model, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
           eval_metric_to_idx, val_dataloader, return_dict):
-    pass
+    del model
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
               eval_metric_to_idx, val_dataloader, return_dict):
@@ -395,6 +395,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             return_dict=None))  # _return_dict
                 _proc.start()
                 _proc.join()
+                del _model
                 skip_to_end = True
             if not skip_to_end:
                 if not pairwise_mode and grad_acc > 1:
