@@ -367,7 +367,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             best_dev_state_dict = copy.deepcopy(model.state_dict())
             best_dev_score = -1  # Stores the score of only the specified optimization metric
-            best_dev_scores = None  # Contains scores of all metrics
+            best_dev_scores = ()  # Contains scores of all metrics
             best_epoch = 0
 
             if not skip_initial_eval:
