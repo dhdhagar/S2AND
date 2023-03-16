@@ -162,11 +162,20 @@ def log_cc_objective_values(scores, split_name, log_prefix, verbose, logger, plo
     # TODO: Implement plotting the approx. ratio v/s block sizes
 
 
-def save_to_wandb_run(file, fname, fpath, logger):
+def save_to_wandb_run(file, fname, fpath, logger, error_logger=True):
+    if error_logger and os.path.exists(os.path.join(fpath, fname)):
+        with open(os.path.join(fpath, fname), 'r') as fh:
+            all_errors = json.load(fh)['errors']
+            all_ids = set([e['id'] for e in all_errors])
+            for new_error in file['errors']:
+                if new_error['id'] not in all_ids:
+                    all_errors.append(new_error)
+            file['errors'] = all_errors
     with open(os.path.join(fpath, fname), 'w') as fh:
         json.dump(file, fh)
     wandb.save(fname)
     logger.info(f"Saved {fname} to {os.path.join(fpath, fname)}")
+    return file
 
 
 class FrobeniusLoss:

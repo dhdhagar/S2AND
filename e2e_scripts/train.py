@@ -66,7 +66,7 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
                         best_dev_score = dev_opt_score
                         best_dev_scores = dev_scores
                         best_dev_state_dict = torch.load(_return_dict['state_dict_path'], device)
-                        os.remove(_return_dict['state_dict_path'])
+                    os.remove(_return_dict['state_dict_path'])
                     if use_lr_scheduler:
                         if hyp['lr_scheduler'] == 'plateau':
                             scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
@@ -81,6 +81,7 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
     return_dict['_method'] = 'init_eval'
     model = model_class(*model_args)
     model.load_state_dict(torch.load(state_dict_path))
+    os.remove(state_dict_path)
     model.to(device)
     with torch.no_grad():
         model.eval()
@@ -107,6 +108,7 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
              debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, i, run_dir):
     return_dict['_state'] = 'start'
     return_dict['_method'] = 'dev_eval'
+    return_dict['state_dict_path'] = state_dict_path
     model = model_class(*model_args)
     model.load_state_dict(torch.load(state_dict_path))
     model.to(device)
@@ -129,7 +131,6 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
             return_dict['wandb'] = {f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
             return_dict['dev_scores'] = dev_scores
-        return_dict['state_dict_path'] = copy_and_load_model(model, run_dir, device, store_only=True)
     del model
     return_dict['_state'] = 'done'
 
@@ -165,7 +166,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         logger.info("Run hyperparameters:")
         logger.info(hyp)
         # Save hyperparameters as a json file and store in wandb run
-        save_to_wandb_run(dict(hyp), 'hyperparameters.json', run.dir, logger)
+        save_to_wandb_run(dict(hyp), 'hyperparameters.json', run.dir, logger, error_logger=False)
 
         # Track errors
         _errors = [] if track_errors else None
@@ -460,6 +461,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     except CvxpyException as e:
                         logger.info(e)
                         _error_obj = {
+                            'id': f'tf_{int(time.time())}',
                             'method': 'train_forward',
                             'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                             'data_split': 'train',
@@ -503,6 +505,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         logger.info(e)
                         if isinstance(e, CvxpyException):
                             _error_obj = {
+                                'id': f'tb_{int(time.time())}',
                                 'method': 'train_backward',
                                 'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                                 'data_split': 'train',
@@ -604,8 +607,11 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         run.summary["z_run_dir_path"] = run.dir
 
         if _errors is not None:
-            save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
-
+            if os.path.exists(os.path.join(run.dir, 'errors.json')):
+                with open(os.path.join(run.dir, 'errors.json'), 'r') as fh:
+                    _all_errors = json.load(fh)
+                    if len(_all_errors['errors']) > 0:
+                        logger.warning(f'Errors were encountered during the run. LOGS: {os.path.join(run.dir, "errors.json")}')
         logger.info(f"Run directory: {run.dir}")
         logger.info("End of train() call")
 

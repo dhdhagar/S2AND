@@ -4,6 +4,7 @@
 import logging
 
 from tqdm import tqdm
+from time import time
 from sklearn.metrics.cluster import v_measure_score
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import precision_recall_fscore_support
@@ -63,6 +64,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             except CvxpyException as e:
                 logger.info(e)
                 _error_obj = {
+                    'id': f'e_{int(time())}',
                     'method': 'eval',
                     'model_type': 'e2e',
                     'data_split': tqdm_label,
@@ -137,6 +139,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                 except CvxpyException as e:
                     logger.info(e)
                     _error_obj = {
+                        'id': f'e_{int(time())}',
                         'method': 'eval',
                         'model_type': 'pairwise_cc',
                         'data_split': tqdm_label,
