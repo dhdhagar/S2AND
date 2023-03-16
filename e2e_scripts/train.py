@@ -217,12 +217,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
         # Create model with hyperparams
         if not pairwise_mode:
-            model_init_fn = lambda: EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
-                                                neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
-                                                negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
-                                                use_rounded_loss=hyp["use_rounded_loss"],
-                                                return_triu_on_train=(e2e_loss == "bce"),
-                                                use_sdp=hyp["use_sdp"])
+            def model_init_fn():
+                return EntResModel(n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
+                                   neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                                   negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
+                                   use_rounded_loss=hyp["use_rounded_loss"],
+                                   return_triu_on_train=(e2e_loss == "bce"),
+                                   use_sdp=hyp["use_sdp"])
             model = model_init_fn()
             # Define loss
             if e2e_loss not in ["frob", "bce"]:
