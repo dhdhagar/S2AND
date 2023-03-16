@@ -23,7 +23,7 @@ from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_ma
     copy_and_load_model
 from utils.parser import Parser
 
-from torch.multiprocessing import Process, set_start_method, Manager
+from multiprocessing import Process, set_start_method, Manager
 
 try:
     set_start_method('spawn', force=True)
