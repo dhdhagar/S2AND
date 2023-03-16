@@ -75,9 +75,9 @@ def check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_sc
     return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict
 
 
-def dummy(model_class, model_init_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
+def dummy(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
           eval_metric_to_idx, val_dataloader, return_dict):
-    model = model_class(*model_init_args)
+    model = model_class(*model_args)
     del model
 
 def init_eval(model, overfit_batch_idx, eval_fn, train_dataloader, device, verbose, debug, _errors,
