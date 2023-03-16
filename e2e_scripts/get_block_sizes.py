@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
         logger.info(f'Dataset: {dataset}')
         logger.info(f'  Blocks covered: {result[dataset]["n_blocks"]}')
-        logger.info(f'  Across seed stats:')
+        logger.info(f'  Across seed stats (mean):')
         for k, v in result[dataset]['mean_across_seeds'].items():
             logger.info(f'      {k}: {v}')
 
