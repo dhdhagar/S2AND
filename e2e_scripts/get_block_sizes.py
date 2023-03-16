@@ -36,6 +36,9 @@ class Parser(argparse.ArgumentParser):
             "--unique", action="store_true",
         )
         self.add_argument(
+            "--silent", action="store_true",
+        )
+        self.add_argument(
             "--interactive", action="store_true",
         )
 
@@ -54,7 +57,7 @@ if __name__ == '__main__':
 
     result = {}
 
-    for dataset_path in tqdm(glob.glob(os.path.join(root, "*"))):
+    for dataset_path in tqdm(glob.glob(os.path.join(root, "*")), disable=args.silent):
         dataset = dataset_path.split('/')[-1]
         if dataset in ignore:
             continue
