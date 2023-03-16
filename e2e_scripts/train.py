@@ -618,17 +618,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                         split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
                                                         log_prefix='Final', verbose=True, logger=logger)
 
-
         run.summary["z_model_parameters"] = count_parameters(model)
         run.summary["z_run_time"] = round(end_time - start_time)
         run.summary["z_run_dir_path"] = run.dir
 
         if _errors is not None:
-            if os.path.exists(os.path.join(run.dir, 'errors.json')):
-                with open(os.path.join(run.dir, 'errors.json'), 'r') as fh:
-                    _all_errors = json.load(fh)
-                    if len(_all_errors['errors']) > 0:
-                        logger.warning(f'Errors were encountered during the run. LOGS: {os.path.join(run.dir, "errors.json")}')
+            _all_errors = save_to_wandb_run({'errors': _errors}, 'errors.json', run.dir, logger)
+            if len(_all_errors['errors']) > 0:
+                logger.warning(f'Errors were encountered during the run. LOGS: {os.path.join(run.dir, "errors.json")}')
+
         logger.info(f"Run directory: {run.dir}")
         logger.info("End of train() call")
 
