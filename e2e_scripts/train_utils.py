@@ -10,6 +10,8 @@ from typing import Tuple, Optional
 import math
 import pickle
 from time import time
+
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 from s2and.consts import PREPROCESSED_DATA_DIR
 from s2and.data import S2BlocksDataset
@@ -83,25 +85,34 @@ def read_blockwise_features(pkl):
 
 
 def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz_train, subsample_sz_dev,
-                    pairwise_mode, batch_size):
-    train_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl"
-    val_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl"
-    test_pkl = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/test_features.pkl"
-
-    train_dataset = S2BlocksDataset(read_blockwise_features(train_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                    scale=normalize, subsample_sz=subsample_sz_train, pairwise_mode=pairwise_mode)
-    train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=batch_size)
-
-    val_dataset = S2BlocksDataset(read_blockwise_features(val_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                  scale=normalize, scaler=train_dataset.scaler, subsample_sz=subsample_sz_dev,
+                    pairwise_mode, batch_size, shuffle=False, split=None):
+    pickle_path = {
+        'train': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl",
+        'dev': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl",
+        'test': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/test_features.pkl"
+    }
+    subsample_sz = {
+        'train': subsample_sz_train,
+        'dev': subsample_sz_dev,
+        'test': -1
+    }
+    train_scaler = StandardScaler()
+    train_X = np.concatenate(list(map(lambda x: x[0], read_blockwise_features(pickle_path['train']).values())))
+    train_scaler.fit(train_X)
+    def _get_dataloader(_split):
+        dataset = S2BlocksDataset(read_blockwise_features(pickle_path[_split]), convert_nan=convert_nan,
+                                  nan_value=nan_value, scale=normalize, scaler=train_scaler,
+                                  subsample_sz=subsample_sz[_split],
                                   pairwise_mode=pairwise_mode)
-    val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size)
-
-    test_dataset = S2BlocksDataset(read_blockwise_features(test_pkl), convert_nan=convert_nan, nan_value=nan_value,
-                                   scale=normalize, scaler=train_dataset.scaler, pairwise_mode=pairwise_mode)
-    test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
-
-    return train_dataloader, val_dataloader, test_dataloader
+        dataloader = DataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
+        return dataloader
+    if split is not None:
+        return _get_dataloader('train'), _get_dataloader('dev'), _get_dataloader('test')
+    if type(split) is str:
+        return _get_dataloader(split)
+    if type(split) is list:
+        return tuple([_get_dataloader(_split) for _split in split])
+    raise ValueError('Invalid argument to split')
 
 
 def uncompress_target_tensor(compressed_targets, make_symmetric=True, device=None):

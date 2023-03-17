@@ -242,14 +242,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             eval_fn = evaluate
             pairwise_clustering_fns = [None]  # Unused when pairwise_mode is False
             if n_warmstart_epochs > 0:
-                train_dataloader_pairwise, _, _ = get_dataloaders(hyp["dataset"],
-                                                                  hyp["dataset_random_seed"],
-                                                                  hyp["convert_nan"],
-                                                                  hyp["nan_value"],
-                                                                  hyp["normalize_data"],
-                                                                  hyp["subsample_sz_train"],
-                                                                  hyp["subsample_sz_dev"],
-                                                                  True, hyp['batch_size'])
+                train_dataloader_pairwise = get_dataloaders(hyp["dataset"],
+                                                            hyp["dataset_random_seed"],
+                                                            hyp["convert_nan"],
+                                                            hyp["nan_value"],
+                                                            hyp["normalize_data"],
+                                                            hyp["subsample_sz_train"],
+                                                            hyp["subsample_sz_dev"],
+                                                            pairwise_mode=True, batch_size=hyp['batch_size'],
+                                                            split='train')
                 # Define loss
                 loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
         else:
@@ -287,14 +288,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
                 else:
                     raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
-                _, val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
-                                                                             hyp["dataset_random_seed"],
-                                                                             hyp["convert_nan"],
-                                                                             hyp["nan_value"],
-                                                                             hyp["normalize_data"],
-                                                                             hyp["subsample_sz_train"],
-                                                                             hyp["subsample_sz_dev"],
-                                                                             pairwise_mode=False, batch_size=1)
+                val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
+                                                                          hyp["dataset_random_seed"],
+                                                                          hyp["convert_nan"],
+                                                                          hyp["nan_value"],
+                                                                          hyp["normalize_data"],
+                                                                          hyp["subsample_sz_train"],
+                                                                          hyp["subsample_sz_dev"],
+                                                                          pairwise_mode=False, batch_size=1,
+                                                                          split=['dev', 'test'])
         logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
@@ -323,14 +325,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                    'cc-nosdp', 'cc-nosdp-fixed']
             cc_inference_sdp.eval()
             cc_inference_nosdp.eval()
-            _, val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
-                                                                         hyp["dataset_random_seed"],
-                                                                         hyp["convert_nan"],
-                                                                         hyp["nan_value"],
-                                                                         hyp["normalize_data"],
-                                                                         hyp["subsample_sz_train"],
-                                                                         hyp["subsample_sz_dev"],
-                                                                         pairwise_mode=False, batch_size=1)
+            val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
+                                                                      hyp["dataset_random_seed"],
+                                                                      hyp["convert_nan"],
+                                                                      hyp["nan_value"],
+                                                                      hyp["normalize_data"],
+                                                                      hyp["subsample_sz_train"],
+                                                                      hyp["subsample_sz_dev"],
+                                                                      pairwise_mode=False, batch_size=1,
+                                                                      split=['dev', 'test'])
             start_time = time.time()
             with torch.no_grad():
                 model.eval()
