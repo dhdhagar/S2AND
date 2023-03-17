@@ -45,7 +45,7 @@ class HACInference:
 
             # Forward pass through the e2e model
             data = data.to(device)
-            edge_weights = model(data, warmstart=True)
+            edge_weights = model(data, N=len(cluster_ids), warmstart=True)
             tree_and_alts, dists = self.cluster(edge_weights, block_size, return_tree=True)
             blockwise_trees.append(tree_and_alts)
             all_dists.append(dists)
