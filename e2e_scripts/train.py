@@ -237,7 +237,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     for _i in range(len(train_dataloader.dataset)):
                         _n_pos += train_dataloader.dataset[_i][1].sum()
                         _n_total += len(train_dataloader.dataset[_i][1])
-                        pos_weight = (_n_total - _n_pos) / _n_pos
+                    pos_weight = (_n_total - _n_pos) / _n_pos if _n_pos > 0 else 1.
             # Define eval
             eval_fn = evaluate
             pairwise_clustering_fns = [None]  # Unused when pairwise_mode is False
@@ -264,10 +264,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     n_pos = \
                         train_dataloader.dataset[overfit_batch_idx * batch_size:(overfit_batch_idx + 1) * batch_size][
                             1].sum()
-                    pos_weight = torch.tensor((batch_size - n_pos) / n_pos)
+                    pos_weight = torch.tensor((batch_size - n_pos) / n_pos if n_pos > 0 else 1.)
                 else:
                     n_pos = train_dataloader.dataset[:][1].sum()
-                    pos_weight = torch.tensor((len(train_dataloader.dataset) - n_pos) / n_pos)
+                    pos_weight = torch.tensor((len(train_dataloader.dataset) - n_pos) / n_pos if n_pos > 0 else 1.)
             loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             # Define eval
             eval_fn = evaluate_pairwise
