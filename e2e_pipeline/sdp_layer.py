@@ -67,14 +67,14 @@ class SDPLayer(torch.nn.Module):
                 })[0]
             else:
                 # create problem
-                prob = cp.Problem(cp.Maximize(cp.trace(W_val @ X)), constraints)
+                prob = cp.Problem(cp.Maximize(cp.trace(W_val.cpu().numpy() @ X)), constraints)
                 prob.solve(
                     solver=cp.SCS,
                     verbose=verbose,
                     max_iters=self.max_iters,
                     eps=self.eps
                 )
-                pw_prob_matrix = X.value
+                pw_prob_matrix = torch.tensor(X.value, device=W_val.device)
             # Fix to prevent invalid solution values close to 0 and 1 but outside the range
             pw_prob_matrix = torch.clamp(pw_prob_matrix, min=0, max=1)
         except:
