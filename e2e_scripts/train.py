@@ -337,12 +337,12 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 clustering_threshold = None
                 for i, inference_fn in enumerate(inference_fns):
                     logger.info(f'Inference method: {inference_fn_labels[i]}')
-                    clustering_scores = eval_fn(model, test_dataloader_e2e,
-                                                clustering_fn=inference_fn,
-                                                clustering_threshold=clustering_threshold,
-                                                val_dataloader=val_dataloader_e2e,
-                                                tqdm_label='test clustering', device=device, verbose=verbose,
-                                                debug=debug, _errors=_errors)
+                    clustering_scores = evaluate_pairwise(model, test_dataloader_e2e,
+                                                          clustering_fn=inference_fn,
+                                                          clustering_threshold=clustering_threshold if i % 2 == 0 else None,
+                                                          val_dataloader=val_dataloader_e2e,
+                                                          tqdm_label='test clustering', device=device, verbose=verbose,
+                                                          debug=debug, _errors=_errors)
                     if inference_fn.__class__ is HACInference:
                         clustering_threshold = inference_fn.cut_threshold
                     logger.info(
