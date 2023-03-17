@@ -6,7 +6,7 @@ class UncompressTransformLayer(torch.nn.Module):
         super().__init__()
 
     def forward(self, compressed_matrix, N, make_symmetric=False, ones_diagonal=False):
-        device = compressed_matrix.get_device()
+        device = compressed_matrix.device
         triu_indices = torch.triu_indices(N, N, offset=1, device=device)
         if make_symmetric:
             sym_indices = torch.stack((torch.cat((triu_indices[0], triu_indices[1])),
