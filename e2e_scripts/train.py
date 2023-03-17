@@ -136,7 +136,7 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
-          eval_only_split=None, skip_initial_eval=False, pairwise_eval_clustering=None,
+          eval_only_split=None, eval_all=False, skip_initial_eval=False, pairwise_eval_clustering=None,
           debug=False, track_errors=True, local=False, sync_dev=False):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
@@ -178,6 +178,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
         pairwise_mode = hyp['pairwise_mode']
         weighted_loss = hyp['weighted_loss']
+        use_rounded_loss = hyp["use_rounded_loss"]
         e2e_loss = hyp['e2e_loss']
         batch_size = hyp['batch_size'] if pairwise_mode else 1  # Force clustering runs to operate on 1 block only
         n_epochs = hyp['n_epochs']
@@ -194,6 +195,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         neumiss_depth = hyp["neumiss_depth"]
         add_neumiss = not hyp['convert_nan']
         negative_slope = hyp["negative_slope"]
+        use_sdp = hyp["use_sdp"]
         sdp_max_iters = hyp["sdp_max_iters"]
         sdp_eps = hyp["sdp_eps"]
         sdp_scale = hyp["sdp_scale"]
@@ -218,7 +220,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             model_args = (n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
                          neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
                          negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
-                         hyp["use_rounded_loss"], (e2e_loss == "bce"), hyp["use_sdp"])
+                         use_rounded_loss, (e2e_loss == "bce"), use_sdp)
             model = EntResModel(*model_args)
             # Define loss
             if e2e_loss not in ["frob", "bce"]:
@@ -272,14 +274,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             pairwise_clustering_fns = [None]
             if pairwise_eval_clustering is not None:
                 if pairwise_eval_clustering == 'cc':
-                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps, sdp_scale)]
+                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp)]
                     pairwise_clustering_fns[0].eval()
                     pairwise_clustering_fn_labels = ['cc']
                 elif pairwise_eval_clustering == 'hac':
                     pairwise_clustering_fns = [HACInference()]
                     pairwise_clustering_fn_labels = ['hac']
                 elif pairwise_eval_clustering == 'both':
-                    cc_inference = CCInference(sdp_max_iters, sdp_eps, sdp_scale)
+                    cc_inference = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp)
                     pairwise_clustering_fns = [cc_inference, HACInference(), cc_inference]
                     pairwise_clustering_fns[0].eval()
                     pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
@@ -292,7 +294,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                              hyp["normalize_data"],
                                                                              hyp["subsample_sz_train"],
                                                                              hyp["subsample_sz_dev"],
-                                                                             False, 1)
+                                                                             pairwise_mode=False, batch_size=1)
         logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
@@ -309,8 +311,54 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             logger.info(f'Loaded stored model.')
         model.to(device)
 
-        if eval_only_split is not None:
-            # Run inference and exit
+        if eval_all:
+            # Run all inference variants on the test set and exit
+            cc_inference_sdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=True)
+            cc_inference_nosdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=False)
+            inference_fns = [HACInference(),
+                             cc_inference_sdp, cc_inference_sdp,
+                             cc_inference_nosdp, cc_inference_nosdp]
+            inference_fn_labels = ['hac',
+                                   'cc', 'cc-fixed',
+                                   'cc-nosdp', 'cc-nosdp-fixed']
+            cc_inference_sdp.eval()
+            cc_inference_nosdp.eval()
+            _, val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
+                                                                         hyp["dataset_random_seed"],
+                                                                         hyp["convert_nan"],
+                                                                         hyp["nan_value"],
+                                                                         hyp["normalize_data"],
+                                                                         hyp["subsample_sz_train"],
+                                                                         hyp["subsample_sz_dev"],
+                                                                         pairwise_mode=False, batch_size=1)
+            start_time = time.time()
+            with torch.no_grad():
+                model.eval()
+                clustering_threshold = None
+                for i, inference_fn in enumerate(inference_fns):
+                    clustering_scores = eval_fn(model, test_dataloader_e2e,
+                                                clustering_fn=inference_fn,
+                                                clustering_threshold=clustering_threshold,
+                                                val_dataloader=val_dataloader_e2e,
+                                                tqdm_label='test clustering', device=device, verbose=verbose,
+                                                debug=debug, _errors=_errors)
+                    if inference_fn.__class__ is HACInference:
+                        clustering_threshold = inference_fn.cut_threshold
+                    logger.info(
+                        f"Eval: test_{list(clustering_metrics)[0]}_{inference_fn_labels[i]}={clustering_scores[0]}, " +
+                        f"test_{list(clustering_metrics)[1]}_{inference_fn_labels[i]}={clustering_scores[1]}")
+                    # Log eval metrics
+                    wandb.log({f'best_test_{list(clustering_metrics)[0]}_{inference_fn_labels[i]}':
+                                   clustering_scores[0],
+                               f'best_test_{list(clustering_metrics)[1]}_{inference_fn_labels[i]}':
+                                   clustering_scores[1]})
+                    if len(clustering_scores) == 3:
+                        log_cc_objective_values(scores=clustering_scores,
+                                                split_name=f'best_test_{inference_fn_labels[i]}',
+                                                log_prefix='Eval', verbose=verbose, logger=logger)
+            end_time = time.time()
+        elif eval_only_split is not None:
+            # Run inference on the specified split and exit
             dataloaders = {
                 'train': train_dataloader,
                 'dev': val_dataloader,
@@ -358,7 +406,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                     log_prefix='Eval', verbose=verbose, logger=logger)
             end_time = time.time()
         else:
-            # Training
+            # Train and evaluate
             wandb.watch(model)
 
             optimizer = torch.optim.AdamW(model.parameters(), lr=hyp['lr'])
@@ -751,6 +799,7 @@ if __name__ == '__main__':
               load_model_from_wandb_run=args['load_model_from_wandb_run'],
               load_model_from_fpath=args['load_model_from_fpath'],
               eval_only_split=args['eval_only_split'],
+              eval_all=args['eval_all'],
               skip_initial_eval=args['skip_initial_eval'],
               pairwise_eval_clustering=args['pairwise_eval_clustering'],
               debug=args['debug'],

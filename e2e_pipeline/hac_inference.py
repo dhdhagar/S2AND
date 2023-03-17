@@ -33,7 +33,6 @@ class HACInference:
         all_gold = []
         blockwise_trees = []
         all_dists = []
-        max_pred_id = -1  # In each iteration, add to all blockwise predicted IDs to distinguish from previous blocks
         n_features = dataloader.dataset[0][0].shape[1]
         for (idx, batch) in enumerate(tqdm(dataloader, desc=f'Tuning threshold on dev')):
             data, _, cluster_ids = batch
@@ -46,7 +45,8 @@ class HACInference:
 
             # Forward pass through the e2e model
             data = data.to(device)
-            tree_and_alts, dists = self.cluster(model(data), block_size, return_tree=True)
+            edge_weights = model(data, warmstart=True)
+            tree_and_alts, dists = self.cluster(edge_weights, block_size, return_tree=True)
             blockwise_trees.append(tree_and_alts)
             all_dists.append(dists)
 
@@ -61,7 +61,7 @@ class HACInference:
         best_dev_metric = -1
         for _thresh in tqdm(thresholds, desc="Finding best cut threshold"):
             all_pred = []
-            max_pred_id = -1
+            max_pred_id = -1  # In each iter, add to all blockwise predicted IDs to distinguish from previous blocks
             for (_hac, _hac_alts) in blockwise_trees:
                 _cut_labels = self.cut_tree(_hac, _hac_alts, _thresh)
                 pred_cluster_ids = _cut_labels + (max_pred_id + 1)

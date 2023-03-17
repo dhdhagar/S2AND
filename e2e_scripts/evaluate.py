@@ -134,7 +134,8 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                 # Forward pass through the e2e model
                 data = data.to(device)
                 try:
-                    pred_cluster_ids = clustering_fn(model(data, verbose=verbose), block_size, min_id=(max_pred_id + 1),
+                    edge_weights = model(data, warmstart=True, verbose=verbose)
+                    pred_cluster_ids = clustering_fn(edge_weights, block_size, min_id=(max_pred_id + 1),
                                                      threshold=clustering_threshold)
                 except CvxpyException as e:
                     logger.info(e)

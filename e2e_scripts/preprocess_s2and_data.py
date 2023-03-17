@@ -38,10 +38,10 @@ def save_blockwise_featurized_data(dataset_name, random_seed):
         n_jobs=16,
         random_seed=random_seed,
     )
-
+    logger.info("Loaded ANDData object")
     # Load the featurizer, which calculates pairwise similarity scores
     featurization_info = FeaturizationInfo()
-    # the cache will make it faster to train multiple times - it stores the features on disk for you
+    logger.info("Loaded featurization info")
     train_pkl, val_pkl, test_pkl = store_featurized_pickles(AND_dataset,
                                                             featurization_info,
                                                             n_jobs=16,

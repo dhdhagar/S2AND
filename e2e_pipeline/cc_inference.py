@@ -17,11 +17,12 @@ class CCInference(torch.nn.Module):
     Correlation clustering inference-only model. Expects edge weights and the number of nodes as input.
     """
 
-    def __init__(self, sdp_max_iters, sdp_eps):
+    def __init__(self, sdp_max_iters, sdp_eps, sdp_scale, use_sdp):
         super().__init__()
         self.uncompress_layer = UncompressTransformLayer()
-        self.sdp_layer = SDPLayer(max_iters=sdp_max_iters, eps=sdp_eps)
+        self.sdp_layer = SDPLayer(max_iters=sdp_max_iters, eps=sdp_eps, scale_input=sdp_scale)
         self.hac_cut_layer = HACCutLayer()
+        self.use_sdp = use_sdp
 
     def forward(self, edge_weights, N, min_id=0, threshold=None, verbose=False):
         edge_weights = torch.squeeze(edge_weights)
@@ -29,7 +30,7 @@ class CCInference(torch.nn.Module):
             # threshold is used to convert a similarity score (in [0,1]) into edge weights (in R, i.e. + and -)
             edge_weights = torch.sigmoid(edge_weights) - threshold
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
-        output_probs = self.sdp_layer(edge_weights_uncompressed, N)
+        output_probs = self.sdp_layer(edge_weights_uncompressed, N, use_sdp=self.use_sdp)
         pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
 
         if verbose:
