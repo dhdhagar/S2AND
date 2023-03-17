@@ -115,6 +115,12 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
     raise ValueError('Invalid argument to split')
 
 
+def get_feature_count(dataset, dataset_seed):
+    data_fpath = f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/test_features.pkl"
+    block_dict = read_blockwise_features(data_fpath)
+    return next(iter(block_dict.values()))[0].shape[1]
+
+
 def uncompress_target_tensor(compressed_targets, make_symmetric=True, device=None):
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n = round(math.sqrt(2 * compressed_targets.size(dim=0))) + 1

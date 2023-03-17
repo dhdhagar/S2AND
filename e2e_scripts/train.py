@@ -21,7 +21,7 @@ from e2e_pipeline.sdp_layer import CvxpyException
 from e2e_scripts.evaluate import evaluate, evaluate_pairwise
 from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_matrix_size_from_triu, \
     uncompress_target_tensor, count_parameters, log_cc_objective_values, save_to_wandb_run, FrobeniusLoss, \
-    copy_and_load_model
+    copy_and_load_model, get_feature_count
 from utils.parser import Parser
 
 from torch.multiprocessing import Process, set_start_method, Manager
@@ -206,14 +206,20 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         eval_metric_to_idx = clustering_metrics if not pairwise_mode else pairwise_metrics
         dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx \
             else list(eval_metric_to_idx)[0]
+        training_mode = not eval_all and eval_only_split is None
 
         # Get data loaders (optionally with imputation, normalization)
-        train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
-                                                                            hyp["convert_nan"], hyp["nan_value"],
-                                                                            hyp["normalize_data"], hyp["subsample_sz_train"],
-                                                                            hyp["subsample_sz_dev"], pairwise_mode,
-                                                                            batch_size)
-        n_features = train_dataloader.dataset[0][0].shape[1]
+        if training_mode:
+            train_dataloader, val_dataloader, test_dataloader = get_dataloaders(hyp["dataset"],
+                                                                                hyp["dataset_random_seed"],
+                                                                                hyp["convert_nan"], hyp["nan_value"],
+                                                                                hyp["normalize_data"],
+                                                                                hyp["subsample_sz_train"],
+                                                                                hyp["subsample_sz_dev"], pairwise_mode,
+                                                                                batch_size)
+            n_features = train_dataloader.dataset[0][0].shape[1]
+        else:
+            n_features = get_feature_count(hyp["dataset"], hyp["dataset_random_seed"])
 
         # Create model with hyperparams
         if not pairwise_mode:
@@ -222,54 +228,44 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                          negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
                          use_rounded_loss, (e2e_loss == "bce"), use_sdp)
             model = EntResModel(*model_args)
-            # Define loss
-            if e2e_loss not in ["frob", "bce"]:
-                raise ValueError("Invalid value for e2e_loss")
-            loss_fn_e2e = FrobeniusLoss() if e2e_loss == 'frob' else torch.nn.BCELoss()
-
-            pos_weight = None
-            if weighted_loss:
-                if overfit_batch_idx > -1:
-                    n_pos = train_dataloader.dataset[overfit_batch_idx][1].sum()
-                    pos_weight = (len(train_dataloader.dataset[overfit_batch_idx][1]) - n_pos) / n_pos
-                else:
-                    _n_pos, _n_total = 0., 0.
-                    for _i in range(len(train_dataloader.dataset)):
-                        _n_pos += train_dataloader.dataset[_i][1].sum()
-                        _n_total += len(train_dataloader.dataset[_i][1])
-                    pos_weight = (_n_total - _n_pos) / _n_pos if _n_pos > 0 else 1.
             # Define eval
             eval_fn = evaluate
             pairwise_clustering_fns = [None]  # Unused when pairwise_mode is False
-            if n_warmstart_epochs > 0:
-                train_dataloader_pairwise = get_dataloaders(hyp["dataset"],
-                                                            hyp["dataset_random_seed"],
-                                                            hyp["convert_nan"],
-                                                            hyp["nan_value"],
-                                                            hyp["normalize_data"],
-                                                            hyp["subsample_sz_train"],
-                                                            hyp["subsample_sz_dev"],
-                                                            pairwise_mode=True, batch_size=hyp['batch_size'],
-                                                            split='train')
+
+            if training_mode:  # => model will be used for training
                 # Define loss
-                loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
+                if e2e_loss not in ["frob", "bce"]:
+                    raise ValueError("Invalid value for e2e_loss")
+                loss_fn_e2e = FrobeniusLoss() if e2e_loss == 'frob' else torch.nn.BCELoss()
+
+                pos_weight = None
+                if weighted_loss:
+                    if overfit_batch_idx > -1:
+                        n_pos = train_dataloader.dataset[overfit_batch_idx][1].sum()
+                        pos_weight = (len(train_dataloader.dataset[overfit_batch_idx][1]) - n_pos) / n_pos
+                    else:
+                        _n_pos, _n_total = 0., 0.
+                        for _i in range(len(train_dataloader.dataset)):
+                            _n_pos += train_dataloader.dataset[_i][1].sum()
+                            _n_total += len(train_dataloader.dataset[_i][1])
+                        pos_weight = (_n_total - _n_pos) / _n_pos if _n_pos > 0 else 1.
+                if n_warmstart_epochs > 0:
+                    train_dataloader_pairwise = get_dataloaders(hyp["dataset"],
+                                                                hyp["dataset_random_seed"],
+                                                                hyp["convert_nan"],
+                                                                hyp["nan_value"],
+                                                                hyp["normalize_data"],
+                                                                hyp["subsample_sz_train"],
+                                                                hyp["subsample_sz_dev"],
+                                                                pairwise_mode=True, batch_size=hyp['batch_size'],
+                                                                split='train')
+                    # Define loss
+                    loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
         else:
             model_args = (n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
-                               neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
-                               negative_slope, hidden_config)
+                          neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                          negative_slope, hidden_config)
             model = PairwiseModel(*model_args)
-            # Define loss
-            pos_weight = None
-            if weighted_loss:
-                if overfit_batch_idx > -1:
-                    n_pos = \
-                        train_dataloader.dataset[overfit_batch_idx * batch_size:(overfit_batch_idx + 1) * batch_size][
-                            1].sum()
-                    pos_weight = torch.tensor((batch_size - n_pos) / n_pos if n_pos > 0 else 1.)
-                else:
-                    n_pos = train_dataloader.dataset[:][1].sum()
-                    pos_weight = torch.tensor((len(train_dataloader.dataset) - n_pos) / n_pos if n_pos > 0 else 1.)
-            loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             # Define eval
             eval_fn = evaluate_pairwise
             pairwise_clustering_fns = [None]
@@ -297,6 +293,19 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                           hyp["subsample_sz_dev"],
                                                                           pairwise_mode=False, batch_size=1,
                                                                           split=['dev', 'test'])
+            if training_mode:  # => model will be used for training
+                # Define loss
+                pos_weight = None
+                if weighted_loss:
+                    if overfit_batch_idx > -1:
+                        n_pos = \
+                            train_dataloader.dataset[overfit_batch_idx * batch_size:(overfit_batch_idx + 1) * batch_size][
+                                1].sum()
+                        pos_weight = torch.tensor((batch_size - n_pos) / n_pos if n_pos > 0 else 1.)
+                    else:
+                        n_pos = train_dataloader.dataset[:][1].sum()
+                        pos_weight = torch.tensor((len(train_dataloader.dataset) - n_pos) / n_pos if n_pos > 0 else 1.)
+                loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         logger.info(f"Model loaded: {model}", )
 
         # Load stored model, if available
@@ -363,16 +372,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             end_time = time.time()
         elif eval_only_split is not None:
             # Run inference on the specified split and exit
-            dataloaders = {
-                'train': train_dataloader,
-                'dev': val_dataloader,
-                'test': test_dataloader
-            }
             start_time = time.time()
             with torch.no_grad():
                 model.eval()
-
-                eval_dataloader = dataloaders[eval_only_split]
+                eval_dataloader = get_dataloaders(hyp["dataset"], hyp["dataset_random_seed"],
+                                                  hyp["convert_nan"], hyp["nan_value"],
+                                                  hyp["normalize_data"], hyp["subsample_sz_train"],
+                                                  hyp["subsample_sz_dev"], pairwise_mode,
+                                                  batch_size, split=eval_only_split)
                 eval_scores = eval_fn(model, eval_dataloader, tqdm_label=eval_only_split, device=device, verbose=verbose,
                                       debug=debug, _errors=_errors)
                 logger.info(f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
@@ -383,7 +390,6 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 if len(eval_scores) == 3:
                     log_cc_objective_values(scores=eval_scores, split_name=eval_only_split, log_prefix='Eval',
                                             verbose=verbose, logger=logger)
-
                 # For pairwise-mode:
                 if pairwise_clustering_fns[0] is not None:
                     clustering_threshold = None
