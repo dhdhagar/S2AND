@@ -67,7 +67,7 @@ if __name__ == '__main__':
     # Read error file
     logger.info("Reading input data")
     if args.data_fpath.endswith('.pt'):
-        _W_val = torch.load(args.data_fpath, map_location='cpu')
+        _W_val = torch.load(args.data_fpath, map_location='cpu').numpy()
     else:
         with open(args.data_fpath, 'r') as fh:
             data = json.load(fh)
