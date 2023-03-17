@@ -68,12 +68,14 @@ class SDPLayer(torch.nn.Module):
             else:
                 # create problem
                 prob = cp.Problem(cp.Maximize(cp.trace(W_val.cpu().numpy() @ X)), constraints)
-                prob.solve(
+                _solve_val = prob.solve(
                     solver=cp.SCS,
                     verbose=verbose,
                     max_iters=self.max_iters,
                     eps=self.eps
                 )
+                if _solve_val == float('inf'):
+                    raise ValueError()
                 pw_prob_matrix = torch.tensor(X.value, device=W_val.device)
             # Fix to prevent invalid solution values close to 0 and 1 but outside the range
             pw_prob_matrix = torch.clamp(pw_prob_matrix, min=0, max=1)
