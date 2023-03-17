@@ -50,22 +50,31 @@ class SDPLayer(torch.nn.Module):
             X[:N, :] >= 0,
         ]
 
-        # create problem
-        prob = cp.Problem(cp.Maximize(cp.trace(W @ X)), constraints)
-        # Note: maximizing the trace is equivalent to maximizing the sum_E (w_uv * X_uv) objective
-        # because W is upper-triangular and X is symmetric
-
-        # Build the SDP cvxpylayer
-        cvxpy_layer = CvxpyLayer(prob, parameters=[W], variables=[X])
-
-        # Forward pass through the SDP cvxpylayer
         try:
-            pw_prob_matrix = cvxpy_layer(W_val, solver_args={
-                "solve_method": "SCS",
-                "verbose": verbose,
-                "max_iters": self.max_iters,
-                "eps": self.eps
-            })[0]
+            if self.training:
+                # create problem
+                prob = cp.Problem(cp.Maximize(cp.trace(W @ X)), constraints)
+                # Note: maximizing the trace is equivalent to maximizing the sum_E (w_uv * X_uv) objective
+                # because W is upper-triangular and X is symmetric
+                # Build the SDP cvxpylayer
+                cvxpy_layer = CvxpyLayer(prob, parameters=[W], variables=[X])
+                # Forward pass through the SDP cvxpylayer
+                pw_prob_matrix = cvxpy_layer(W_val, solver_args={
+                    "solve_method": "SCS",
+                    "verbose": verbose,
+                    "max_iters": self.max_iters,
+                    "eps": self.eps
+                })[0]
+            else:
+                # create problem
+                prob = cp.Problem(cp.Maximize(cp.trace(W_val @ X)), constraints)
+                prob.solve(
+                    solver=cp.SCS,
+                    verbose=verbose,
+                    max_iters=self.max_iters,
+                    eps=self.eps
+                )
+                pw_prob_matrix = X.value
             # Fix to prevent invalid solution values close to 0 and 1 but outside the range
             pw_prob_matrix = torch.clamp(pw_prob_matrix, min=0, max=1)
         except:
