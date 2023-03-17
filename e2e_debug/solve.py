@@ -90,7 +90,7 @@ if __name__ == '__main__':
     constraints = [
         cp.diag(X) == np.ones((n,)),
         X[:n, :] >= 0,
-        X[:n, :] <= 1
+        # X[:n, :] <= 1
     ]
 
     # Setup HAC Cut
@@ -122,7 +122,7 @@ if __name__ == '__main__':
             alpha=args.scs_alpha,
             scale=args.scs_scale,
             use_indirect=args.scs_use_indirect,
-            use_quad_obj=not args.scs_dont_use_quad_obj
+            # use_quad_obj=not args.scs_dont_use_quad_obj
         )
         logger.info(f"@scaling={scaling_factor}, objective value = {sdp_obj_value}, norm={np.linalg.norm(W_scaled)}")
         if sdp_obj_value != float('inf'):
