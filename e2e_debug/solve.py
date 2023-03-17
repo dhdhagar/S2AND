@@ -51,6 +51,9 @@ class Parser(argparse.ArgumentParser):
             "--scs_log_csv_filename", type=str,
         )
         self.add_argument(
+            "--max_scaling", action="store_true",
+        )
+        self.add_argument(
             "--interactive", action="store_true",
         )
 
@@ -63,15 +66,18 @@ if __name__ == '__main__':
 
     # Read error file
     logger.info("Reading input data")
-    with open(args.data_fpath, 'r') as fh:
-        data = json.load(fh)
-    assert len(data['errors']) > 0
-    # Pick specific error instance to process
-    error_data = data['errors'][args.data_idx]
+    if args.data_fpath.endswith('.pt'):
+        _W_val = torch.load(args.data_fpath, map_location='cpu')
+    else:
+        with open(args.data_fpath, 'r') as fh:
+            data = json.load(fh)
+        assert len(data['errors']) > 0
+        # Pick specific error instance to process
+        error_data = data['errors'][args.data_idx]
 
-    # Extract input data from the error instance
-    _raw = np.array(error_data['model_call_args']['data'])
-    _W_val = np.array(error_data['cvxpy_layer_args']['W_val'])
+        # Extract input data from the error instance
+        _raw = np.array(error_data['model_call_args']['data'])
+        _W_val = np.array(error_data['cvxpy_layer_args']['W_val'])
 
     # Construct cvxpy problem
     logger.info('Constructing optimization problem')
@@ -94,12 +100,14 @@ if __name__ == '__main__':
     sdp_obj_value = float('inf')
     result_idxs, results_X, results_clustering = [], [], []
     no_solution_scaling_factors = []
-    for i in range(1, 10):  # n
+    for i in range(0, 10):  # n
         # Skipping 1; no scaling leads to non-convergence (infinite objective value)
-        if i == 1:
-            scaling_factor = np.max(W)
+        if i == 0:
+            scaling_factor = np.max(np.abs(W))
         else:
             scaling_factor = i
+            if args.max_scaling:
+                continue
         logger.info(f'Scaling factor={scaling_factor}')
         # Create problem
         W_scaled = W / scaling_factor
@@ -114,8 +122,7 @@ if __name__ == '__main__':
             alpha=args.scs_alpha,
             scale=args.scs_scale,
             use_indirect=args.scs_use_indirect,
-            use_quad_obj=not args.scs_dont_use_quad_obj,
-            log_csv_filename=args.scs_log_csv_filename
+            use_quad_obj=not args.scs_dont_use_quad_obj
         )
         logger.info(f"@scaling={scaling_factor}, objective value = {sdp_obj_value}, norm={np.linalg.norm(W_scaled)}")
         if sdp_obj_value != float('inf'):
@@ -129,9 +136,9 @@ if __name__ == '__main__':
     logger.info(f"Solution not found = {len(no_solution_scaling_factors)}")
     logger.info(f"Solution found = {len(results_X)}")
 
-    logger.info("Same clustering:")
-    for i in range(len(results_clustering)-1):
-        logger.info(np.array_equal(results_clustering[i], results_clustering[i + 1]))
+    # logger.info("Same clustering:")
+    # for i in range(len(results_clustering)-1):
+    #     logger.info(np.array_equal(results_clustering[i], results_clustering[i + 1]))
     # logger.info(f"Solution found with scaling factor = {scaling_factor}")
     # if args.interactive and sdp_obj_value == float('inf'):
     #     embed()
