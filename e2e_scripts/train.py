@@ -336,6 +336,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 model.eval()
                 clustering_threshold = None
                 for i, inference_fn in enumerate(inference_fns):
+                    logger.info(f'Inference method: {inference_fn_labels[i]}')
                     clustering_scores = eval_fn(model, test_dataloader_e2e,
                                                 clustering_fn=inference_fn,
                                                 clustering_threshold=clustering_threshold,
