@@ -38,6 +38,9 @@ class Parser(argparse.ArgumentParser):
         parser.add_argument(
             "--dataset_name", type=str, help="name of AND dataset that you want to preprocess"
         )
+        parser.add_argument(
+            "--dataset_seed", type=int
+        )
 
     def add_training_args(self):
         """

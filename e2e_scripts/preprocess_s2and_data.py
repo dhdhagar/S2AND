@@ -118,7 +118,7 @@ if __name__=='__main__':
     DATA_HOME_DIR = params["data_home_dir"]
     dataset = params["dataset_name"]
 
-    random_seeds = {1, 2, 3, 4, 5}
+    random_seeds = [1, 2, 3, 4, 5] if params["dataset_seed"] is None else [params["dataset_seed"]]
     for seed in random_seeds:
         print("Preprocessing started for seed value", seed)
         save_blockwise_featurized_data(dataset, seed)
