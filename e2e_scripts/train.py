@@ -347,7 +347,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                               debug=debug, _errors=_errors,
                                                               eval_metric_to_idx=eval_metric_to_idx,
                                                               val_dataloader=val_dataloader, return_dict=_return_dict),
-                                  _proc=_proc, model=model, run_dir=run.dir, device=device, logger=logger)
+                                  model=model, run_dir=run.dir, device=device, logger=logger)
             if not pairwise_mode and grad_acc > 1:
                 grad_acc_steps = []
                 _seen_pw = 0
@@ -529,7 +529,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             verbose=verbose, debug=debug, _errors=_errors,
                                             eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
                                             return_dict=_return_dict, i=i),
-                                  _proc=_proc, model=model, run_dir=run.dir, device=device, logger=logger)
+                                  model=model, run_dir=run.dir, device=device, logger=logger,
+                                  sync=(idx == len(_train_dataloader.dataset) - 1))
             end_time = time.time()
 
             best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,

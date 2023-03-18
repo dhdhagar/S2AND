@@ -287,6 +287,7 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
     del model
     return_dict['_state'] = 'done'
+    return return_dict
 
 
 def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose,
@@ -318,15 +319,18 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
             return_dict['dev_scores'] = dev_scores
     del model
     return_dict['_state'] = 'done'
+    return return_dict
 
 
-def fork_eval(target, args, _proc, model, run_dir, device, logger):
+def fork_eval(target, args, model, run_dir, device, logger, sync=False):
     state_dict_path = copy_and_load_model(model, run_dir, device, store_only=True)
     args['model_class'] = model.__class__
     args['state_dict_path'] = state_dict_path
-    proc = Process(target=target, kwargs=args)
-    logger.info('Forking eval')
+    if sync:
+        target(**args)
+        proc = Process()
+    else:
+        proc = Process(target=target, kwargs=args)
+        logger.info('Forking eval')
     proc.start()
-    if _proc is not None:
-        _proc.join()
     return proc
