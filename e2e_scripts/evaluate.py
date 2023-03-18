@@ -56,7 +56,7 @@ def fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
              val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None,
-             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=300,
+             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=400,
              disable_tqdm=False):
     """
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
