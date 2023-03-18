@@ -252,7 +252,7 @@ def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_s
                         best_epoch = i
                         best_dev_score = dev_opt_score
                         best_dev_scores = dev_scores
-                        best_dev_state_dict = torch.load(_return_dict['state_dict_path'], device)
+                        best_dev_state_dict = torch.load(_return_dict['state_dict_path'])
                     if use_lr_scheduler:
                         if hyp['lr_scheduler'] == 'plateau':
                             scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
