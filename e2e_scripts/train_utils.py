@@ -235,6 +235,9 @@ def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_s
             if _return_dict['_method'] == 'init_eval':
                 logger.info(_return_dict['local'])
                 run.log(_return_dict['wandb'])
+                if overfit_batch_idx == -1:
+                    best_dev_scores = _return_dict['dev_scores']
+                    best_dev_score = best_dev_scores[eval_metric_to_idx[dev_opt_metric]]
             elif _return_dict['_method'] == 'dev_eval':
                 logger.info(_return_dict['local'])
                 run.log(_return_dict['wandb'])
@@ -285,6 +288,7 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
             return_dict['wandb'] = {'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
+            return_dict['dev_scores'] = dev_scores
     del model
     return_dict['_state'] = 'done'
     return return_dict
