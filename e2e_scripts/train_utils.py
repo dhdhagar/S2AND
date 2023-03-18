@@ -106,7 +106,7 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
                                   pairwise_mode=pairwise_mode)
         dataloader = DataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
         return dataloader
-    if split is not None:
+    if split is None:
         return _get_dataloader('train'), _get_dataloader('dev'), _get_dataloader('test')
     if type(split) is str:
         return _get_dataloader(split)
