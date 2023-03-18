@@ -30,7 +30,8 @@ def _run_iter(model_class, state_dict_path, _fork_id, _shared_list, **kwargs):
     model.load_state_dict(torch.load(state_dict_path))
     model.to(kwargs['device'])
     model.eval()
-    res = evaluate(model=model, **kwargs)
+    with torch.no_grad():
+        res = evaluate(model=model, **kwargs)
     _shared_list.append(res)
     del model
 
