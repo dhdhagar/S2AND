@@ -41,7 +41,7 @@ def fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
     del kwargs['model']
     kwargs['overfit_batch_idx'] = batch_idx
     kwargs['tqdm_label'] = f'{kwargs["tqdm_label"]} (fork{_fork_id})'
-    kwargs['fork_id'] = _fork_id
+    kwargs['_fork_id'] = _fork_id
     kwargs['tqdm_position'] = (0 if kwargs['tqdm_position'] is None else kwargs['tqdm_position']) + _fork_id + 1
     kwargs['return_iter'] = True
     kwargs['fork_size'] = -1
