@@ -146,6 +146,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
     if fork_enabled and len(_procs) > 0:
         for _proc in tqdm(_procs, desc=f'Eval {tqdm_label} (waiting for forks to join)', position=tqdm_position):
             _proc.join()
+        assert len(_procs) == len(_shared_list), "All forked eval iterations did not return results"
         for _data in _shared_list:
             pred_cluster_ids = (_data['cluster_labels'] + (max_pred_id + 1)).tolist()
             cc_obj_vals['round'].append(_data['round_objective_value'])
