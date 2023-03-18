@@ -25,18 +25,18 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 
-def _run_iter(model_class, state_dict_path, _fork_id, _shared_list, **kwargs):
+def _run_iter(model_class, state_dict_path, _fork_id, _shared_list, eval_fn, **kwargs):
     model = model_class(*kwargs['model_args'])
     model.load_state_dict(torch.load(state_dict_path))
     model.to('cpu')
     model.eval()
     with torch.no_grad():
-        res = evaluate(model=model, **kwargs)
+        res = eval_fn(model=model, **kwargs)
     _shared_list.append(res)
     del model
 
 
-def _fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
+def _fork_iter(batch_idx, _fork_id, _shared_list, eval_fn, **kwargs):
     kwargs['model_class'] = kwargs['model'].__class__
     kwargs['state_dict_path'] = copy_and_load_model(kwargs['model'], kwargs['run_dir'], 'cpu', store_only=True)
     del kwargs['model']
@@ -49,6 +49,7 @@ def _fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
     kwargs['_shared_list'] = _shared_list
     kwargs['disable_tqdm'] = True
     kwargs['device'] = 'cpu'
+    kwargs['eval_fn'] = eval_fn
     _proc = Process(target=_run_iter, kwargs=kwargs)
     _proc.start()
     return _proc
@@ -95,7 +96,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             # Only one signature in block; manually assign a unique cluster
             pred_cluster_ids = [max_pred_id + 1]
         elif fork_enabled and block_size >= fork_size:
-            _proc = _fork_iter(idx, _fork_id, _shared_list, **fn_args)
+            _proc = _fork_iter(idx, _fork_id, _shared_list, evaluate, **fn_args)
             _fork_id += 1
             _procs.append((_proc, block_size))
             continue
@@ -166,7 +167,13 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
                       thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
                       tqdm_label='', device=None, verbose=False, debug=False, _errors=None, run_dir='./',
-                      tqdm_position=None, model_args=None, return_iter=False, fork_size=50, disable_tqdm=False):
+                      tqdm_position=None, model_args=None, return_iter=False, fork_size=500, disable_tqdm=False):
+    fn_args = locals()
+    fork_enabled = fork_size > -1 and model_args is not None
+    if fork_enabled:
+        _fork_id = 1
+        _shared_list = Manager().list()
+        _procs = []
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
 
@@ -198,6 +205,11 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
             if data.shape[0] == 0:
                 # Only one signature in block; manually assign a unique cluster
                 pred_cluster_ids = [max_pred_id + 1]
+            elif fork_enabled and block_size >= fork_size and clustering_fn.__class__ is CCInference:
+                _proc = _fork_iter(idx, _fork_id, _shared_list, evaluate_pairwise, **fn_args)
+                _fork_id += 1
+                _procs.append((_proc, block_size))
+                continue
             else:
                 # Forward pass through the e2e model
                 data = data.to(device)
@@ -226,14 +238,39 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                     n_exceptions += 1
                     logger.info(f'Caught CvxpyException {n_exceptions}: skipping batch')
                     continue
+                if clustering_fn.__class__ is CCInference:
+                    cc_obj_vals['round'].append(clustering_fn.hac_cut_layer.objective_value)
+                    cc_obj_vals['sdp'].append(clustering_fn.sdp_layer.objective_value)
+                    cc_obj_vals['block_idxs'].append(idx)
+                    cc_obj_vals['block_sizes'].append(block_size)
             all_gold += list(np.reshape(cluster_ids, (block_size,)))
             max_pred_id = max(pred_cluster_ids)
             all_pred += list(pred_cluster_ids)
-            if clustering_fn.__class__ is CCInference:
-                cc_obj_vals['round'].append(clustering_fn.hac_cut_layer.objective_value)
-                cc_obj_vals['sdp'].append(clustering_fn.sdp_layer.objective_value)
-                cc_obj_vals['block_idxs'].append(idx)
-                cc_obj_vals['block_sizes'].append(block_size)
+            if overfit_batch_idx > -1 and return_iter:
+                return {
+                    'cluster_labels': list(np.array(pred_cluster_ids) - (max_pred_id + 1)),
+                    'round_objective_value': clustering_fn.hac_cut_layer.objective_value,
+                    'sdp_objective_value': clustering_fn.sdp_layer.objective_value,
+                    'block_idx': idx,
+                    'block_size': block_size,
+                    'cluster_ids': cluster_ids
+                }
+
+        if fork_enabled and len(_procs) > 0:
+            _procs.sort(key=lambda x: x[1])  # To visualize progress
+            for _proc in tqdm(_procs, desc=f'Eval {tqdm_label} (waiting for forks to join)', position=tqdm_position):
+                _proc[0].join()
+            assert len(_procs) == len(_shared_list), "All forked eval iterations did not return results"
+            for _data in _shared_list:
+                pred_cluster_ids = (_data['cluster_labels'] + (max_pred_id + 1)).tolist()
+                cc_obj_vals['round'].append(_data['round_objective_value'])
+                cc_obj_vals['sdp'].append(_data['sdp_objective_value'])
+                cc_obj_vals['block_idxs'].append(_data['block_idx'])
+                cc_obj_vals['block_sizes'].append(_data['block_size'])
+                all_gold += list(np.reshape(_data['cluster_ids'], (_data['block_size'],)))
+                max_pred_id = max(pred_cluster_ids)
+                all_pred += list(pred_cluster_ids)
+
         vmeasure = v_measure_score(all_gold, all_pred)
         b3_f1 = compute_b3_f1(all_gold, all_pred)[2]
         return (b3_f1, vmeasure, cc_obj_vals) if clustering_fn.__class__ is CCInference else (b3_f1, vmeasure)
