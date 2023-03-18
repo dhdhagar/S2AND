@@ -97,7 +97,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
         elif fork_enabled and block_size >= fork_size:
             _proc = fork_iter(idx, _fork_id, _shared_list, **fn_args)
             _fork_id += 1
-            _procs.append(_proc)
+            _procs.append((_proc, block_size))
             continue
         else:
             # Forward pass through the e2e model
@@ -144,8 +144,9 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             }
 
     if fork_enabled and len(_procs) > 0:
+        _procs.sort(lambda x: x[1])  # To visualize progress
         for _proc in tqdm(_procs, desc=f'Eval {tqdm_label} (waiting for forks to join)', position=tqdm_position):
-            _proc.join()
+            _proc[0].join()
         assert len(_procs) == len(_shared_list), "All forked eval iterations did not return results"
         for _data in _shared_list:
             pred_cluster_ids = (_data['cluster_labels'] + (max_pred_id + 1)).tolist()
