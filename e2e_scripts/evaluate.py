@@ -93,7 +93,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
         if data.shape[0] == 0:
             # Only one signature in block; manually assign a unique cluster
             pred_cluster_ids = [max_pred_id + 1]
-        elif fork_enabled and data.shape[0] >= fork_size:
+        elif fork_enabled and block_size >= fork_size:
             _proc = fork_iter(idx, _fork_id, _shared_list, **fn_args)
             _fork_id += 1
             _procs.append(_proc)
