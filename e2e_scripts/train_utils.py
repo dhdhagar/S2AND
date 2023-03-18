@@ -320,10 +320,13 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
     return_dict['_state'] = 'done'
 
 
-def fork_eval(target, args, model, run_dir, device, logger):
+def fork_eval(target, args, _proc, model, run_dir, device, logger):
     state_dict_path = copy_and_load_model(model, run_dir, device, store_only=True)
+    args['model_class'] = model.__class__
     args['state_dict_path'] = state_dict_path
     proc = Process(target=target, kwargs=args)
     logger.info('Forking eval')
     proc.start()
+    if _proc is not None:
+        _proc.join()
     return proc

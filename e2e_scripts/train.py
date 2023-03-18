@@ -340,15 +340,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
-                _proc = fork_eval(target=init_eval, args=dict(model_class=model.__class__, model_args=model_args,
+                _proc = fork_eval(target=init_eval, args=dict(model_args=model_args,
                                                               overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                                               train_dataloader=train_dataloader, device=device,
                                                               verbose=verbose,
                                                               debug=debug, _errors=_errors,
                                                               eval_metric_to_idx=eval_metric_to_idx,
                                                               val_dataloader=val_dataloader, return_dict=_return_dict),
-                                  model=model,
-                                  run_dir=run.dir, device=device, logger=logger)
+                                  _proc=_proc, model=model, run_dir=run.dir, device=device, logger=logger)
             if not pairwise_mode and grad_acc > 1:
                 grad_acc_steps = []
                 _seen_pw = 0
@@ -524,13 +523,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
                 # Get model performance on dev (or 'train' for overfitting runs)
                 _proc = fork_eval(target=dev_eval,
-                                  args=dict(model_class=model.__class__, model_args=model_args,
+                                  args=dict(model_args=model_args,
                                             overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
                                             train_dataloader=train_dataloader, device=device,
                                             verbose=verbose, debug=debug, _errors=_errors,
                                             eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
-                                            return_dict=_return_dict, i=i), model=model, run_dir=run.dir, device=device,
-                                  logger=logger)
+                                            return_dict=_return_dict, i=i),
+                                  _proc=_proc, model=model, run_dir=run.dir, device=device, logger=logger)
             end_time = time.time()
 
             best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
