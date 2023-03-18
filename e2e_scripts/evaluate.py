@@ -58,6 +58,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
     (only added to keep fn signature identical)
     """
+    fn_args = locals()
     fork_enabled = fork_size > -1 and model_args is not None
     if fork_enabled:
         _fork_id = 1
@@ -90,7 +91,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             # Only one signature in block; manually assign a unique cluster
             pred_cluster_ids = [max_pred_id + 1]
         elif fork_enabled and data.shape[0] >= fork_size:
-            _proc = fork_iter(idx, _fork_id, _shared_list, **locals())
+            _proc = fork_iter(idx, _fork_id, _shared_list, **fn_args)
             _fork_id += 1
             _procs.append(_proc)
             continue
