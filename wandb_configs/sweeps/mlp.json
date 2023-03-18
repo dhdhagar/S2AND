@@ -10,5 +10,5 @@
     "dropout_p": {"values": [0, 0.1, 0.2, 0.3, 0.4, 0.5]},
     "lr_scheduler": {"value": "plateau"},
     "activation": {"values": ["leaky_relu", "relu"]},
-    "weighted_loss": {"values":  [true, false]}
+    "weighted_loss": {"value":  true}
 }
