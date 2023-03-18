@@ -69,6 +69,7 @@ DEFAULT_HYPERPARAMS = {
     "lr_scheduler_patience": 2,
     "lr_step_size": 2,
     "lr_gamma": 0.4,
+    "max_grad_norm": 1,  # Off if set to -1
     "weight_decay": 0.01,
     "gradient_accumulation": True,  # e2e only; accumulate over <batch_size> pairwise examples
     "dev_opt_metric": 'b3_f1',  # e2e: {'b3_f1', 'vmeasure'}; pairwise: {'auroc', 'f1'}

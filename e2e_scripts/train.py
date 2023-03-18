@@ -493,6 +493,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                 continue
                     if pairwise_mode or (
                             idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
+                        if hyp["max_grad_norm"] != -1:
+                            torch.nn.utils.clip_grad_norm_(
+                                model.parameters(), hyp["max_grad_norm"]
+                            )
                         optimizer.step()
                         optimizer.zero_grad()
                         if grad_acc > 1:
