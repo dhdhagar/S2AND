@@ -47,6 +47,7 @@ def fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
     kwargs['return_iter'] = True
     kwargs['fork_size'] = -1
     kwargs['_shared_list'] = _shared_list
+    kwargs['disable_tqdm'] = True
     _proc = Process(target=_run_iter, kwargs=kwargs)
     _proc.start()
     return _proc
@@ -54,7 +55,8 @@ def fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
              val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None,
-             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=50):
+             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=50,
+             disable_tqdm=False):
     """
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
     (only added to keep fn signature identical)
@@ -77,7 +79,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
     }
     max_pred_id = -1
     n_exceptions = 0
-    pbar = tqdm(dataloader, desc=f'Eval {tqdm_label}', position=tqdm_position)
+    pbar = tqdm(dataloader, desc=f'Eval {tqdm_label}', position=tqdm_position, disable=disable_tqdm)
     for (idx, batch) in enumerate(pbar):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
@@ -141,7 +143,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             }
 
     if fork_enabled and len(_procs) > 0:
-        for _proc in _procs:
+        for _proc in tqdm(_procs, desc=f'Eval {tqdm_label} (waiting for forks to join)', position=tqdm_position):
             _proc.join()
         for _data in _shared_list:
             pred_cluster_ids = (_data['cluster_labels'] + (max_pred_id + 1)).tolist()
@@ -161,7 +163,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
                       thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
                       tqdm_label='', device=None, verbose=False, debug=False, _errors=None, run_dir='./',
-                      tqdm_position=None, model_args=None, return_iter=False, fork_size=50):
+                      tqdm_position=None, model_args=None, return_iter=False, fork_size=50, disable_tqdm=False):
     device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_features = dataloader.dataset[0][0].shape[1]
 
@@ -179,7 +181,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
         }
         max_pred_id = -1  # In each iteration, add to all blockwise predicted IDs to distinguish from previous blocks
         n_exceptions = 0
-        pbar = tqdm(dataloader, desc=f'Eval {tqdm_label}', position=tqdm_position)
+        pbar = tqdm(dataloader, desc=f'Eval {tqdm_label}', position=tqdm_position, disable=disable_tqdm)
         for (idx, batch) in enumerate(pbar):
             if overfit_batch_idx > -1:
                 if idx < overfit_batch_idx:
@@ -234,7 +236,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
         return (b3_f1, vmeasure, cc_obj_vals) if clustering_fn.__class__ is CCInference else (b3_f1, vmeasure)
 
     y_pred, targets = [], []
-    pbar = tqdm(dataloader, desc=f'Eval {tqdm_label}', position=tqdm_position)
+    pbar = tqdm(dataloader, desc=f'Eval {tqdm_label}', position=tqdm_position, disable=disable_tqdm)
     for (idx, batch) in enumerate(pbar):
         if overfit_batch_idx > -1:
             if idx < overfit_batch_idx:
