@@ -104,7 +104,7 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
 
 
 def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose,
-             debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, i, run_dir):
+             debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, i):
     return_dict['_state'] = 'start'
     return_dict['_method'] = 'dev_eval'
     return_dict['state_dict_path'] = state_dict_path
@@ -381,7 +381,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                   hyp["subsample_sz_dev"], pairwise_mode,
                                                   batch_size, split=eval_only_split)
                 eval_scores = eval_fn(model, eval_dataloader, tqdm_label=eval_only_split, device=device, verbose=verbose,
-                                      debug=debug, _errors=_errors)
+                                      debug=debug, _errors=_errors, model_args=model_args)
                 logger.info(f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
                             f"{eval_only_split}_{list(eval_metric_to_idx)[1]}={eval_scores[1]}")
                 # Log eval metrics
@@ -627,7 +627,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             eval_fn=eval_fn, train_dataloader=train_dataloader, device=device,
                                             verbose=verbose, debug=debug, _errors=_errors,
                                             eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
-                                            return_dict=_return_dict, i=i, run_dir=run.dir))
+                                            return_dict=_return_dict, i=i))
                 _proc.start()
             end_time = time.time()
 
