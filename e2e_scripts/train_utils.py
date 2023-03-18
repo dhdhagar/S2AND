@@ -57,11 +57,11 @@ DEFAULT_HYPERPARAMS = {
     "sdp_eps": 1e-3,
     "sdp_scale": True,
     # Training config
-    "batch_size": 10000,  # pairwise only; used by e2e if gradient_accumulation is true
-    "lr": 4e-3,
+    "batch_size": 8000,  # pairwise only; used by e2e if gradient_accumulation is true
+    "lr": 1e-3,
     "n_epochs": 5,
     "n_warmstart_epochs": 0,
-    "weighted_loss": False,
+    "weighted_loss": True,
     "use_lr_scheduler": True,
     "lr_scheduler": "plateau",  # "plateau", "step"
     "lr_factor": 0.4,
@@ -70,7 +70,7 @@ DEFAULT_HYPERPARAMS = {
     "lr_step_size": 2,
     "lr_gamma": 0.4,
     "weight_decay": 0.01,
-    "gradient_accumulation": False,  # e2e only; accumulate over <batch_size> pairwise examples
+    "gradient_accumulation": True,  # e2e only; accumulate over <batch_size> pairwise examples
     "dev_opt_metric": 'b3_f1',  # e2e: {'b3_f1', 'vmeasure'}; pairwise: {'auroc', 'f1'}
     "overfit_batch_idx": -1
 }
