@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def _run_iter(model_class, state_dict_path, _fork_id, _shared_list, **kwargs):
     model = model_class(*kwargs['model_args'])
     model.load_state_dict(torch.load(state_dict_path))
-    model.to(kwargs['device'])
+    model.to('cpu')
     model.eval()
     with torch.no_grad():
         res = evaluate(model=model, **kwargs)
@@ -38,7 +38,7 @@ def _run_iter(model_class, state_dict_path, _fork_id, _shared_list, **kwargs):
 
 def fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
     kwargs['model_class'] = kwargs['model'].__class__
-    kwargs['state_dict_path'] = copy_and_load_model(kwargs['model'], kwargs['run_dir'], kwargs['device'], store_only=True)
+    kwargs['state_dict_path'] = copy_and_load_model(kwargs['model'], kwargs['run_dir'], 'cpu', store_only=True)
     del kwargs['model']
     kwargs['overfit_batch_idx'] = batch_idx
     kwargs['tqdm_label'] = f'{kwargs["tqdm_label"]} (fork{_fork_id})'
@@ -48,6 +48,7 @@ def fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
     kwargs['fork_size'] = -1
     kwargs['_shared_list'] = _shared_list
     kwargs['disable_tqdm'] = True
+    kwargs['device'] = 'cpu'
     _proc = Process(target=_run_iter, kwargs=kwargs)
     _proc.start()
     return _proc
