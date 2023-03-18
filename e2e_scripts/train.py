@@ -87,14 +87,14 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
         if overfit_batch_idx > -1:
             train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                    tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                   _errors=_errors, tqdm_position=0)
+                                   _errors=_errors, tqdm_position=0, model_args=model_args)
             return_dict['local'] = f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
             return_dict['wandb'] = {'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                     f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
         else:
             dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev 0', device=device, verbose=verbose,
-                                 debug=debug, _errors=_errors, tqdm_position=0)
+                                 debug=debug, _errors=_errors, tqdm_position=0, model_args=model_args)
             return_dict['local'] = f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
             return_dict['wandb'] = {'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
@@ -116,7 +116,7 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
         if overfit_batch_idx > -1:
             train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                    tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                   _errors=_errors)
+                                   _errors=_errors, model_args=model_args)
             return_dict['local'] = f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
             return_dict['wandb'] = {f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
@@ -124,7 +124,7 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
             return_dict['train_scores'] = train_scores
         else:
             dev_scores = eval_fn(model, val_dataloader, tqdm_label=f'dev {i+1}', device=device, verbose=verbose,
-                                 debug=debug, _errors=_errors)
+                                 debug=debug, _errors=_errors, model_args=model_args)
             return_dict['local'] = f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
             return_dict['wandb'] = {f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
@@ -354,7 +354,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                           clustering_threshold=clustering_threshold if i % 2 == 0 else None,
                                                           val_dataloader=val_dataloader_e2e,
                                                           tqdm_label='test clustering', device=device, verbose=verbose,
-                                                          debug=debug, _errors=_errors)
+                                                          debug=debug, _errors=_errors, model_args=model_args)
                     if inference_fn.__class__ is HACInference:
                         clustering_threshold = inference_fn.cut_threshold
                     logger.info(
@@ -399,7 +399,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                     clustering_threshold=clustering_threshold,
                                                     val_dataloader=val_dataloader_e2e,
                                                     tqdm_label='test clustering', device=device, verbose=verbose,
-                                                    debug=debug, _errors=_errors)
+                                                    debug=debug, _errors=_errors, model_args=model_args)
                         if pairwise_clustering_fn.__class__ is HACInference:
                             clustering_threshold = pairwise_clustering_fn.cut_threshold
                         logger.info(
@@ -655,7 +655,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 with torch.no_grad():
                     model.eval()
                     test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
-                                          debug=debug, _errors=_errors, tqdm_position=2)
+                                          debug=debug, _errors=_errors, tqdm_position=2, model_args=model_args)
                     logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                 f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
                     # Log final metrics
@@ -676,7 +676,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                         clustering_threshold=clustering_threshold,
                                                         val_dataloader=val_dataloader_e2e,
                                                         tqdm_label='test clustering', device=device, verbose=verbose,
-                                                        debug=debug, _errors=_errors, tqdm_position=2)
+                                                        debug=debug, _errors=_errors, tqdm_position=2,
+                                                        model_args=model_args)
                             if pairwise_clustering_fn.__class__ is HACInference:
                                 clustering_threshold = pairwise_clustering_fn.cut_threshold
                             logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
