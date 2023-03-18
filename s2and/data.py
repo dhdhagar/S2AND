@@ -128,7 +128,7 @@ class S2BlocksDataset(Dataset):
     """
     def __init__(self, block_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
                  convert_nan=True, nan_value=-1, scale=False, scaler=None, subsample_sz=-1,
-                 pairwise_mode=False):
+                 pairwise_mode=False, sort_desc=False):
         self.pairwise_mode = pairwise_mode
         self.block_dict = block_dict
         self.convert_nan = convert_nan
@@ -171,6 +171,11 @@ class S2BlocksDataset(Dataset):
             else:
                 self.blockwise_data.append((X, y, cluster_ids))
                 self.blockwise_keys.append(dict_key)
+        if sort_desc:
+            self.blockwise_keys = list(map(lambda x: x[1], sorted(enumerate(self.blockwise_keys),
+                                                                  key=lambda x: len(self.blockwise_data[x[0]][2]),
+                                                                  reverse=True)))
+            self.blockwise_data.sort(key=lambda x: -len(x[2]))
         if self.pairwise_mode:
             self.pairwise_data = {'X': [], 'y': []}
             self.cluster_ids = []

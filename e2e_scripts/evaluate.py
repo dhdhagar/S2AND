@@ -36,7 +36,7 @@ def _run_iter(model_class, state_dict_path, _fork_id, _shared_list, **kwargs):
     del model
 
 
-def fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
+def _fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
     kwargs['model_class'] = kwargs['model'].__class__
     kwargs['state_dict_path'] = copy_and_load_model(kwargs['model'], kwargs['run_dir'], 'cpu', store_only=True)
     del kwargs['model']
@@ -56,7 +56,7 @@ def fork_iter(batch_idx, _fork_id, _shared_list, **kwargs):
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
              val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None,
-             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=400,
+             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=500,
              disable_tqdm=False):
     """
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
@@ -95,7 +95,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             # Only one signature in block; manually assign a unique cluster
             pred_cluster_ids = [max_pred_id + 1]
         elif fork_enabled and block_size >= fork_size:
-            _proc = fork_iter(idx, _fork_id, _shared_list, **fn_args)
+            _proc = _fork_iter(idx, _fork_id, _shared_list, **fn_args)
             _fork_id += 1
             _procs.append((_proc, block_size))
             continue
@@ -144,7 +144,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             }
 
     if fork_enabled and len(_procs) > 0:
-        _procs.sort(lambda x: x[1])  # To visualize progress
+        _procs.sort(key=lambda x: x[1])  # To visualize progress
         for _proc in tqdm(_procs, desc=f'Eval {tqdm_label} (waiting for forks to join)', position=tqdm_position):
             _proc[0].join()
         assert len(_procs) == len(_shared_list), "All forked eval iterations did not return results"

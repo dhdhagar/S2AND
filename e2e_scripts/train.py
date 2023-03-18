@@ -1,7 +1,6 @@
 import glob
 import json
 import os
-import sys
 import time
 import logging
 import random
@@ -10,8 +9,8 @@ import copy
 import wandb
 import torch
 import numpy as np
-
 from tqdm import tqdm
+from torch.multiprocessing import set_start_method, Manager
 
 from e2e_pipeline.cc_inference import CCInference
 from e2e_pipeline.hac_inference import HACInference
@@ -21,125 +20,19 @@ from e2e_pipeline.sdp_layer import CvxpyException
 from e2e_scripts.evaluate import evaluate, evaluate_pairwise
 from e2e_scripts.train_utils import DEFAULT_HYPERPARAMS, get_dataloaders, get_matrix_size_from_triu, \
     uncompress_target_tensor, count_parameters, log_cc_objective_values, save_to_wandb_run, FrobeniusLoss, \
-    copy_and_load_model, get_feature_count
+    get_feature_count
 from utils.parser import Parser
 
-from torch.multiprocessing import Process, set_start_method, Manager
+from IPython import embed
 
 try:
     set_start_method('spawn', force=True)
 except RuntimeError:
     pass
 
-from IPython import embed
-
-
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
-                  scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
-                  best_dev_scores, best_dev_state_dict, sync=False):
-    if _proc is not None:
-        if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] != 'finish'):
-            _proc.join()
-            _return_dict['_state'] = 'finish'
-            if _return_dict['_method'] == 'init_eval':
-                logger.info(_return_dict['local'])
-                run.log(_return_dict['wandb'])
-            elif _return_dict['_method'] == 'dev_eval':
-                logger.info(_return_dict['local'])
-                run.log(_return_dict['wandb'])
-                if overfit_batch_idx > -1:
-                    if use_lr_scheduler:
-                        if hyp['lr_scheduler'] == 'plateau':
-                            scheduler.step(_return_dict['train_scores'][eval_metric_to_idx[dev_opt_metric]])
-                        elif hyp['lr_scheduler'] == 'step':
-                            scheduler.step()
-                else:
-                    dev_scores = _return_dict['dev_scores']
-                    dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
-                    if dev_opt_score > best_dev_score:
-                        logger.info(f"New best dev {dev_opt_metric} score @ epoch{i+1}: {dev_opt_score}")
-                        best_epoch = i
-                        best_dev_score = dev_opt_score
-                        best_dev_scores = dev_scores
-                        best_dev_state_dict = torch.load(_return_dict['state_dict_path'], device)
-                    if use_lr_scheduler:
-                        if hyp['lr_scheduler'] == 'plateau':
-                            scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
-                        elif hyp['lr_scheduler'] == 'step':
-                            scheduler.step()
-    return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict
-
-
-def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose,
-              debug, _errors, eval_metric_to_idx, val_dataloader, return_dict):
-    return_dict['_state'] = 'start'
-    return_dict['_method'] = 'init_eval'
-    model = model_class(*model_args)
-    model.load_state_dict(torch.load(state_dict_path))
-    model.to(device)
-    with torch.no_grad():
-        model.eval()
-        if overfit_batch_idx > -1:
-            train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                                   tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                   _errors=_errors, tqdm_position=0, model_args=model_args)
-            return_dict['local'] = f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
-                                   f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
-            return_dict['wandb'] = {'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
-                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
-        else:
-            dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev 0', device=device, verbose=verbose,
-                                 debug=debug, _errors=_errors, tqdm_position=0, model_args=model_args)
-            return_dict['local'] = f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
-                                   f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
-            return_dict['wandb'] = {'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
-                                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
-    del model
-    return_dict['_state'] = 'done'
-
-
-def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose,
-             debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, i):
-    return_dict['_state'] = 'start'
-    return_dict['_method'] = 'dev_eval'
-    return_dict['state_dict_path'] = state_dict_path
-    model = model_class(*model_args)
-    model.load_state_dict(torch.load(state_dict_path))
-    model.to(device)
-    with torch.no_grad():
-        model.eval()
-        if overfit_batch_idx > -1:
-            train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
-                                   tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                   _errors=_errors, model_args=model_args)
-            return_dict['local'] = f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
-                                   f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
-            return_dict['wandb'] = {f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
-                                    f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
-            return_dict['train_scores'] = train_scores
-        else:
-            dev_scores = eval_fn(model, val_dataloader, tqdm_label=f'dev {i+1}', device=device, verbose=verbose,
-                                 debug=debug, _errors=_errors, model_args=model_args)
-            return_dict['local'] = f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
-                                   f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
-            return_dict['wandb'] = {f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
-                                    f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}
-            return_dict['dev_scores'] = dev_scores
-    del model
-    return_dict['_state'] = 'done'
-
-def fork_eval(target, args, model, run_dir, device, logger):
-    state_dict_path = copy_and_load_model(model, run_dir, device, store_only=True)
-    args['state_dict_path'] = state_dict_path
-    proc = Process(target=target, kwargs=args)
-    logger.info('Forking eval')
-    proc.start()
-    return proc
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,

@@ -8,8 +8,8 @@
     "n_hidden_layers": {"values": [1, 2]},
     "dropout_p": {"values": [0, 0.1, 0.2, 0.3, 0.4, 0.5]},
     "lr_scheduler": {"value": "plateau"},
-    "subsample_sz_train": {"value": 80},
-    "subsample_sz_dev": {"value": 100},
     "activation": {"values": ["leaky_relu", "relu"]},
-    "use_rounded_loss": {"value": false}
+    "use_rounded_loss": {"value": false},
+    "gradient_accumulation": {"values":  [true, false]},
+    "weighted_loss": {"values":  [true, false]}
 }
