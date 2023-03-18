@@ -43,7 +43,7 @@ def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_s
                   scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
                   best_dev_scores, best_dev_state_dict, sync=False):
     if _proc is not None:
-        if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] == 'start'):
+        if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] != 'finish'):
             _proc.join()
             _return_dict['_state'] = 'finish'
             if _return_dict['_method'] == 'init_eval':
@@ -132,6 +132,14 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
             return_dict['dev_scores'] = dev_scores
     del model
     return_dict['_state'] = 'done'
+
+def fork_eval(target, args, model, run_dir, device, logger):
+    state_dict_path = copy_and_load_model(model, run_dir, device, store_only=True)
+    args['state_dict_path'] = state_dict_path
+    proc = Process(target=target, kwargs=args)
+    logger.info('Forking eval')
+    proc.start()
+    return proc
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
@@ -439,15 +447,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
-                _state_dict_path = copy_and_load_model(model, run.dir, device, store_only=True)
-                _proc = Process(target=init_eval,
-                                kwargs=dict(model_class=model.__class__, model_args=model_args,
-                                            state_dict_path=_state_dict_path,
-                                            overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
-                                            train_dataloader=train_dataloader, device=device, verbose=verbose,
-                                            debug=debug, _errors=_errors, eval_metric_to_idx=eval_metric_to_idx,
-                                            val_dataloader=val_dataloader, return_dict=_return_dict))
-                _proc.start()
+                _proc = fork_eval(target=init_eval, args=dict(model_class=model.__class__, model_args=model_args,
+                                                              overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                                              train_dataloader=train_dataloader, device=device,
+                                                              verbose=verbose,
+                                                              debug=debug, _errors=_errors,
+                                                              eval_metric_to_idx=eval_metric_to_idx,
+                                                              val_dataloader=val_dataloader, return_dict=_return_dict),
+                                  model=model,
+                                  run_dir=run.dir, device=device, logger=logger)
             if not pairwise_mode and grad_acc > 1:
                 grad_acc_steps = []
                 _seen_pw = 0
@@ -482,9 +490,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 grad_acc_idx = 0
                 optimizer.zero_grad()
 
-                for (idx, batch) in enumerate(tqdm(_train_dataloader,
-                                                   desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
-                                                   position=1)):
+                pbar = tqdm(_train_dataloader, desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
+                            position=1)
+                for (idx, batch) in enumerate(pbar):
                     best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc,
                                                                                                       _return_dict,
                                                                                                       logger, run,
@@ -515,6 +523,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         # Block contains only one signature pair; batchnorm throws error
                         continue
                     block_size = get_matrix_size_from_triu(data)
+                    pbar.set_description(f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1} " + \
+                                         f"(sz={len(data) if (pairwise_mode or warmstart_mode) else block_size})")
                     target = target.flatten().float()
                     if verbose:
                         logger.info(f"Batch shape: {data.shape}")
@@ -620,29 +630,28 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 wandb.log({f'train_epoch_loss': np.mean(running_loss)})
 
                 # Get model performance on dev (or 'train' for overfitting runs)
-                _state_dict_path = copy_and_load_model(model, run.dir, device, store_only=True)
-                _proc = Process(target=dev_eval,
-                                kwargs=dict(model_class=model.__class__, model_args=model_args,
-                                            state_dict_path=_state_dict_path, overfit_batch_idx=overfit_batch_idx,
-                                            eval_fn=eval_fn, train_dataloader=train_dataloader, device=device,
+                _proc = fork_eval(target=dev_eval,
+                                  args=dict(model_class=model.__class__, model_args=model_args,
+                                            overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                            train_dataloader=train_dataloader, device=device,
                                             verbose=verbose, debug=debug, _errors=_errors,
                                             eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
-                                            return_dict=_return_dict, i=i))
-                _proc.start()
+                                            return_dict=_return_dict, i=i), model=model, run_dir=run.dir, device=device,
+                                  logger=logger)
             end_time = time.time()
 
             best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
-                                                                                             logger, run,
-                                                                                             overfit_batch_idx,
-                                                                                             use_lr_scheduler,
-                                                                                             hyp, scheduler,
-                                                                                             eval_metric_to_idx,
-                                                                                             dev_opt_metric, i,
-                                                                                             best_epoch,
-                                                                                             best_dev_score,
-                                                                                             best_dev_scores,
-                                                                                             best_dev_state_dict,
-                                                                                             sync=True)
+                                                                                              logger, run,
+                                                                                              overfit_batch_idx,
+                                                                                              use_lr_scheduler,
+                                                                                              hyp, scheduler,
+                                                                                              eval_metric_to_idx,
+                                                                                              dev_opt_metric, i,
+                                                                                              best_epoch,
+                                                                                              best_dev_score,
+                                                                                              best_dev_scores,
+                                                                                              best_dev_state_dict,
+                                                                                              sync=True)
             # Save model
             if save_model:
                 torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
