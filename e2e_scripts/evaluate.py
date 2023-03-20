@@ -58,8 +58,8 @@ def _fork_iter(batch_idx, _fork_id, _shared_list, eval_fn, **kwargs):
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
              val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None,
-             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=300,
-             max_parallel_forks=4, disable_tqdm=False):
+             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=500,
+             max_parallel_forks=3, disable_tqdm=False):
     """
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
     (only added to keep fn signature identical)
@@ -97,6 +97,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
             # Only one signature in block; manually assign a unique cluster
             pred_cluster_ids = [max_pred_id + 1]
         elif fork_enabled and block_size >= fork_size:
+            logger.info(f"Eval fork info: len(_procs)={len(_procs)}, len(_shared_list)={len(_shared_list)}")
             if (len(_procs) - len(_shared_list)) < max_parallel_forks:
                 _proc = _fork_iter(idx, _fork_id, _shared_list, evaluate, **fn_args)
                 _fork_id += 1
@@ -149,7 +150,11 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
         _procs.sort(key=lambda x: x[1])  # To visualize progress
         for _proc in tqdm(_procs, desc=f'Eval {tqdm_label} (waiting for forks to join)', position=tqdm_position):
             _proc[0].join()
-        assert len(_procs) == len(_shared_list), "All forked eval iterations did not return results"
+        try:
+            assert len(_procs) == len(_shared_list)
+        except:
+            logger.info("Error: All forked eval iterations did not return results")
+            raise ValueError("All forked eval iterations did not return results")
         for _data in _shared_list:
             pred_cluster_ids = (_data['cluster_labels'] + (max_pred_id + 1)).tolist()
             cc_obj_vals['round'].append(_data['round_objective_value'])
@@ -168,7 +173,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
                       thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
                       tqdm_label='', device=None, verbose=False, debug=False, _errors=None, run_dir='./',
-                      tqdm_position=None, model_args=None, return_iter=False, fork_size=300, max_parallel_forks=4,
+                      tqdm_position=None, model_args=None, return_iter=False, fork_size=500, max_parallel_forks=3,
                       disable_tqdm=False):
     fn_args = locals()
     fork_enabled = fork_size > -1 and model_args is not None
@@ -208,6 +213,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
                 # Only one signature in block; manually assign a unique cluster
                 pred_cluster_ids = [max_pred_id + 1]
             elif fork_enabled and block_size >= fork_size and clustering_fn.__class__ is CCInference:
+                logger.info(f"Eval fork info: len(_procs)={len(_procs)}, len(_shared_list)={len(_shared_list)}")
                 if (len(_procs) - len(_shared_list)) < max_parallel_forks:
                     _proc = _fork_iter(idx, _fork_id, _shared_list, evaluate_pairwise, **fn_args)
                     _fork_id += 1
@@ -262,7 +268,11 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
             _procs.sort(key=lambda x: x[1])  # To visualize progress
             for _proc in tqdm(_procs, desc=f'Eval {tqdm_label} (waiting for forks to join)', position=tqdm_position):
                 _proc[0].join()
-            assert len(_procs) == len(_shared_list), "All forked eval iterations did not return results"
+            try:
+                assert len(_procs) == len(_shared_list)
+            except:
+                logger.info("Error: All forked eval iterations did not return results")
+                raise ValueError("All forked eval iterations did not return results")
             for _data in _shared_list:
                 pred_cluster_ids = (_data['cluster_labels'] + (max_pred_id + 1)).tolist()
                 cc_obj_vals['round'].append(_data['round_objective_value'])

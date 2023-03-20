@@ -157,3 +157,7 @@ class Parser(argparse.ArgumentParser):
             "--sync_dev", action="store_true",
             help="Whether to force dev evaluations to run synchronously",
         )
+        parser.add_argument(
+            "--icml_final_eval", action="store_true",
+            help="ICML REBUTTAL ONLY: Run all eval after training",
+        )

@@ -4,6 +4,7 @@
 import copy
 import os
 import json
+import random
 from collections import defaultdict
 from typing import Dict
 from typing import Tuple, Optional
@@ -216,7 +217,7 @@ class FrobeniusLoss:
 
 def copy_and_load_model(model, run_dir, device, store_only=False):
     _model = copy.deepcopy(model)
-    _PATH = os.path.join(run_dir, f'_temp_state_dict_{int(time())}.pt')
+    _PATH = os.path.join(run_dir, f'_temp_state_dict_{int(time())}-{random.randint(0, 100)}.pt')
     torch.save(model.state_dict(), _PATH)
     if store_only:
         return _PATH
