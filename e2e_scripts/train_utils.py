@@ -37,8 +37,8 @@ DEFAULT_HYPERPARAMS = {
     # Data config
     "convert_nan": False,
     "nan_value": -1,
-    "drop_feat_nan_pct": -1,
     "normalize_data": True,
+    "drop_feat_idxs": [],
     # Model config
     "neumiss_deq": False,
     "neumiss_depth": 20,
@@ -86,7 +86,7 @@ def read_blockwise_features(pkl):
 
 
 def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz_train, subsample_sz_dev,
-                    pairwise_mode, batch_size, shuffle=False, split=None):
+                    pairwise_mode, batch_size, shuffle=False, split=None, drop_feat_idxs=[]):
     pickle_path = {
         'train': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl",
         'dev': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl",
@@ -105,7 +105,8 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
         dataset = S2BlocksDataset(read_blockwise_features(pickle_path[_split]), convert_nan=convert_nan,
                                   nan_value=nan_value, scale=normalize, scaler=train_scaler,
                                   subsample_sz=subsample_sz[_split],
-                                  pairwise_mode=pairwise_mode, sort_desc=(_split in ['dev', 'test']))
+                                  pairwise_mode=pairwise_mode, sort_desc=(_split in ['dev', 'test']),
+                                  drop_feat_idxs=drop_feat_idxs)
         dataloader = DataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
         return dataloader
 
