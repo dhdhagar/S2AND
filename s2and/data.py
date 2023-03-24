@@ -147,7 +147,7 @@ class S2BlocksDataset(Dataset):
         for dict_key in self.block_dict.keys():
             X, y, cluster_ids = self.block_dict[dict_key]
             for _idx in drop_feat_idxs:
-                X = np.delete(X, _idx, axis=1)
+                X = np.delete(X, int(_idx), axis=1)
             if X.shape[0] != 0 and self.subsample_sz > -1:
                 # Split large blocks into subsampled blocks with the same key
                 matrix_sz = len(cluster_ids)
