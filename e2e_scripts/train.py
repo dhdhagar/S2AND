@@ -582,8 +582,21 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             # Evaluate the best dev model on test
             if overfit_batch_idx == -1:
                 model.load_state_dict(best_dev_state_dict)
-
                 if icml_final_eval:
+                    with torch.no_grad():
+                        model.eval()
+                        test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
+                                              debug=debug, _errors=_errors, tqdm_position=2, model_args=model_args,
+                                              run_dir=run.dir)
+                        logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
+                                    f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
+                        # Log final metrics
+                        wandb.log({'best_dev_epoch': best_epoch + 1,
+                                   f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
+                                   f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
+                                   f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
+                                   f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
+
                     # Run all inference variants on the test set and exit
                     cc_inference_sdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=True)
                     cc_inference_nosdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=False)
