@@ -128,7 +128,7 @@ class S2BlocksDataset(Dataset):
     """
     def __init__(self, block_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
                  convert_nan=True, nan_value=-1, scale=False, scaler=None, subsample_sz=-1,
-                 pairwise_mode=False, sort_desc=False, drop_feat_idxs=[]):
+                 pairwise_mode=False, sort_desc=False, feat_idxs=None):
         self.pairwise_mode = pairwise_mode
         self.block_dict = block_dict
         self.convert_nan = convert_nan
@@ -138,6 +138,8 @@ class S2BlocksDataset(Dataset):
         if self.scale and self.scaler is None:
             # Fit scaler on input data
             all_X = np.concatenate(list(map(lambda x: x[0], self.block_dict.values())))
+            if feat_idxs is not None:
+                all_X = all_X[:, feat_idxs]
             self.scaler = StandardScaler()
             self.scaler.fit(all_X)
         self.subsample_sz = subsample_sz
@@ -146,8 +148,8 @@ class S2BlocksDataset(Dataset):
         self.blockwise_keys = []
         for dict_key in self.block_dict.keys():
             X, y, cluster_ids = self.block_dict[dict_key]
-            for _idx in drop_feat_idxs:
-                X = np.delete(X, int(_idx), axis=1)
+            if feat_idxs is not None:
+                X = X[:, feat_idxs]
             if X.shape[0] != 0 and self.subsample_sz > -1:
                 # Split large blocks into subsampled blocks with the same key
                 matrix_sz = len(cluster_ids)

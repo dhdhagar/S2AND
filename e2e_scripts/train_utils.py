@@ -99,6 +99,8 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
     }
     train_scaler = StandardScaler()
     train_X = np.concatenate(list(map(lambda x: x[0], read_blockwise_features(pickle_path['train']).values())))
+    feat_idxs = np.array(list(set(range(train_X.shape[1])) - set(map(lambda x: int(x), drop_feat_idxs))))
+    train_X = train_X[:, feat_idxs]
     train_scaler.fit(train_X)
 
     def _get_dataloader(_split):
@@ -106,7 +108,7 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
                                   nan_value=nan_value, scale=normalize, scaler=train_scaler,
                                   subsample_sz=subsample_sz[_split],
                                   pairwise_mode=pairwise_mode, sort_desc=(_split in ['dev', 'test']),
-                                  drop_feat_idxs=drop_feat_idxs)
+                                  feat_idxs=feat_idxs)
         dataloader = DataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
         return dataloader
 
