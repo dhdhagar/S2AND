@@ -39,6 +39,7 @@ DEFAULT_HYPERPARAMS = {
     "nan_value": -1,
     "normalize_data": True,
     "drop_feat_idxs": [],
+    "keep_feat_idxs": [],
     # Model config
     "neumiss_deq": False,
     "neumiss_depth": 20,
@@ -85,8 +86,14 @@ def read_blockwise_features(pkl):
     return blockwise_data
 
 
+def _get_feat_idxs(_n_features, _keep_feat_idxs, _drop_feat_idxs):
+    _keep = set(range(_n_features) if len(_keep_feat_idxs == 0) else map(lambda x: int(x), _keep_feat_idxs))
+    _drop = set(map(lambda x: int(x), _drop_feat_idxs))
+    return np.array(list(_keep - _drop))
+
+
 def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz_train, subsample_sz_dev,
-                    pairwise_mode, batch_size, shuffle=False, split=None, drop_feat_idxs=[]):
+                    pairwise_mode, batch_size, shuffle=False, split=None, drop_feat_idxs=[], keep_feat_idxs=[]):
     pickle_path = {
         'train': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl",
         'dev': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl",
@@ -99,7 +106,7 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
     }
     train_scaler = StandardScaler()
     train_X = np.concatenate(list(map(lambda x: x[0], read_blockwise_features(pickle_path['train']).values())))
-    feat_idxs = np.array(list(set(range(train_X.shape[1])) - set(map(lambda x: int(x), drop_feat_idxs))))
+    feat_idxs = _get_feat_idxs(train_X.shape[1], keep_feat_idxs, drop_feat_idxs)
     train_X = train_X[:, feat_idxs]
     train_scaler.fit(train_X)
 

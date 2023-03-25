@@ -139,7 +139,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                                 hyp["subsample_sz_train"],
                                                                                 hyp["subsample_sz_dev"],
                                                                                 pairwise_mode, batch_size,
-                                                                                drop_feat_idxs=hyp["drop_feat_idxs"])
+                                                                                drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                                keep_feat_idxs=hyp["keep_feat_idxs"])
             n_features = train_dataloader.dataset[0][0].shape[1]
         else:
             n_features = get_feature_count(hyp["dataset"], hyp["dataset_random_seed"])
@@ -181,7 +182,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                 hyp["subsample_sz_train"],
                                                                 hyp["subsample_sz_dev"],
                                                                 pairwise_mode=True, batch_size=hyp['batch_size'],
-                                                                split='train', drop_feat_idxs=hyp["drop_feat_idxs"])
+                                                                split='train', drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                keep_feat_idxs=hyp["keep_feat_idxs"])
                     # Define loss
                     loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
         else:
@@ -216,7 +218,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                           hyp["subsample_sz_dev"],
                                                                           pairwise_mode=False, batch_size=1,
                                                                           split=['dev', 'test'],
-                                                                          drop_feat_idxs=hyp["drop_feat_idxs"])
+                                                                          drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                          keep_feat_idxs=hyp["keep_feat_idxs"])
             if training_mode:  # => model will be used for training
                 # Define loss
                 pos_weight = None
@@ -267,7 +270,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                       hyp["subsample_sz_dev"],
                                                                       pairwise_mode=False, batch_size=1,
                                                                       split=['dev', 'test'],
-                                                                      drop_feat_idxs=hyp["drop_feat_idxs"])
+                                                                      drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                      keep_feat_idxs=hyp["keep_feat_idxs"])
             start_time = time.time()
             with torch.no_grad():
                 model.eval()
@@ -304,7 +308,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                   hyp["convert_nan"], hyp["nan_value"],
                                                   hyp["normalize_data"], hyp["subsample_sz_train"],
                                                   hyp["subsample_sz_dev"], pairwise_mode,
-                                                  batch_size, split=eval_only_split, drop_feat_idxs=hyp["drop_feat_idxs"])
+                                                  batch_size, split=eval_only_split, drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                  keep_feat_idxs=hyp["keep_feat_idxs"])
                 eval_scores = eval_fn(model, eval_dataloader, tqdm_label=eval_only_split, device=device, verbose=verbose,
                                       debug=debug, _errors=_errors, model_args=model_args, run_dir=run.dir)
                 logger.info(f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
@@ -617,7 +622,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                               hyp["subsample_sz_dev"],
                                                                               pairwise_mode=False, batch_size=1,
                                                                               split=['dev', 'test'],
-                                                                              drop_feat_idxs=hyp["drop_feat_idxs"])
+                                                                              drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                              keep_feat_idxs=hyp["keep_feat_idxs"])
                     inf_start_time = time.time()
                     with torch.no_grad():
                         model.eval()
