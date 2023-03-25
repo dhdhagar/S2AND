@@ -87,7 +87,7 @@ def read_blockwise_features(pkl):
 
 
 def _get_feat_idxs(_n_features, _keep_feat_idxs, _drop_feat_idxs):
-    _keep = set(range(_n_features) if len(_keep_feat_idxs == 0) else map(lambda x: int(x), _keep_feat_idxs))
+    _keep = set(range(_n_features) if len(_keep_feat_idxs) == 0 else map(lambda x: int(x), _keep_feat_idxs))
     _drop = set(map(lambda x: int(x), _drop_feat_idxs))
     return np.array(list(_keep - _drop))
 
