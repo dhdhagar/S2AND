@@ -349,7 +349,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             # Train and evaluate
             wandb.watch(model)
 
-            optimizer = torch.optim.AdamW(model.parameters(), lr=hyp['lr'])
+            optimizer = torch.optim.AdamW(model.parameters(), lr=hyp['lr'], weight_decay=hyp['weight_decay'])
             if use_lr_scheduler:
                 if hyp['lr_scheduler'] == 'plateau':
                     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
