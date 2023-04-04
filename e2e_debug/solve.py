@@ -1,3 +1,6 @@
+"""
+Example usage: python e2e_debug/solve.py --data_fpath=e2e_debug/run_errors/1wt1e4ui.json --scs_silent --max_scaling --inspect_before_solving
+"""
 import json
 import argparse
 import cvxpy as cp
@@ -56,6 +59,9 @@ class Parser(argparse.ArgumentParser):
         self.add_argument(
             "--interactive", action="store_true",
         )
+        self.add_argument(
+            "--inspect_before_solving", action="store_true",
+        )
 
 
 if __name__ == '__main__':
@@ -112,6 +118,10 @@ if __name__ == '__main__':
         # Create problem
         W_scaled = W / scaling_factor
         problem = cp.Problem(cp.Maximize(cp.trace(W_scaled @ X)), constraints)
+
+        if args.inspect_before_solving:
+            embed()
+
         # Solve problem
         sdp_obj_value = problem.solve(
             solver=cp.SCS,

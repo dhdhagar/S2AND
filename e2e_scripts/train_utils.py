@@ -308,7 +308,7 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
 
 
 def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose,
-             debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, i, run_dir):
+             debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, epoch_idx, run_dir):
     return_dict['_state'] = 'start'
     return_dict['_method'] = 'dev_eval'
     return_dict['state_dict_path'] = state_dict_path
@@ -321,15 +321,15 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
             train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                    tqdm_label='train', device=device, verbose=verbose, debug=debug,
                                    _errors=_errors, model_args=model_args, run_dir=run_dir)
-            return_dict['local'] = f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
+            return_dict['local'] = f"Epoch {epoch_idx + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
             return_dict['wandb'] = {f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                     f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
             return_dict['train_scores'] = train_scores
         else:
-            dev_scores = eval_fn(model, val_dataloader, tqdm_label=f'dev {i + 1}', device=device, verbose=verbose,
+            dev_scores = eval_fn(model, val_dataloader, tqdm_label=f'dev {epoch_idx + 1}', device=device, verbose=verbose,
                                  debug=debug, _errors=_errors, model_args=model_args, run_dir=run_dir)
-            return_dict['local'] = f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
+            return_dict['local'] = f"Epoch {epoch_idx + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
             return_dict['wandb'] = {f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}

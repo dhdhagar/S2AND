@@ -395,16 +395,16 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             model.train()
             start_time = time.time()  # Tracks full training runtime
-            for i in range(n_epochs):
+            for epoch_idx in range(n_epochs):
                 _train_dataloader = train_dataloader
                 loss_fn = loss_fn_e2e if not pairwise_mode else loss_fn_pairwise
-                warmstart_mode = not pairwise_mode and i < n_warmstart_epochs
+                warmstart_mode = not pairwise_mode and epoch_idx < n_warmstart_epochs
 
                 if warmstart_mode:
                     _train_dataloader = train_dataloader_pairwise
                     loss_fn = loss_fn_pairwise
 
-                wandb.log({'epoch': i + 1})
+                wandb.log({'epoch': epoch_idx + 1})
                 running_loss = []
                 n_exceptions = 0
 
@@ -412,9 +412,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 grad_acc_idx = 0
                 optimizer.zero_grad()
 
-                pbar = tqdm(_train_dataloader, desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
+                pbar = tqdm(_train_dataloader, desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {epoch_idx + 1}",
                             position=1)
-                for (idx, batch) in enumerate(pbar):
+                for (batch_idx, batch) in enumerate(pbar):
                     best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc,
                                                                                                       _return_dict,
                                                                                                       logger, run,
@@ -423,15 +423,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                                                       hyp, scheduler,
                                                                                                       eval_metric_to_idx,
                                                                                                       dev_opt_metric,
-                                                                                                      i - 1, best_epoch,
+                                                                                                      epoch_idx - 1, best_epoch,
                                                                                                       best_dev_score,
                                                                                                       best_dev_scores,
                                                                                                       best_dev_state_dict,
                                                                                                       sync=sync_dev)
                     if overfit_batch_idx > -1:
-                        if idx < overfit_batch_idx:
+                        if batch_idx < overfit_batch_idx:
                             continue
-                        if idx > overfit_batch_idx:
+                        if batch_idx > overfit_batch_idx:
                             break
                     if not pairwise_mode and not warmstart_mode:
                         data, target, _ = batch
@@ -445,7 +445,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         # Block contains only one signature pair; batchnorm throws error
                         continue
                     block_size = get_matrix_size_from_triu(data)
-                    pbar.set_description(f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1} " + \
+                    pbar.set_description(f"{'Warm-starting' if warmstart_mode else 'Training'} {epoch_idx + 1} " + \
                                          f"(sz={len(data) if (pairwise_mode or warmstart_mode) else block_size})")
                     target = target.flatten().float()
                     if verbose:
@@ -461,6 +461,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         logger.info(e)
                         _error_obj = {
                             'id': f'tf_{int(time.time())}',
+                            'epoch_idx': epoch_idx,
+                            'batch_idx': batch_idx,
                             'method': 'train_forward',
                             'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                             'data_split': 'train',
@@ -505,6 +507,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if isinstance(e, CvxpyException):
                             _error_obj = {
                                 'id': f'tb_{int(time.time())}',
+                                'epoch_idx': epoch_idx,
+                                'batch_idx': batch_idx,
                                 'method': 'train_backward',
                                 'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                                 'data_split': 'train',
@@ -522,7 +526,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                     f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
                                 continue
                     if pairwise_mode or (
-                            idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
+                            batch_idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
                         if hyp["max_grad_norm"] != -1:
                             torch.nn.utils.clip_grad_norm_(
                                 model.parameters(), hyp["max_grad_norm"]
@@ -545,7 +549,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                                                   use_lr_scheduler,
                                                                                                   hyp, scheduler,
                                                                                                   eval_metric_to_idx,
-                                                                                                  dev_opt_metric, i - 1,
+                                                                                                  dev_opt_metric, epoch_idx - 1,
                                                                                                   best_epoch,
                                                                                                   best_dev_score,
                                                                                                   best_dev_scores,
@@ -562,9 +566,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             train_dataloader=train_dataloader, device=device,
                                             verbose=verbose, debug=debug, _errors=_errors,
                                             eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
-                                            return_dict=_return_dict, i=i, run_dir=run.dir),
+                                            return_dict=_return_dict, epoch_idx=epoch_idx, run_dir=run.dir),
                                   model=model, run_dir=run.dir, device=device, logger=logger,
-                                  sync=(idx == len(_train_dataloader.dataset) - 1))
+                                  sync=(batch_idx == len(_train_dataloader.dataset) - 1))
             end_time = time.time()
 
             best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
@@ -573,7 +577,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                                               use_lr_scheduler,
                                                                                               hyp, scheduler,
                                                                                               eval_metric_to_idx,
-                                                                                              dev_opt_metric, i,
+                                                                                              dev_opt_metric, epoch_idx,
                                                                                               best_epoch,
                                                                                               best_dev_score,
                                                                                               best_dev_scores,
