@@ -375,7 +375,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                               verbose=verbose,
                                                               debug=debug, _errors=_errors,
                                                               eval_metric_to_idx=eval_metric_to_idx,
-                                                              val_dataloader=val_dataloader, return_dict=_return_dict),
+                                                              val_dataloader=val_dataloader, return_dict=_return_dict,
+                                                              run_dir=run.dir),
                                   model=model, run_dir=run.dir, device=device, logger=logger)
             if not pairwise_mode and grad_acc > 1:
                 grad_acc_steps = []
@@ -561,7 +562,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                             train_dataloader=train_dataloader, device=device,
                                             verbose=verbose, debug=debug, _errors=_errors,
                                             eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
-                                            return_dict=_return_dict, i=i),
+                                            return_dict=_return_dict, i=i, run_dir=run.dir),
                                   model=model, run_dir=run.dir, device=device, logger=logger,
                                   sync=(idx == len(_train_dataloader.dataset) - 1))
             end_time = time.time()
@@ -635,8 +636,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                   clustering_threshold=clustering_threshold if i % 2 == 0 else None,
                                                                   val_dataloader=val_dataloader_e2e,
                                                                   tqdm_label='test clustering', device=device,
-                                                                  verbose=verbose,
-                                                                  debug=debug, _errors=_errors, model_args=model_args)
+                                                                  verbose=verbose, debug=debug, _errors=_errors,
+                                                                  model_args=model_args, run_dir=run.dir)
                             if inference_fn.__class__ is HACInference:
                                 clustering_threshold = inference_fn.cut_threshold
                             logger.info(
