@@ -464,7 +464,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                             'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                             'data_split': 'train',
                             'model_call_args': {
-                                'data': data.detach().cpu(),
+                                'data': data.detach().tolist(),
                                 'block_size': block_size
                             },
                             'cvxpy_layer_args': e.data
@@ -508,7 +508,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                 'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                                 'data_split': 'train',
                                 'model_call_args': {
-                                    'data': data.detach().cpu(),
+                                    'data': data.detach().tolist(),
                                     'block_size': block_size
                                 }
                             }
