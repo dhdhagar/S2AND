@@ -366,7 +366,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             best_dev_state_dict = copy.deepcopy(model.state_dict())
             best_dev_score = -1  # Stores the score of only the specified optimization metric
             best_dev_scores = ()  # Contains scores of all metrics
-            best_epoch = 0
+            best_epoch = -1
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
@@ -396,6 +396,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
             model.train()
             start_time = time.time()  # Tracks full training runtime
+            epoch_idx = -1
             for epoch_idx in range(n_epochs):
                 _train_dataloader = train_dataloader
                 loss_fn = loss_fn_e2e if not pairwise_mode else loss_fn_pairwise
