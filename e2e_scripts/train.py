@@ -573,18 +573,19 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                   sync=(batch_idx == len(_train_dataloader.dataset) - 1))
             end_time = time.time()
 
-            best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
-                                                                                              logger, run,
-                                                                                              overfit_batch_idx,
-                                                                                              use_lr_scheduler,
-                                                                                              hyp, scheduler,
-                                                                                              eval_metric_to_idx,
-                                                                                              dev_opt_metric, epoch_idx,
-                                                                                              best_epoch,
-                                                                                              best_dev_score,
-                                                                                              best_dev_scores,
-                                                                                              best_dev_state_dict,
-                                                                                              sync=True)
+            if _proc is not None:
+                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
+                                                                                                  logger, run,
+                                                                                                  overfit_batch_idx,
+                                                                                                  use_lr_scheduler,
+                                                                                                  hyp, scheduler,
+                                                                                                  eval_metric_to_idx,
+                                                                                                  dev_opt_metric, epoch_idx,
+                                                                                                  best_epoch,
+                                                                                                  best_dev_score,
+                                                                                                  best_dev_scores,
+                                                                                                  best_dev_state_dict,
+                                                                                                  sync=True)
             # Save model
             if save_model:
                 torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
@@ -603,11 +604,16 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                     f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
                         # Log final metrics
-                        wandb.log({'best_dev_epoch': best_epoch + 1,
-                                   f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
-                                   f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
-                                   f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
-                                   f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
+                        _wandb_log = {'best_dev_epoch': best_epoch + 1,
+                                      f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
+                                      f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]
+                                      }
+                        if len(best_dev_scores) >= 2:
+                            _wandb_log.update({
+                                f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
+                                f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1]
+                            })
+                        wandb.log(_wandb_log)
 
                     # Run all inference variants on the test set and exit
                     cc_inference_sdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=True)
@@ -669,11 +675,16 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
                                     f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
                         # Log final metrics
-                        wandb.log({'best_dev_epoch': best_epoch + 1,
-                                   f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
-                                   f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
-                                   f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
-                                   f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
+                        _wandb_log = {'best_dev_epoch': best_epoch + 1,
+                                      f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
+                                      f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]
+                                      }
+                        if len(best_dev_scores) >= 2:
+                            _wandb_log.update({
+                                f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
+                                f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1]
+                            })
+                        wandb.log(_wandb_log)
                         if len(test_scores) == 3:
                             log_cc_objective_values(scores=test_scores, split_name='best_test', log_prefix='Final',
                                                     verbose=True, logger=logger)
