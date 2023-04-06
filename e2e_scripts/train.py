@@ -544,33 +544,37 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     running_loss.append(loss.item())
                     wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
 
-                # Sync to get previous epoch's dev eval
-                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
-                                                                                                  logger, run,
-                                                                                                  overfit_batch_idx,
-                                                                                                  use_lr_scheduler,
-                                                                                                  hyp, scheduler,
-                                                                                                  eval_metric_to_idx,
-                                                                                                  dev_opt_metric, epoch_idx - 1,
-                                                                                                  best_epoch,
-                                                                                                  best_dev_score,
-                                                                                                  best_dev_scores,
-                                                                                                  best_dev_state_dict,
-                                                                                                  sync=True)
+                if warmstart_mode:
+                    logger.info(f"Warmstart epoch loss = {np.mean(running_loss)}")
+                    wandb.log({f'train_warmstart_epoch_loss': np.mean(running_loss)})
+                else:
+                    # Sync to get previous epoch's dev eval
+                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
+                                                                                                      logger, run,
+                                                                                                      overfit_batch_idx,
+                                                                                                      use_lr_scheduler,
+                                                                                                      hyp, scheduler,
+                                                                                                      eval_metric_to_idx,
+                                                                                                      dev_opt_metric, epoch_idx - 1,
+                                                                                                      best_epoch,
+                                                                                                      best_dev_score,
+                                                                                                      best_dev_scores,
+                                                                                                      best_dev_state_dict,
+                                                                                                      sync=True)
 
-                logger.info(f"Epoch loss = {np.mean(running_loss)}")
-                wandb.log({f'train_epoch_loss': np.mean(running_loss)})
+                    logger.info(f"Epoch loss = {np.mean(running_loss)}")
+                    wandb.log({f'train_epoch_loss': np.mean(running_loss)})
 
-                # Get model performance on dev (or 'train' for overfitting runs)
-                _proc = fork_eval(target=dev_eval,
-                                  args=dict(model_args=model_args,
-                                            overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
-                                            train_dataloader=train_dataloader, device=device,
-                                            verbose=verbose, debug=debug, _errors=_errors,
-                                            eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
-                                            return_dict=_return_dict, epoch_idx=epoch_idx, run_dir=run.dir),
-                                  model=model, run_dir=run.dir, device=device, logger=logger,
-                                  sync=(batch_idx == len(_train_dataloader.dataset) - 1))
+                    # Get model performance on dev (or 'train' for overfitting runs)
+                    _proc = fork_eval(target=dev_eval,
+                                      args=dict(model_args=model_args,
+                                                overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                                train_dataloader=train_dataloader, device=device,
+                                                verbose=verbose, debug=debug, _errors=_errors,
+                                                eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
+                                                return_dict=_return_dict, epoch_idx=epoch_idx, run_dir=run.dir),
+                                      model=model, run_dir=run.dir, device=device, logger=logger,
+                                      sync=(batch_idx == len(_train_dataloader.dataset) - 1))
             end_time = time.time()
 
             if _proc is not None:
