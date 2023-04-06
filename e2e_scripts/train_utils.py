@@ -5,6 +5,7 @@ import copy
 import os
 import json
 import random
+import logging
 from collections import defaultdict
 from typing import Dict
 from typing import Tuple, Optional
@@ -23,6 +24,12 @@ from torch import Tensor
 from torch.multiprocessing import Process
 
 from IPython import embed
+
+
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 # Default hyperparameters
 DEFAULT_HYPERPARAMS = {
@@ -106,9 +113,14 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
     }
     train_scaler = StandardScaler()
     train_X = np.concatenate(list(map(lambda x: x[0], read_blockwise_features(pickle_path['train']).values())))
-    feat_idxs = _get_feat_idxs(train_X.shape[1], keep_feat_idxs, drop_feat_idxs)
-    train_X = train_X[:, feat_idxs]
     train_scaler.fit(train_X)
+    # Additionally drop features that are all nan's at training
+    all_nan_idxs = list(np.where(train_scaler.n_samples_seen_ == 0)[0]) \
+        if type(train_scaler.n_samples_seen_) == np.ndarray else []
+    if len(all_nan_idxs) > 0:
+        logger.info(f"Dropped {len(all_nan_idxs)} all NaN features: {all_nan_idxs}")
+    feat_idxs = _get_feat_idxs(train_X.shape[1], keep_feat_idxs, drop_feat_idxs + all_nan_idxs)
+
 
     def _get_dataloader(_split):
         dataset = S2BlocksDataset(read_blockwise_features(pickle_path[_split]), convert_nan=convert_nan,
