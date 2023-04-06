@@ -28,7 +28,8 @@ class CCInference(torch.nn.Module):
         edge_weights = torch.squeeze(edge_weights)
         if threshold is not None:
             # threshold is used to convert a similarity score (in [0,1]) into edge weights (in R, i.e. + and -)
-            edge_weights = torch.sigmoid(edge_weights) - threshold
+            edge_weights = torch.sigmoid(edge_weights) - threshold + 1e-5
+            # Constant added above for numerical stability: scenario where edge_weights all become 0's
         edge_weights_uncompressed = self.uncompress_layer(edge_weights, N)
         output_probs = self.sdp_layer(edge_weights_uncompressed, N, use_sdp=self.use_sdp)
         pred_clustering = self.hac_cut_layer(output_probs, edge_weights_uncompressed)
