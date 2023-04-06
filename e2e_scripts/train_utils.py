@@ -120,6 +120,8 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
     if len(all_nan_idxs) > 0:
         logger.info(f"Dropped {len(all_nan_idxs)} all NaN features: {all_nan_idxs}")
     feat_idxs = _get_feat_idxs(train_X.shape[1], keep_feat_idxs, drop_feat_idxs + all_nan_idxs)
+    if len(feat_idxs) != train_X.shape[1]:
+        train_scaler.fit(train_X[:, feat_idxs])
 
 
     def _get_dataloader(_split):
