@@ -14,13 +14,14 @@ logger = logging.getLogger(__name__)
 
 class PairwiseModel(torch.nn.Module):
     def __init__(self, n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
-                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                 neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, add_layernorm, activation,
                  negative_slope, hidden_config):
         super().__init__()
         self.mlp_layer = MLPLayer(n_features=n_features, neumiss_depth=neumiss_depth, dropout_p=dropout_p,
                                   dropout_only_once=dropout_only_once, add_neumiss=add_neumiss, neumiss_deq=neumiss_deq,
                                   hidden_dim=hidden_dim, n_hidden_layers=n_hidden_layers, add_batchnorm=add_batchnorm,
-                                  activation=activation, negative_slope=negative_slope, hidden_config=hidden_config)
+                                  add_layernorm=add_layernorm, activation=activation, negative_slope=negative_slope,
+                                  hidden_config=hidden_config)
 
     def forward(self, x, N=None, warmstart=False, verbose=False):
         """

@@ -113,6 +113,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         hidden_config = hyp["hidden_config"]
         activation = hyp["activation"]
         add_batchnorm = hyp["batchnorm"]
+        add_layernorm = hyp["layernorm"]
         neumiss_deq = hyp["neumiss_deq"]
         neumiss_depth = hyp["neumiss_depth"]
         add_neumiss = not hyp['convert_nan']
@@ -148,7 +149,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         # Create model with hyperparams
         if not pairwise_mode:
             model_args = (n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
-                         neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                         neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, add_layernorm, activation,
                          negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
                          use_rounded_loss, (e2e_loss == "bce"), use_sdp)
             model = EntResModel(*model_args)
@@ -188,7 +189,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
         else:
             model_args = (n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
-                          neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                          neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, add_layernorm, activation,
                           negative_slope, hidden_config)
             model = PairwiseModel(*model_args)
             # Define eval

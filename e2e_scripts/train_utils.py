@@ -55,6 +55,7 @@ DEFAULT_HYPERPARAMS = {
     "dropout_p": 0.1,
     "dropout_only_once": True,
     "batchnorm": True,
+    "layernorm": False,
     "hidden_config": None,
     "activation": "leaky_relu",
     "negative_slope": 0.01,
