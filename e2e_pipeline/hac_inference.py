@@ -54,7 +54,7 @@ class HACInference:
         all_dists = np.concatenate((all_dists)).reshape(-1, 1)
         logger.info("Computing thresholds to try...")
         kmeans = KMeans(n_clusters=n_trials, random_state=17)
-        thresholds = np.sort(kmeans.fit(all_dists).cluster_centers_.flatten())
+        thresholds = np.sort(np.unique(kmeans.fit(all_dists).cluster_centers_.flatten()))
 
         # Cluster on each threshold and compute metric to pick best threshold
         best_threshold = thresholds[0]
