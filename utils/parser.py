@@ -129,7 +129,7 @@ class Parser(argparse.ArgumentParser):
             help="Run script in inference-only mode on a particular data split (train / dev / test)",
         )
         parser.add_argument(
-            "--eval_all", action='store_true',
+            "--eval_all_only", action='store_true',
             help="Evaluate model using all inference methods over the test set and exit",
         )
         parser.add_argument(
