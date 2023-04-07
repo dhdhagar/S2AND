@@ -158,6 +158,6 @@ class Parser(argparse.ArgumentParser):
             help="Whether to force dev evaluations to run synchronously",
         )
         parser.add_argument(
-            "--icml_final_eval", action="store_true",
-            help="ICML REBUTTAL ONLY: Run all eval after training",
+            "--skip_final_eval", action="store_true",
+            help="Whether to skip the final clustering evaluation of all inference variants",
         )
