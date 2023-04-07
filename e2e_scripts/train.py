@@ -399,6 +399,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         _seen_blk = 0
                 if _seen_blk > 0:
                     grad_acc_steps.append(_seen_blk)
+                logger.info(f"grad_acc step schedule: {grad_acc_steps}")
 
             model.train()
             start_time = time.time()  # Tracks full training runtime
