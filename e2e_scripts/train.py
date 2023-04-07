@@ -130,6 +130,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx \
             else list(eval_metric_to_idx)[0]
         training_mode = not eval_all and eval_only_split is None
+        early_terminate_epochs = hyp["early_terminate_epochs"]
+        early_terminate_ctr = early_terminate_epochs if early_terminate_epochs > 0 else None
 
         # Get data loaders (optionally with imputation, normalization)
         if training_mode:
@@ -397,7 +399,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             model.train()
             start_time = time.time()  # Tracks full training runtime
             epoch_idx = -1
+            early_terminate = False
             for epoch_idx in range(n_epochs):
+                if early_terminate:
+                    break
                 _train_dataloader = train_dataloader
                 loss_fn = loss_fn_e2e if not pairwise_mode else loss_fn_pairwise
                 warmstart_mode = not pairwise_mode and epoch_idx < n_warmstart_epochs
@@ -417,19 +422,23 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 pbar = tqdm(_train_dataloader, desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {epoch_idx + 1}",
                             position=1)
                 for (batch_idx, batch) in enumerate(pbar):
-                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc,
-                                                                                                      _return_dict,
-                                                                                                      logger, run,
-                                                                                                      overfit_batch_idx,
-                                                                                                      use_lr_scheduler,
-                                                                                                      hyp, scheduler,
-                                                                                                      eval_metric_to_idx,
-                                                                                                      dev_opt_metric,
-                                                                                                      epoch_idx - 1, best_epoch,
-                                                                                                      best_dev_score,
-                                                                                                      best_dev_scores,
-                                                                                                      best_dev_state_dict,
-                                                                                                      sync=sync_dev)
+                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, \
+                        early_terminate_ctr, early_terminate = _check_process(_proc,
+                                                                              _return_dict,
+                                                                              logger, run,
+                                                                              overfit_batch_idx,
+                                                                              use_lr_scheduler,
+                                                                              hyp, scheduler,
+                                                                              eval_metric_to_idx,
+                                                                              dev_opt_metric,
+                                                                              epoch_idx - 1, best_epoch,
+                                                                              best_dev_score,
+                                                                              best_dev_scores,
+                                                                              best_dev_state_dict,
+                                                                              early_terminate_epochs, early_terminate_ctr,
+                                                                              sync=sync_dev)
+                    if early_terminate:
+                        break
                     if overfit_batch_idx > -1:
                         if batch_idx < overfit_batch_idx:
                             continue
@@ -549,18 +558,22 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     wandb.log({f'train_warmstart_epoch_loss': np.mean(running_loss)})
                 else:
                     # Sync to get previous epoch's dev eval
-                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
-                                                                                                      logger, run,
-                                                                                                      overfit_batch_idx,
-                                                                                                      use_lr_scheduler,
-                                                                                                      hyp, scheduler,
-                                                                                                      eval_metric_to_idx,
-                                                                                                      dev_opt_metric, epoch_idx - 1,
-                                                                                                      best_epoch,
-                                                                                                      best_dev_score,
-                                                                                                      best_dev_scores,
-                                                                                                      best_dev_state_dict,
-                                                                                                      sync=True)
+                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, \
+                        early_terminate_ctr, early_terminate = _check_process(_proc, _return_dict,
+                                                                              logger, run,
+                                                                              overfit_batch_idx,
+                                                                              use_lr_scheduler,
+                                                                              hyp, scheduler,
+                                                                              eval_metric_to_idx,
+                                                                              dev_opt_metric, epoch_idx - 1,
+                                                                              best_epoch,
+                                                                              best_dev_score,
+                                                                              best_dev_scores,
+                                                                              best_dev_state_dict,
+                                                                              early_terminate_epochs, early_terminate_ctr,
+                                                                              sync=True)
+                    if early_terminate:
+                        break
 
                     logger.info(f"Epoch loss = {np.mean(running_loss)}")
                     wandb.log({f'train_epoch_loss': np.mean(running_loss)})
@@ -578,18 +591,22 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             end_time = time.time()
 
             if _proc is not None:
-                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
-                                                                                                  logger, run,
-                                                                                                  overfit_batch_idx,
-                                                                                                  use_lr_scheduler,
-                                                                                                  hyp, scheduler,
-                                                                                                  eval_metric_to_idx,
-                                                                                                  dev_opt_metric, epoch_idx,
-                                                                                                  best_epoch,
-                                                                                                  best_dev_score,
-                                                                                                  best_dev_scores,
-                                                                                                  best_dev_state_dict,
-                                                                                                  sync=True)
+                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, \
+                    _, _ = _check_process(_proc,
+                                          _return_dict,
+                                          logger, run,
+                                          overfit_batch_idx,
+                                          use_lr_scheduler,
+                                          hyp, scheduler,
+                                          eval_metric_to_idx,
+                                          dev_opt_metric,
+                                          epoch_idx,
+                                          best_epoch,
+                                          best_dev_score,
+                                          best_dev_scores,
+                                          best_dev_state_dict,
+                                          early_terminate_epochs, early_terminate_ctr,
+                                          sync=True)
             # Save model
             if save_model:
                 torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))

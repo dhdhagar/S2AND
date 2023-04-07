@@ -41,6 +41,7 @@ DEFAULT_HYPERPARAMS = {
     # Run config
     "run_random_seed": 17,
     "pairwise_mode": False,
+    "early_terminate_epochs": 5,
     # Data config
     "convert_nan": False,
     "nan_value": -1,
@@ -254,7 +255,8 @@ def copy_and_load_model(model, run_dir, device, store_only=False):
 
 def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
                    scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
-                   best_dev_scores, best_dev_state_dict, sync=False):
+                   best_dev_scores, best_dev_state_dict, early_terminate_epochs, early_terminate_ctr, sync=False):
+    early_terminate = False
     if _proc is not None:
         if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] != 'finish'):
             _proc.join()
@@ -275,20 +277,25 @@ def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_s
                         elif hyp['lr_scheduler'] == 'step':
                             scheduler.step()
                 else:
+                    if early_terminate_ctr is not None:
+                        early_terminate_ctr -= 1
                     dev_scores = _return_dict['dev_scores']
                     dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                     if dev_opt_score > best_dev_score:
+                        early_terminate_ctr = early_terminate_epochs
                         logger.info(f"New best dev {dev_opt_metric} score @ epoch{i + 1}: {dev_opt_score}")
                         best_epoch = i
                         best_dev_score = dev_opt_score
                         best_dev_scores = dev_scores
                         best_dev_state_dict = torch.load(_return_dict['state_dict_path'])
+                    elif early_terminate_ctr < 0:
+                        early_terminate = True
                     if use_lr_scheduler:
                         if hyp['lr_scheduler'] == 'plateau':
                             scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
                         elif hyp['lr_scheduler'] == 'step':
                             scheduler.step()
-    return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict
+    return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, early_terminate_ctr, early_terminate
 
 
 def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose,
