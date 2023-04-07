@@ -540,8 +540,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                 logger.info(
                                     f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
                                 continue
-                    if pairwise_mode or (
-                            batch_idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
+                    if pairwise_mode or (batch_idx == len(_train_dataloader) - 1) \
+                            or grad_acc == 1 or grad_acc_count >= grad_acc:
                         if hyp["max_grad_norm"] != -1:
                             torch.nn.utils.clip_grad_norm_(
                                 model.parameters(), hyp["max_grad_norm"]
@@ -591,7 +591,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                 eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
                                                 return_dict=_return_dict, epoch_idx=epoch_idx, run_dir=run.dir),
                                       model=model, run_dir=run.dir, device=device, logger=logger,
-                                      sync=(batch_idx == len(_train_dataloader.dataset) - 1))
+                                      sync=(epoch_idx == n_epochs - 1))
             end_time = time.time()
 
             if _proc is not None:
