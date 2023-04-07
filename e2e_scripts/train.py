@@ -594,7 +594,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                       model=model, run_dir=run.dir, device=device, logger=logger,
                                       sync=(epoch_idx == n_epochs - 1))
             end_time = time.time()
-
+            if early_terminate:
+                logger.info(f"Early termination executed: no dev improvement in {early_terminate_epochs} epochs")
             if _proc is not None:
                 best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, \
                     _, _ = _check_process(_proc,
