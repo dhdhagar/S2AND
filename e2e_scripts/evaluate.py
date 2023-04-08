@@ -58,7 +58,7 @@ def _fork_iter(batch_idx, _fork_id, _shared_list, eval_fn, **kwargs):
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
              val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None,
-             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=500,
+             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=-1,
              max_parallel_forks=2, disable_tqdm=False):
     """
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
@@ -173,7 +173,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
                       thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
                       tqdm_label='', device=None, verbose=False, debug=False, _errors=None, run_dir='./',
-                      tqdm_position=None, model_args=None, return_iter=False, fork_size=500, max_parallel_forks=2,
+                      tqdm_position=None, model_args=None, return_iter=False, fork_size=-1, max_parallel_forks=2,
                       disable_tqdm=False):
     fn_args = locals()
     fork_enabled = fork_size > -1 and model_args is not None
