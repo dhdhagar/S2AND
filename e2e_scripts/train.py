@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
-          save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None, skip_final_eval=False,
-          eval_only_split=None, eval_all_only=False, skip_initial_eval=False, pairwise_eval_clustering=None,
+          save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
+          skip_final_eval=False, eval_only_split=None, eval_all_only=False, skip_initial_eval=False,
           debug=False, track_errors=True, local=False, sync_dev=False):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
@@ -196,33 +196,21 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             model = PairwiseModel(*model_args)
             # Define eval
             eval_fn = evaluate_pairwise
-            pairwise_clustering_fns = [None]
-            if pairwise_eval_clustering is not None:
-                if pairwise_eval_clustering == 'cc':
-                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp)]
-                    pairwise_clustering_fns[0].eval()
-                    pairwise_clustering_fn_labels = ['cc']
-                elif pairwise_eval_clustering == 'hac':
-                    pairwise_clustering_fns = [HACInference()]
-                    pairwise_clustering_fn_labels = ['hac']
-                elif pairwise_eval_clustering == 'both':
-                    cc_inference = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp)
-                    pairwise_clustering_fns = [cc_inference, HACInference(), cc_inference]
-                    pairwise_clustering_fns[0].eval()
-                    pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
-                else:
-                    raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
-                val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
-                                                                          hyp["dataset_random_seed"],
-                                                                          hyp["convert_nan"],
-                                                                          hyp["nan_value"],
-                                                                          hyp["normalize_data"],
-                                                                          hyp["subsample_sz_train"],
-                                                                          hyp["subsample_sz_dev"],
-                                                                          pairwise_mode=False, batch_size=1,
-                                                                          split=['dev', 'test'],
-                                                                          drop_feat_idxs=hyp["drop_feat_idxs"],
-                                                                          keep_feat_idxs=hyp["keep_feat_idxs"])
+            cc_inference = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp)
+            pairwise_clustering_fns = [cc_inference, HACInference(), cc_inference]
+            pairwise_clustering_fns[0].eval()
+            pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
+            val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
+                                                                      hyp["dataset_random_seed"],
+                                                                      hyp["convert_nan"],
+                                                                      hyp["nan_value"],
+                                                                      hyp["normalize_data"],
+                                                                      hyp["subsample_sz_train"],
+                                                                      hyp["subsample_sz_dev"],
+                                                                      pairwise_mode=False, batch_size=1,
+                                                                      split=['dev', 'test'],
+                                                                      drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                      keep_feat_idxs=hyp["keep_feat_idxs"])
             if training_mode:  # => model will be used for training
                 # Define loss
                 pos_weight = None
@@ -852,7 +840,6 @@ if __name__ == '__main__':
               eval_only_split=args['eval_only_split'],
               eval_all_only=args['eval_all_only'],
               skip_initial_eval=args['skip_initial_eval'],
-              pairwise_eval_clustering=args['pairwise_eval_clustering'],
               debug=args['debug'],
               track_errors=not args['no_error_tracking'],
               local=args['local'],
