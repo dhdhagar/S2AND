@@ -5,6 +5,11 @@ n_seed_start=${2:-1}
 n_seed_end=${3:-5}
 model=${4:-"e2e"}  # Used as prefix and to pick up the right sweep file
 gpu_name=${5:-"gypsum-1080ti"}
+if [[ "${gpu_name}" == "cpu" ]]; then
+gpu_count=0
+else
+gpu_count=1
+fi
 flags=${6:-""}
 flags_arr=($flags)
 sweep_prefix=${7:-""}
@@ -12,7 +17,7 @@ sweep_prefix=${7:-""}
 for ((i = ${n_seed_start}; i <= ${n_seed_end}; i++)); do
   JOB_DESC=${model}_${dataset}_sweep${i} && JOB_NAME=${JOB_DESC}_$(date +%s) && \
   sbatch -J ${JOB_NAME} -e jobs/${JOB_NAME}.err -o jobs/${JOB_NAME}.log \
-    --partition=${gpu_name} --gres=gpu:1 --mem=100G --time=12:00:00 \
+    --partition=${gpu_name} --gres=gpu:${gpu_count} --mem=120G --time=12:00:00 \
     run_sbatch.sh e2e_scripts/train.py \
     --dataset="${dataset}" \
     --dataset_random_seed=${i} \
