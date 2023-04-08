@@ -61,6 +61,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
     # Start wandb run
     with wandb.init(**init_args) as run:
+        if hyperparams.get('run_random_seed', 0) is None:
+            hyperparams['run_random_seed'] = random.randint(0, 1000)
+            logger.info(f"Generated random run seed: {hyperparams['run_random_seed']}")
         wandb.config.update(hyperparams, allow_val_change=True)
         hyp = wandb.config
 
@@ -739,7 +742,7 @@ if __name__ == '__main__':
         if arg.startswith("--"):
             arg_split = arg.split('=')
             argument_name = arg_split[0]
-            if argument_name[2:] in DEFAULT_HYPERPARAMS:
+            if argument_name[2:] in DEFAULT_HYPERPARAMS:  # "--argument_name" without the "--"
                 argument_type = type(DEFAULT_HYPERPARAMS[argument_name[2:]])
                 if argument_type == bool:
                     if len(arg_split) > 1 and arg_split[1].lower() == 'false':
@@ -750,7 +753,8 @@ if __name__ == '__main__':
                 elif argument_type == list:
                     parser.add_argument(argument_name, action='append')
                 else:
-                    parser.add_argument(argument_name, type=argument_type)
+                    parser.add_argument(argument_name,
+                                        type=lambda x: None if x.lower() in ['none', 'null'] else argument_type(x))
     args = parser.parse_args().__dict__
     for false_arg in make_false_args:
         args[false_arg] = False
