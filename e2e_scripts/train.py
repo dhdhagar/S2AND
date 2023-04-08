@@ -738,6 +738,12 @@ if __name__ == '__main__':
     # Handle additional arbitrary arguments
     _, unknown = parser.parse_known_args()
     make_false_args = []
+    def _type_or_none_fn(argtype):
+        def __type_or_none_fn(value):
+            if value.lower() in ['none', 'null']:
+                return None
+            return argtype(value)
+        return __type_or_none_fn
     for arg in unknown:
         if arg.startswith("--"):
             arg_split = arg.split('=')
@@ -754,8 +760,7 @@ if __name__ == '__main__':
                     parser.add_argument(argument_name, action='append')
                 else:
                     parser.add_argument(argument_name,
-                                        type=lambda x: None if x.lower() in ['none', 'null'] else argument_type(x),
-                                        default=None)
+                                        type=_type_or_none_fn(argument_type), default=None)
     args = parser.parse_args().__dict__
     for false_arg in make_false_args:
         args[false_arg] = False
