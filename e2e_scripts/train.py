@@ -754,7 +754,8 @@ if __name__ == '__main__':
                     parser.add_argument(argument_name, action='append')
                 else:
                     parser.add_argument(argument_name,
-                                        type=lambda x: None if x.lower() in ['none', 'null'] else argument_type(x))
+                                        type=lambda x: None if x.lower() in ['none', 'null'] else argument_type(x),
+                                        default=None)
     args = parser.parse_args().__dict__
     for false_arg in make_false_args:
         args[false_arg] = False
