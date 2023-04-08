@@ -11,19 +11,19 @@ dataset="pubmed"
 gpu_name="gypsum-m40"
 for model in "${models[@]}"
 do
-   ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} ${flags} ${sweep_prefix} >> ${log_fpath}
+   ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} "${flags}" ${sweep_prefix} >> ${log_fpath}
 done
 
 dataset="qian"
 gpu_name="gypsum-2080ti"
 for model in "${models[@]}"
 do
-   ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} ${flags} ${sweep_prefix} >> ${log_fpath}
+   ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} "${flags}" ${sweep_prefix} >> ${log_fpath}
 done
 
 dataset="arnetminer"
 gpu_name="gypsum-1080ti"
 for model in "${models[@]}"
 do
-   ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} ${flags} ${sweep_prefix} >> ${log_fpath}
+   ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} "${flags}" ${sweep_prefix} >> ${log_fpath}
 done
