@@ -80,7 +80,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         n_epochs_override = None
         if not hyp['pairwise_mode']:
             _training_method = 'e2e' if hyp['use_sdp'] else 'nosdp'
-            if hyp['dataset'] in max_epochs_by_dataset[_training_method]:
+            if hyp['dataset'] in max_epochs_by_dataset[_training_method] and \
+                    hyp["n_epochs"] > max_epochs_by_dataset[_training_method]:
                 n_epochs_override = max_epochs_by_dataset[_training_method][hyp['dataset']]
                 logger.info(f'Limiting number of epochs from {hyp["n_epochs"]} to {n_epochs_override}')
 
