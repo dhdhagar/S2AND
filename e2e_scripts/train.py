@@ -787,7 +787,7 @@ if __name__ == '__main__':
             'method': args['wandb_sweep_method'],
             'name': args['wandb_sweep_name'],
             'metric': {
-                'name': 'best_dev_auroc' if hyp_args.get('pairwise_mode', False) else 'best_dev_b3_f1',
+                'name': 'dev_auroc' if hyp_args.get('pairwise_mode', False) else 'dev_b3_f1',
                 # args['wandb_sweep_metric_name'],
                 'goal': args['wandb_sweep_metric_goal'],
             },
