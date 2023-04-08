@@ -612,55 +612,55 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 logger.info(f"Saved best model on dev to {os.path.join(run.dir, 'model_state_dict_best.pt')}")
 
             # Evaluate the best dev model on test
-            if overfit_batch_idx == -1:
-                model.load_state_dict(best_dev_state_dict)
-                with torch.no_grad():
-                    model.eval()
-                    test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
-                                          debug=debug, _errors=_errors, tqdm_position=2, model_args=model_args,
-                                          run_dir=run.dir)
-                    logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
-                                f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
-                    # Log final metrics
-                    _wandb_log = {'best_dev_epoch': best_epoch + 1,
-                                  f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
-                                  f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]
-                                  }
-                    if len(best_dev_scores) >= 2:
-                        _wandb_log.update({
-                            f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
-                            f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1]
-                        })
-                    wandb.log(_wandb_log)
-                    if len(test_scores) == 3:
-                        log_cc_objective_values(scores=test_scores, split_name='best_test', log_prefix='Final',
-                                                verbose=True, logger=logger)
-                    # For pairwise-mode:
-                    if pairwise_clustering_fns[0] is not None:
-                        clustering_threshold = None
-                        for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
-                            clustering_scores = eval_fn(model, test_dataloader_e2e,
-                                                        clustering_fn=pairwise_clustering_fn,
-                                                        clustering_threshold=clustering_threshold,
-                                                        val_dataloader=val_dataloader_e2e,
-                                                        tqdm_label='test clustering', device=device, verbose=verbose,
-                                                        debug=debug, _errors=_errors, tqdm_position=2,
-                                                        model_args=model_args, run_dir=run.dir)
-                            if pairwise_clustering_fn.__class__ is HACInference:
-                                clustering_threshold = pairwise_clustering_fn.cut_threshold
-                            logger.info(
-                                f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
-                                f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
-                            # Log final metrics
-                            wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}':
-                                           clustering_scores[0],
-                                       f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}':
-                                           clustering_scores[1]})
-                            if len(clustering_scores) == 3:
-                                log_cc_objective_values(scores=clustering_scores,
-                                                        split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
-                                                        log_prefix='Final', verbose=True, logger=logger)
-                if not skip_final_eval:
+            if not skip_final_eval:
+                if overfit_batch_idx == -1:
+                    model.load_state_dict(best_dev_state_dict)
+                    with torch.no_grad():
+                        model.eval()
+                        test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
+                                              debug=debug, _errors=_errors, tqdm_position=2, model_args=model_args,
+                                              run_dir=run.dir)
+                        logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
+                                    f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
+                        # Log final metrics
+                        _wandb_log = {'best_dev_epoch': best_epoch + 1,
+                                      f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
+                                      f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]
+                                      }
+                        if len(best_dev_scores) >= 2:
+                            _wandb_log.update({
+                                f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
+                                f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1]
+                            })
+                        wandb.log(_wandb_log)
+                        if len(test_scores) == 3:
+                            log_cc_objective_values(scores=test_scores, split_name='best_test', log_prefix='Final',
+                                                    verbose=True, logger=logger)
+                        # For pairwise-mode:
+                        if pairwise_clustering_fns[0] is not None:
+                            clustering_threshold = None
+                            for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
+                                clustering_scores = eval_fn(model, test_dataloader_e2e,
+                                                            clustering_fn=pairwise_clustering_fn,
+                                                            clustering_threshold=clustering_threshold,
+                                                            val_dataloader=val_dataloader_e2e,
+                                                            tqdm_label='test clustering', device=device, verbose=verbose,
+                                                            debug=debug, _errors=_errors, tqdm_position=2,
+                                                            model_args=model_args, run_dir=run.dir)
+                                if pairwise_clustering_fn.__class__ is HACInference:
+                                    clustering_threshold = pairwise_clustering_fn.cut_threshold
+                                logger.info(
+                                    f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
+                                    f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
+                                # Log final metrics
+                                wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}':
+                                               clustering_scores[0],
+                                           f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}':
+                                               clustering_scores[1]})
+                                if len(clustering_scores) == 3:
+                                    log_cc_objective_values(scores=clustering_scores,
+                                                            split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
+                                                            log_prefix='Final', verbose=True, logger=logger)
                     # Run all inference variants on the test set
                     cc_inference_sdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=True)
                     cc_inference_nosdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=False)
