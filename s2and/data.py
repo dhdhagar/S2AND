@@ -143,13 +143,21 @@ class S2BlocksDataset(Dataset):
             self.scaler.fit(all_X)
         self.subsample_sz = subsample_sz
         self.noise_std = noise_std
-
         self.blockwise_data = []
         self.blockwise_keys = []
         for dict_key in self.block_dict.keys():
             X, y, cluster_ids = self.block_dict[dict_key]
+            # Retain only the specified feat_idxs
             if feat_idxs is not None:
                 X = X[:, feat_idxs]
+            # Optionally convert nan's
+            if self.convert_nan:
+                np.nan_to_num(X, copy=False, nan=self.nan_value)
+            # Scale input data
+            if self.scale and self.scaler is not None and X.shape[0] != 0:
+                X = self.scaler.transform(X)
+            # Add Gaussian noise, if noise_std > 0
+            X += np.random.normal(scale=self.noise_std, size=X.shape)
             if X.shape[0] != 0 and self.subsample_sz > -1:
                 # Split large blocks into subsampled blocks with the same key
                 matrix_sz = len(cluster_ids)
@@ -208,13 +216,6 @@ class S2BlocksDataset(Dataset):
         else:
             X = self.pairwise_data['X'][idx].reshape(-1, len(self.pairwise_data['X'][0]))
             y = self.pairwise_data['y'][idx].reshape(-1)
-        if self.convert_nan:
-            np.nan_to_num(X, copy=False, nan=self.nan_value)
-        if self.scale and self.scaler is not None:
-            if X.shape[0] != 0:
-                X = self.scaler.transform(X)
-        # Optionally add Gaussian noise to feature values
-        X += np.random.normal(scale=self.noise_std, size=X.shape)
         return (X, y, cluster_ids) if not self.pairwise_mode else (X, y)
 
 class ANDData:
