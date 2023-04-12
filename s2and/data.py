@@ -2,7 +2,6 @@ from typing import Optional, Union, Dict, List, Any, Tuple, Set, NamedTuple
 
 import os
 import json
-import math
 import numpy as np
 import pandas as pd
 import logging
@@ -128,7 +127,7 @@ class S2BlocksDataset(Dataset):
     """
     def __init__(self, block_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
                  convert_nan=True, nan_value=-1, scale=False, scaler=None, subsample_sz=-1,
-                 pairwise_mode=False, sort_desc=False, feat_idxs=None):
+                 pairwise_mode=False, sort_desc=False, feat_idxs=None, noise_std=0.):
         self.pairwise_mode = pairwise_mode
         self.block_dict = block_dict
         self.convert_nan = convert_nan
@@ -143,6 +142,7 @@ class S2BlocksDataset(Dataset):
             self.scaler = StandardScaler()
             self.scaler.fit(all_X)
         self.subsample_sz = subsample_sz
+        self.noise_std = noise_std
 
         self.blockwise_data = []
         self.blockwise_keys = []
@@ -213,6 +213,8 @@ class S2BlocksDataset(Dataset):
         if self.scale and self.scaler is not None:
             if X.shape[0] != 0:
                 X = self.scaler.transform(X)
+        # Optionally add Gaussian noise to feature values
+        X += np.random.normal(scale=self.noise_std, size=X.shape)
         return (X, y, cluster_ids) if not self.pairwise_mode else (X, y)
 
 class ANDData:

@@ -48,6 +48,7 @@ DEFAULT_HYPERPARAMS = {
     "normalize_data": True,
     "drop_feat_idxs": [],
     "keep_feat_idxs": [],
+    "noise_std": 0.,
     # Model config
     "neumiss_deq": False,
     "neumiss_depth": 20,
@@ -102,7 +103,8 @@ def _get_feat_idxs(_n_features, _keep_feat_idxs, _drop_feat_idxs):
 
 
 def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz_train, subsample_sz_dev,
-                    pairwise_mode, batch_size, shuffle=False, split=None, drop_feat_idxs=[], keep_feat_idxs=[]):
+                    pairwise_mode, batch_size, shuffle=False, split=None, drop_feat_idxs=[], keep_feat_idxs=[],
+                    noise_std=0.):
     pickle_path = {
         'train': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl",
         'dev': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl",
@@ -131,7 +133,7 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
                                   nan_value=nan_value, scale=normalize, scaler=train_scaler,
                                   subsample_sz=subsample_sz[_split],
                                   pairwise_mode=pairwise_mode, sort_desc=(_split in ['dev', 'test']),
-                                  feat_idxs=feat_idxs)
+                                  feat_idxs=feat_idxs, noise_std=noise_std)
         dataloader = DataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
         return dataloader
 
