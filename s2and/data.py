@@ -153,11 +153,12 @@ class S2BlocksDataset(Dataset):
             # Optionally convert nan's
             if self.convert_nan:
                 np.nan_to_num(X, copy=False, nan=self.nan_value)
-            # Scale input data
             if self.scale and self.scaler is not None and X.shape[0] != 0:
+                if self.noise_std > 0:
+                    # Add Gaussian noise
+                    X += np.random.normal(scale=self.scaler.scale_ * self.noise_std, size=X.shape)
+                # Scale data to zero mean and unit variance
                 X = self.scaler.transform(X)
-            # Add Gaussian noise, if noise_std > 0
-            X += np.random.normal(scale=self.noise_std, size=X.shape)
             if X.shape[0] != 0 and self.subsample_sz > -1:
                 # Split large blocks into subsampled blocks with the same key
                 matrix_sz = len(cluster_ids)
