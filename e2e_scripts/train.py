@@ -677,18 +677,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                            'cc-nosdp', 'cc-nosdp-fixed']
                     cc_inference_sdp.eval()
                     cc_inference_nosdp.eval()
-                    val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
-                                                                              hyp["dataset_random_seed"],
-                                                                              hyp["convert_nan"],
-                                                                              hyp["nan_value"],
-                                                                              hyp["normalize_data"],
-                                                                              hyp["subsample_sz_train"],
-                                                                              hyp["subsample_sz_dev"],
-                                                                              pairwise_mode=False, batch_size=1,
-                                                                              split=['dev', 'test'],
-                                                                              drop_feat_idxs=hyp["drop_feat_idxs"],
-                                                                              keep_feat_idxs=hyp["keep_feat_idxs"],
-                                                                              noise_std=hyp["noise_std"])
+                    if not pairwise_mode:
+                        val_dataloader_e2e, test_dataloader_e2e = val_dataloader, test_dataloader
                     with torch.no_grad():
                         model.eval()
                         clustering_threshold = None
