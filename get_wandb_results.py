@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import csv
+import os
 from copy import deepcopy
 import numpy as np
 import pandas as pd
@@ -20,6 +21,9 @@ class Parser(argparse.ArgumentParser):
             "--data_fpath", type=str
         )
         self.add_argument(
+            "--save_fpath", type=str, default='./wandb_results'
+        )
+        self.add_argument(
             "--interactive", action="store_true",
         )
         self.add_argument(
@@ -27,12 +31,15 @@ class Parser(argparse.ArgumentParser):
         )
 
 
-def get_df_by_dataset(res, dataset):
+def get_df_by_dataset(res, dataset, to_latex=False):
     new_res = {}
     for _r in res:
         if dataset in _r:
             new_res[_r.replace(f"{dataset}_", '')] = res[_r]
+    if to_latex:
+        print(pd.DataFrame(new_res).T.style.to_latex())
     return pd.DataFrame(new_res).T
+
 
 if __name__ == '__main__':
     parser = Parser()
@@ -40,11 +47,9 @@ if __name__ == '__main__':
     logger.info("Script arguments:")
     logger.info(args.__dict__)
 
-    if args.data_fpath is not None:
-        fpath = args.data_fpath
-    else:
-        # hardcoded during dev
-        fpath = 'wandb_export_2023-03-19T14_30_08.659-04_00.csv'
+    fpath = args.data_fpath
+    save_fpath = args.save_fpath
+    dump_name = fpath.split('/')[-1].replace('.csv', '')
 
     results = []
     with open(fpath, mode='r') as csv_file:
@@ -101,11 +106,13 @@ if __name__ == '__main__':
             stds[k][_k] = round(np.std(final[k][_k])*(1 if 'time' in _k else 100), 2)
             comb[k][_k] = f"{means[k][_k]}±{stds[k][_k]}"
 
-    with open('results-mean.json', 'w') as fh:
+    save_dir = os.path.join(save_fpath, dump_name)
+    os.makedirs(save_dir, exist_ok=True)
+    with open(os.path.join(save_dir, 'results-mean.json'), 'w') as fh:
         json.dump(means, fh)
-    with open('results-std.json', 'w') as fh:
+    with open(os.path.join(save_dir, 'results-std.json'), 'w') as fh:
         json.dump(stds, fh)
-    with open('results.json', 'w') as fh:
+    with open(os.path.join(save_dir, 'results.json'), 'w') as fh:
         json.dump(comb, fh)
 
     res_df = pd.DataFrame(comb)

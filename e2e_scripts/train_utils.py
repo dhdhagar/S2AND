@@ -5,6 +5,7 @@ import copy
 import os
 import json
 import random
+import logging
 from collections import defaultdict
 from typing import Dict
 from typing import Tuple, Optional
@@ -24,6 +25,12 @@ from torch.multiprocessing import Process
 
 from IPython import embed
 
+
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 # Default hyperparameters
 DEFAULT_HYPERPARAMS = {
     # Dataset
@@ -34,11 +41,13 @@ DEFAULT_HYPERPARAMS = {
     # Run config
     "run_random_seed": 17,
     "pairwise_mode": False,
+    "early_terminate_epochs": 5,
     # Data config
     "convert_nan": False,
     "nan_value": -1,
-    "drop_feat_nan_pct": -1,
     "normalize_data": True,
+    "drop_feat_idxs": [],
+    "keep_feat_idxs": [],
     # Model config
     "neumiss_deq": False,
     "neumiss_depth": 20,
@@ -46,7 +55,8 @@ DEFAULT_HYPERPARAMS = {
     "n_hidden_layers": 2,
     "dropout_p": 0.1,
     "dropout_only_once": True,
-    "batchnorm": True,
+    "batchnorm": False,
+    "layernorm": True,
     "hidden_config": None,
     "activation": "leaky_relu",
     "negative_slope": 0.01,
@@ -85,8 +95,14 @@ def read_blockwise_features(pkl):
     return blockwise_data
 
 
+def _get_feat_idxs(_n_features, _keep_feat_idxs, _drop_feat_idxs):
+    _keep = set(range(_n_features) if len(_keep_feat_idxs) == 0 else map(lambda x: int(x), _keep_feat_idxs))
+    _drop = set(map(lambda x: int(x), _drop_feat_idxs))
+    return np.array(list(_keep - _drop))
+
+
 def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, subsample_sz_train, subsample_sz_dev,
-                    pairwise_mode, batch_size, shuffle=False, split=None):
+                    pairwise_mode, batch_size, shuffle=False, split=None, drop_feat_idxs=[], keep_feat_idxs=[]):
     pickle_path = {
         'train': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/train_features.pkl",
         'dev': f"{PREPROCESSED_DATA_DIR}/{dataset}/seed{dataset_seed}/val_features.pkl",
@@ -100,12 +116,22 @@ def get_dataloaders(dataset, dataset_seed, convert_nan, nan_value, normalize, su
     train_scaler = StandardScaler()
     train_X = np.concatenate(list(map(lambda x: x[0], read_blockwise_features(pickle_path['train']).values())))
     train_scaler.fit(train_X)
+    # Additionally drop features that are all nan's at training
+    all_nan_idxs = list(np.where(train_scaler.n_samples_seen_ == 0)[0]) \
+        if type(train_scaler.n_samples_seen_) == np.ndarray else []
+    if len(all_nan_idxs) > 0:
+        logger.info(f"Dropped {len(all_nan_idxs)} all NaN features: {all_nan_idxs}")
+    feat_idxs = _get_feat_idxs(train_X.shape[1], keep_feat_idxs, drop_feat_idxs + all_nan_idxs)
+    if len(feat_idxs) != train_X.shape[1]:
+        train_scaler.fit(train_X[:, feat_idxs])
+
 
     def _get_dataloader(_split):
         dataset = S2BlocksDataset(read_blockwise_features(pickle_path[_split]), convert_nan=convert_nan,
                                   nan_value=nan_value, scale=normalize, scaler=train_scaler,
                                   subsample_sz=subsample_sz[_split],
-                                  pairwise_mode=pairwise_mode, sort_desc=(_split in ['dev', 'test']))
+                                  pairwise_mode=pairwise_mode, sort_desc=(_split in ['dev', 'test']),
+                                  feat_idxs=feat_idxs)
         dataloader = DataLoader(dataset, shuffle=shuffle, batch_size=batch_size)
         return dataloader
 
@@ -229,7 +255,8 @@ def copy_and_load_model(model, run_dir, device, store_only=False):
 
 def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
                    scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
-                   best_dev_scores, best_dev_state_dict, sync=False):
+                   best_dev_scores, best_dev_state_dict, early_terminate_epochs, early_terminate_ctr, sync=False):
+    early_terminate = False
     if _proc is not None:
         if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] != 'finish'):
             _proc.join()
@@ -250,24 +277,29 @@ def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_s
                         elif hyp['lr_scheduler'] == 'step':
                             scheduler.step()
                 else:
+                    if early_terminate_ctr is not None:
+                        early_terminate_ctr -= 1
                     dev_scores = _return_dict['dev_scores']
                     dev_opt_score = dev_scores[eval_metric_to_idx[dev_opt_metric]]
                     if dev_opt_score > best_dev_score:
+                        early_terminate_ctr = early_terminate_epochs
                         logger.info(f"New best dev {dev_opt_metric} score @ epoch{i + 1}: {dev_opt_score}")
                         best_epoch = i
                         best_dev_score = dev_opt_score
                         best_dev_scores = dev_scores
                         best_dev_state_dict = torch.load(_return_dict['state_dict_path'])
+                    elif early_terminate_ctr < 0:
+                        early_terminate = True
                     if use_lr_scheduler:
                         if hyp['lr_scheduler'] == 'plateau':
                             scheduler.step(dev_scores[eval_metric_to_idx[dev_opt_metric]])
                         elif hyp['lr_scheduler'] == 'step':
                             scheduler.step()
-    return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict
+    return best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, early_terminate_ctr, early_terminate
 
 
 def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose,
-              debug, _errors, eval_metric_to_idx, val_dataloader, return_dict):
+              debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, run_dir):
     return_dict['_state'] = 'start'
     return_dict['_method'] = 'init_eval'
     model = model_class(*model_args)
@@ -278,14 +310,15 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
         if overfit_batch_idx > -1:
             train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                    tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                   _errors=_errors, tqdm_position=0, model_args=model_args)
+                                   _errors=_errors, tqdm_position=0, model_args=model_args, run_dir=run_dir)
             return_dict['local'] = f"Initial: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
             return_dict['wandb'] = {'epoch': 0, f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                     f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
         else:
             dev_scores = eval_fn(model, val_dataloader, tqdm_label='dev 0', device=device, verbose=verbose,
-                                 debug=debug, _errors=_errors, tqdm_position=0, model_args=model_args)
+                                 debug=debug, _errors=_errors, tqdm_position=0, model_args=model_args,
+                                 run_dir=run_dir)
             return_dict['local'] = f"Initial: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
             return_dict['wandb'] = {'epoch': 0, f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
@@ -297,7 +330,7 @@ def init_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_
 
 
 def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_fn, train_dataloader, device, verbose,
-             debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, i):
+             debug, _errors, eval_metric_to_idx, val_dataloader, return_dict, epoch_idx, run_dir):
     return_dict['_state'] = 'start'
     return_dict['_method'] = 'dev_eval'
     return_dict['state_dict_path'] = state_dict_path
@@ -309,16 +342,16 @@ def dev_eval(model_class, model_args, state_dict_path, overfit_batch_idx, eval_f
         if overfit_batch_idx > -1:
             train_scores = eval_fn(model, train_dataloader, overfit_batch_idx=overfit_batch_idx,
                                    tqdm_label='train', device=device, verbose=verbose, debug=debug,
-                                   _errors=_errors, model_args=model_args)
-            return_dict['local'] = f"Epoch {i + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
+                                   _errors=_errors, model_args=model_args, run_dir=run_dir)
+            return_dict['local'] = f"Epoch {epoch_idx + 1}: train_{list(eval_metric_to_idx)[0]}={train_scores[0]}, " + \
                                    f"train_{list(eval_metric_to_idx)[1]}={train_scores[1]}"
             return_dict['wandb'] = {f'train_{list(eval_metric_to_idx)[0]}': train_scores[0],
                                     f'train_{list(eval_metric_to_idx)[1]}': train_scores[1]}
             return_dict['train_scores'] = train_scores
         else:
-            dev_scores = eval_fn(model, val_dataloader, tqdm_label=f'dev {i + 1}', device=device, verbose=verbose,
-                                 debug=debug, _errors=_errors, model_args=model_args)
-            return_dict['local'] = f"Epoch {i + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
+            dev_scores = eval_fn(model, val_dataloader, tqdm_label=f'dev {epoch_idx + 1}', device=device, verbose=verbose,
+                                 debug=debug, _errors=_errors, model_args=model_args, run_dir=run_dir)
+            return_dict['local'] = f"Epoch {epoch_idx + 1}: dev_{list(eval_metric_to_idx)[0]}={dev_scores[0]}, " + \
                                    f"dev_{list(eval_metric_to_idx)[1]}={dev_scores[1]}"
             return_dict['wandb'] = {f'dev_{list(eval_metric_to_idx)[0]}': dev_scores[0],
                                     f'dev_{list(eval_metric_to_idx)[1]}': dev_scores[1]}

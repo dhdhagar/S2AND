@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 
 def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, group=None,
           save_model=False, load_model_from_wandb_run=None, load_model_from_fpath=None,
-          eval_only_split=None, eval_all=False, skip_initial_eval=False, pairwise_eval_clustering=None,
-          debug=False, track_errors=True, local=False, sync_dev=False, icml_final_eval=False):
+          skip_final_eval=False, eval_only_split=None, eval_all_only=False, skip_initial_eval=False,
+          debug=False, track_errors=True, local=False, sync_dev=False):
     init_args = {
         'config': DEFAULT_HYPERPARAMS
     }
@@ -61,6 +61,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
 
     # Start wandb run
     with wandb.init(**init_args) as run:
+        if hyperparams.get('run_random_seed', 0) is None:
+            hyperparams['run_random_seed'] = random.randint(0, 1000)
+            logger.info(f"Generated random run seed: {hyperparams['run_random_seed']}")
         wandb.config.update(hyperparams, allow_val_change=True)
         hyp = wandb.config
 
@@ -80,7 +83,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         n_epochs_override = None
         if not hyp['pairwise_mode']:
             _training_method = 'e2e' if hyp['use_sdp'] else 'nosdp'
-            if hyp['dataset'] in max_epochs_by_dataset[_training_method]:
+            if hyp['dataset'] in max_epochs_by_dataset[_training_method] and \
+                    hyp["n_epochs"] > max_epochs_by_dataset[_training_method][hyp['dataset']]:
                 n_epochs_override = max_epochs_by_dataset[_training_method][hyp['dataset']]
                 logger.info(f'Limiting number of epochs from {hyp["n_epochs"]} to {n_epochs_override}')
 
@@ -113,6 +117,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         hidden_config = hyp["hidden_config"]
         activation = hyp["activation"]
         add_batchnorm = hyp["batchnorm"]
+        add_layernorm = hyp["layernorm"]
         neumiss_deq = hyp["neumiss_deq"]
         neumiss_depth = hyp["neumiss_depth"]
         add_neumiss = not hyp['convert_nan']
@@ -128,7 +133,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         eval_metric_to_idx = clustering_metrics if not pairwise_mode else pairwise_metrics
         dev_opt_metric = hyp['dev_opt_metric'] if hyp['dev_opt_metric'] in eval_metric_to_idx \
             else list(eval_metric_to_idx)[0]
-        training_mode = not eval_all and eval_only_split is None
+        training_mode = not eval_all_only and eval_only_split is None
+        early_terminate_epochs = hyp["early_terminate_epochs"]
+        early_terminate_ctr = early_terminate_epochs if early_terminate_epochs > 0 else None
 
         # Get data loaders (optionally with imputation, normalization)
         if training_mode:
@@ -137,8 +144,10 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                                 hyp["convert_nan"], hyp["nan_value"],
                                                                                 hyp["normalize_data"],
                                                                                 hyp["subsample_sz_train"],
-                                                                                hyp["subsample_sz_dev"], pairwise_mode,
-                                                                                batch_size)
+                                                                                hyp["subsample_sz_dev"],
+                                                                                pairwise_mode, batch_size,
+                                                                                drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                                keep_feat_idxs=hyp["keep_feat_idxs"])
             n_features = train_dataloader.dataset[0][0].shape[1]
         else:
             n_features = get_feature_count(hyp["dataset"], hyp["dataset_random_seed"])
@@ -146,7 +155,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
         # Create model with hyperparams
         if not pairwise_mode:
             model_args = (n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
-                         neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                         neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, add_layernorm, activation,
                          negative_slope, hidden_config, sdp_max_iters, sdp_eps, sdp_scale,
                          use_rounded_loss, (e2e_loss == "bce"), use_sdp)
             model = EntResModel(*model_args)
@@ -180,41 +189,32 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                 hyp["subsample_sz_train"],
                                                                 hyp["subsample_sz_dev"],
                                                                 pairwise_mode=True, batch_size=hyp['batch_size'],
-                                                                split='train')
+                                                                split='train', drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                keep_feat_idxs=hyp["keep_feat_idxs"])
                     # Define loss
                     loss_fn_pairwise = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
         else:
             model_args = (n_features, neumiss_depth, dropout_p, dropout_only_once, add_neumiss,
-                          neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, activation,
+                          neumiss_deq, hidden_dim, n_hidden_layers, add_batchnorm, add_layernorm, activation,
                           negative_slope, hidden_config)
             model = PairwiseModel(*model_args)
             # Define eval
             eval_fn = evaluate_pairwise
-            pairwise_clustering_fns = [None]
-            if pairwise_eval_clustering is not None:
-                if pairwise_eval_clustering == 'cc':
-                    pairwise_clustering_fns = [CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp)]
-                    pairwise_clustering_fns[0].eval()
-                    pairwise_clustering_fn_labels = ['cc']
-                elif pairwise_eval_clustering == 'hac':
-                    pairwise_clustering_fns = [HACInference()]
-                    pairwise_clustering_fn_labels = ['hac']
-                elif pairwise_eval_clustering == 'both':
-                    cc_inference = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp)
-                    pairwise_clustering_fns = [cc_inference, HACInference(), cc_inference]
-                    pairwise_clustering_fns[0].eval()
-                    pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
-                else:
-                    raise ValueError('Invalid argument passed to --pairwise_eval_clustering')
-                val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
-                                                                          hyp["dataset_random_seed"],
-                                                                          hyp["convert_nan"],
-                                                                          hyp["nan_value"],
-                                                                          hyp["normalize_data"],
-                                                                          hyp["subsample_sz_train"],
-                                                                          hyp["subsample_sz_dev"],
-                                                                          pairwise_mode=False, batch_size=1,
-                                                                          split=['dev', 'test'])
+            cc_inference = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp)
+            pairwise_clustering_fns = [cc_inference, HACInference(), cc_inference]
+            pairwise_clustering_fns[0].eval()
+            pairwise_clustering_fn_labels = ['cc', 'hac', 'cc-fixed']
+            val_dataloader_e2e, test_dataloader_e2e = get_dataloaders(hyp["dataset"],
+                                                                      hyp["dataset_random_seed"],
+                                                                      hyp["convert_nan"],
+                                                                      hyp["nan_value"],
+                                                                      hyp["normalize_data"],
+                                                                      hyp["subsample_sz_train"],
+                                                                      hyp["subsample_sz_dev"],
+                                                                      pairwise_mode=False, batch_size=1,
+                                                                      split=['dev', 'test'],
+                                                                      drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                      keep_feat_idxs=hyp["keep_feat_idxs"])
             if training_mode:  # => model will be used for training
                 # Define loss
                 pos_weight = None
@@ -244,7 +244,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             logger.info(f'Loaded stored model.')
         model.to(device)
 
-        if eval_all:
+        if eval_all_only:
             # Run all inference variants on the test set and exit
             cc_inference_sdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=True)
             cc_inference_nosdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=False)
@@ -264,12 +264,15 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                       hyp["subsample_sz_train"],
                                                                       hyp["subsample_sz_dev"],
                                                                       pairwise_mode=False, batch_size=1,
-                                                                      split=['dev', 'test'])
+                                                                      split=['dev', 'test'],
+                                                                      drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                      keep_feat_idxs=hyp["keep_feat_idxs"])
             start_time = time.time()
             with torch.no_grad():
                 model.eval()
                 clustering_threshold = None
                 for i, inference_fn in enumerate(inference_fns):
+                    inf_start_time = time.time()
                     logger.info(f'Inference method: {inference_fn_labels[i]}')
                     clustering_scores = evaluate_pairwise(model, test_dataloader_e2e,
                                                           clustering_fn=inference_fn,
@@ -291,6 +294,9 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         log_cc_objective_values(scores=clustering_scores,
                                                 split_name=f'best_test_{inference_fn_labels[i]}',
                                                 log_prefix='Eval', verbose=verbose, logger=logger)
+                    inf_end_time = time.time()
+                    inf_time = round(inf_end_time - inf_start_time)
+                    wandb.log({f"z_inf_time_{inference_fn_labels[i]}": inf_time})
             end_time = time.time()
         elif eval_only_split is not None:
             # Run inference on the specified split and exit
@@ -301,7 +307,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                   hyp["convert_nan"], hyp["nan_value"],
                                                   hyp["normalize_data"], hyp["subsample_sz_train"],
                                                   hyp["subsample_sz_dev"], pairwise_mode,
-                                                  batch_size, split=eval_only_split)
+                                                  batch_size, split=eval_only_split, drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                  keep_feat_idxs=hyp["keep_feat_idxs"])
                 eval_scores = eval_fn(model, eval_dataloader, tqdm_label=eval_only_split, device=device, verbose=verbose,
                                       debug=debug, _errors=_errors, model_args=model_args, run_dir=run.dir)
                 logger.info(f"Eval: {eval_only_split}_{list(eval_metric_to_idx)[0]}={eval_scores[0]}, " +
@@ -341,7 +348,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             # Train and evaluate
             wandb.watch(model)
 
-            optimizer = torch.optim.AdamW(model.parameters(), lr=hyp['lr'])
+            optimizer = torch.optim.AdamW(model.parameters(), lr=hyp['lr'], weight_decay=hyp['weight_decay'])
             if use_lr_scheduler:
                 if hyp['lr_scheduler'] == 'plateau':
                     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
@@ -357,7 +364,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
             best_dev_state_dict = copy.deepcopy(model.state_dict())
             best_dev_score = -1  # Stores the score of only the specified optimization metric
             best_dev_scores = ()  # Contains scores of all metrics
-            best_epoch = 0
+            best_epoch = -1
 
             if not skip_initial_eval:
                 # Get initial model performance on dev (or 'train' for overfitting runs)
@@ -367,7 +374,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                               verbose=verbose,
                                                               debug=debug, _errors=_errors,
                                                               eval_metric_to_idx=eval_metric_to_idx,
-                                                              val_dataloader=val_dataloader, return_dict=_return_dict),
+                                                              val_dataloader=val_dataloader, return_dict=_return_dict,
+                                                              run_dir=run.dir),
                                   model=model, run_dir=run.dir, device=device, logger=logger)
             if not pairwise_mode and grad_acc > 1:
                 grad_acc_steps = []
@@ -383,19 +391,24 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         _seen_blk = 0
                 if _seen_blk > 0:
                     grad_acc_steps.append(_seen_blk)
+                logger.info(f"grad_acc step schedule: {grad_acc_steps}")
 
             model.train()
             start_time = time.time()  # Tracks full training runtime
-            for i in range(n_epochs):
+            epoch_idx = -1
+            early_terminate = False
+            for epoch_idx in range(n_epochs):
+                if early_terminate:
+                    break
                 _train_dataloader = train_dataloader
                 loss_fn = loss_fn_e2e if not pairwise_mode else loss_fn_pairwise
-                warmstart_mode = not pairwise_mode and i < n_warmstart_epochs
+                warmstart_mode = not pairwise_mode and epoch_idx < n_warmstart_epochs
 
                 if warmstart_mode:
                     _train_dataloader = train_dataloader_pairwise
                     loss_fn = loss_fn_pairwise
 
-                wandb.log({'epoch': i + 1})
+                wandb.log({'epoch': epoch_idx + 1})
                 running_loss = []
                 n_exceptions = 0
 
@@ -403,26 +416,30 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 grad_acc_idx = 0
                 optimizer.zero_grad()
 
-                pbar = tqdm(_train_dataloader, desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1}",
+                pbar = tqdm(_train_dataloader, desc=f"{'Warm-starting' if warmstart_mode else 'Training'} {epoch_idx + 1}",
                             position=1)
-                for (idx, batch) in enumerate(pbar):
-                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc,
-                                                                                                      _return_dict,
-                                                                                                      logger, run,
-                                                                                                      overfit_batch_idx,
-                                                                                                      use_lr_scheduler,
-                                                                                                      hyp, scheduler,
-                                                                                                      eval_metric_to_idx,
-                                                                                                      dev_opt_metric,
-                                                                                                      i - 1, best_epoch,
-                                                                                                      best_dev_score,
-                                                                                                      best_dev_scores,
-                                                                                                      best_dev_state_dict,
-                                                                                                      sync=sync_dev)
+                for (batch_idx, batch) in enumerate(pbar):
+                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, \
+                        early_terminate_ctr, early_terminate = _check_process(_proc,
+                                                                              _return_dict,
+                                                                              logger, run,
+                                                                              overfit_batch_idx,
+                                                                              use_lr_scheduler,
+                                                                              hyp, scheduler,
+                                                                              eval_metric_to_idx,
+                                                                              dev_opt_metric,
+                                                                              epoch_idx - 1, best_epoch,
+                                                                              best_dev_score,
+                                                                              best_dev_scores,
+                                                                              best_dev_state_dict,
+                                                                              early_terminate_epochs, early_terminate_ctr,
+                                                                              sync=sync_dev)
+                    if early_terminate:
+                        break
                     if overfit_batch_idx > -1:
-                        if idx < overfit_batch_idx:
+                        if batch_idx < overfit_batch_idx:
                             continue
-                        if idx > overfit_batch_idx:
+                        if batch_idx > overfit_batch_idx:
                             break
                     if not pairwise_mode and not warmstart_mode:
                         data, target, _ = batch
@@ -436,7 +453,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         # Block contains only one signature pair; batchnorm throws error
                         continue
                     block_size = get_matrix_size_from_triu(data)
-                    pbar.set_description(f"{'Warm-starting' if warmstart_mode else 'Training'} {i + 1} " + \
+                    pbar.set_description(f"{'Warm-starting' if warmstart_mode else 'Training'} {epoch_idx + 1} " + \
                                          f"(sz={len(data) if (pairwise_mode or warmstart_mode) else block_size})")
                     target = target.flatten().float()
                     if verbose:
@@ -452,11 +469,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         logger.info(e)
                         _error_obj = {
                             'id': f'tf_{int(time.time())}',
+                            'epoch_idx': epoch_idx,
+                            'batch_idx': batch_idx,
                             'method': 'train_forward',
                             'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                             'data_split': 'train',
                             'model_call_args': {
-                                'data': data.detach().cpu(),
+                                'data': data.detach().tolist(),
                                 'block_size': block_size
                             },
                             'cvxpy_layer_args': e.data
@@ -496,11 +515,13 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                         if isinstance(e, CvxpyException):
                             _error_obj = {
                                 'id': f'tb_{int(time.time())}',
+                                'epoch_idx': epoch_idx,
+                                'batch_idx': batch_idx,
                                 'method': 'train_backward',
                                 'model_type': 'e2e' if not pairwise_mode else 'pairwise',
                                 'data_split': 'train',
                                 'model_call_args': {
-                                    'data': data.detach().cpu(),
+                                    'data': data.detach().tolist(),
                                     'block_size': block_size
                                 }
                             }
@@ -512,8 +533,8 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                 logger.info(
                                     f'Caught CvxpyException in backward call (count -> {n_exceptions}): skipping batch')
                                 continue
-                    if pairwise_mode or (
-                            idx == len(_train_dataloader.dataset) - 1) or grad_acc == 1 or grad_acc_count >= grad_acc:
+                    if pairwise_mode or (batch_idx == len(_train_dataloader) - 1) \
+                            or grad_acc == 1 or grad_acc_count >= grad_acc:
                         if hyp["max_grad_norm"] != -1:
                             torch.nn.utils.clip_grad_norm_(
                                 model.parameters(), hyp["max_grad_norm"]
@@ -529,47 +550,61 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                     running_loss.append(loss.item())
                     wandb.log({f'train_loss{"_warmstart" if warmstart_mode else ""}': np.mean(running_loss)})
 
-                # Sync to get previous epoch's dev eval
-                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
-                                                                                                  logger, run,
-                                                                                                  overfit_batch_idx,
-                                                                                                  use_lr_scheduler,
-                                                                                                  hyp, scheduler,
-                                                                                                  eval_metric_to_idx,
-                                                                                                  dev_opt_metric, i - 1,
-                                                                                                  best_epoch,
-                                                                                                  best_dev_score,
-                                                                                                  best_dev_scores,
-                                                                                                  best_dev_state_dict,
-                                                                                                  sync=True)
+                if warmstart_mode:
+                    logger.info(f"Warmstart epoch loss = {np.mean(running_loss)}")
+                    wandb.log({f'train_warmstart_epoch_loss': np.mean(running_loss)})
+                else:
+                    # Sync to get previous epoch's dev eval
+                    best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, \
+                        early_terminate_ctr, early_terminate = _check_process(_proc, _return_dict,
+                                                                              logger, run,
+                                                                              overfit_batch_idx,
+                                                                              use_lr_scheduler,
+                                                                              hyp, scheduler,
+                                                                              eval_metric_to_idx,
+                                                                              dev_opt_metric, epoch_idx - 1,
+                                                                              best_epoch,
+                                                                              best_dev_score,
+                                                                              best_dev_scores,
+                                                                              best_dev_state_dict,
+                                                                              early_terminate_epochs, early_terminate_ctr,
+                                                                              sync=True)
+                    if early_terminate:
+                        break
 
-                logger.info(f"Epoch loss = {np.mean(running_loss)}")
-                wandb.log({f'train_epoch_loss': np.mean(running_loss)})
+                    logger.info(f"Epoch loss = {np.mean(running_loss)}")
+                    wandb.log({f'train_epoch_loss': np.mean(running_loss)})
 
-                # Get model performance on dev (or 'train' for overfitting runs)
-                _proc = fork_eval(target=dev_eval,
-                                  args=dict(model_args=model_args,
-                                            overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
-                                            train_dataloader=train_dataloader, device=device,
-                                            verbose=verbose, debug=debug, _errors=_errors,
-                                            eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
-                                            return_dict=_return_dict, i=i),
-                                  model=model, run_dir=run.dir, device=device, logger=logger,
-                                  sync=(idx == len(_train_dataloader.dataset) - 1))
+                    # Get model performance on dev (or 'train' for overfitting runs)
+                    _proc = fork_eval(target=dev_eval,
+                                      args=dict(model_args=model_args,
+                                                overfit_batch_idx=overfit_batch_idx, eval_fn=eval_fn,
+                                                train_dataloader=train_dataloader, device=device,
+                                                verbose=verbose, debug=debug, _errors=_errors,
+                                                eval_metric_to_idx=eval_metric_to_idx, val_dataloader=val_dataloader,
+                                                return_dict=_return_dict, epoch_idx=epoch_idx, run_dir=run.dir),
+                                      model=model, run_dir=run.dir, device=device, logger=logger,
+                                      sync=(epoch_idx == n_epochs - 1))
             end_time = time.time()
-
-            best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict = _check_process(_proc, _return_dict,
-                                                                                              logger, run,
-                                                                                              overfit_batch_idx,
-                                                                                              use_lr_scheduler,
-                                                                                              hyp, scheduler,
-                                                                                              eval_metric_to_idx,
-                                                                                              dev_opt_metric, i,
-                                                                                              best_epoch,
-                                                                                              best_dev_score,
-                                                                                              best_dev_scores,
-                                                                                              best_dev_state_dict,
-                                                                                              sync=True)
+            if early_terminate:
+                logger.info(f"Early termination executed: no dev improvement in {early_terminate_epochs} epochs")
+            if _proc is not None:
+                best_epoch, best_dev_score, best_dev_scores, best_dev_state_dict, \
+                    _, _ = _check_process(_proc,
+                                          _return_dict,
+                                          logger, run,
+                                          overfit_batch_idx,
+                                          use_lr_scheduler,
+                                          hyp, scheduler,
+                                          eval_metric_to_idx,
+                                          dev_opt_metric,
+                                          epoch_idx,
+                                          best_epoch,
+                                          best_dev_score,
+                                          best_dev_scores,
+                                          best_dev_state_dict,
+                                          early_terminate_epochs, early_terminate_ctr,
+                                          sync=True)
             # Save model
             if save_model:
                 torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))
@@ -577,11 +612,56 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                 logger.info(f"Saved best model on dev to {os.path.join(run.dir, 'model_state_dict_best.pt')}")
 
             # Evaluate the best dev model on test
-            if overfit_batch_idx == -1:
-                model.load_state_dict(best_dev_state_dict)
-
-                if icml_final_eval:
-                    # Run all inference variants on the test set and exit
+            if not skip_final_eval:
+                if overfit_batch_idx == -1:
+                    model.load_state_dict(best_dev_state_dict)
+                    with torch.no_grad():
+                        model.eval()
+                        test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
+                                              debug=debug, _errors=_errors, tqdm_position=2, model_args=model_args,
+                                              run_dir=run.dir)
+                        logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
+                                    f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
+                        # Log final metrics
+                        _wandb_log = {'best_dev_epoch': best_epoch + 1,
+                                      f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
+                                      f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]
+                                      }
+                        if len(best_dev_scores) >= 2:
+                            _wandb_log.update({
+                                f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
+                                f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1]
+                            })
+                        wandb.log(_wandb_log)
+                        if len(test_scores) == 3:
+                            log_cc_objective_values(scores=test_scores, split_name='best_test', log_prefix='Final',
+                                                    verbose=True, logger=logger)
+                        # For pairwise-mode:
+                        if pairwise_clustering_fns[0] is not None:
+                            clustering_threshold = None
+                            for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
+                                clustering_scores = eval_fn(model, test_dataloader_e2e,
+                                                            clustering_fn=pairwise_clustering_fn,
+                                                            clustering_threshold=clustering_threshold,
+                                                            val_dataloader=val_dataloader_e2e,
+                                                            tqdm_label='test clustering', device=device, verbose=verbose,
+                                                            debug=debug, _errors=_errors, tqdm_position=2,
+                                                            model_args=model_args, run_dir=run.dir)
+                                if pairwise_clustering_fn.__class__ is HACInference:
+                                    clustering_threshold = pairwise_clustering_fn.cut_threshold
+                                logger.info(
+                                    f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
+                                    f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
+                                # Log final metrics
+                                wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}':
+                                               clustering_scores[0],
+                                           f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}':
+                                               clustering_scores[1]})
+                                if len(clustering_scores) == 3:
+                                    log_cc_objective_values(scores=clustering_scores,
+                                                            split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
+                                                            log_prefix='Final', verbose=True, logger=logger)
+                    # Run all inference variants on the test set
                     cc_inference_sdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=True)
                     cc_inference_nosdp = CCInference(sdp_max_iters, sdp_eps, sdp_scale, use_sdp=False)
                     inference_fns = [HACInference(),
@@ -600,20 +680,23 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                               hyp["subsample_sz_train"],
                                                                               hyp["subsample_sz_dev"],
                                                                               pairwise_mode=False, batch_size=1,
-                                                                              split=['dev', 'test'])
-                    inf_start_time = time.time()
+                                                                              split=['dev', 'test'],
+                                                                              drop_feat_idxs=hyp["drop_feat_idxs"],
+                                                                              keep_feat_idxs=hyp["keep_feat_idxs"])
                     with torch.no_grad():
                         model.eval()
                         clustering_threshold = None
+                        total_inf_time = 0
                         for i, inference_fn in enumerate(inference_fns):
+                            inf_start_time = time.time()
                             logger.info(f'Inference method: {inference_fn_labels[i]}')
                             clustering_scores = evaluate_pairwise(model, test_dataloader_e2e,
                                                                   clustering_fn=inference_fn,
                                                                   clustering_threshold=clustering_threshold if i % 2 == 0 else None,
                                                                   val_dataloader=val_dataloader_e2e,
                                                                   tqdm_label='test clustering', device=device,
-                                                                  verbose=verbose,
-                                                                  debug=debug, _errors=_errors, model_args=model_args)
+                                                                  verbose=verbose, debug=debug, _errors=_errors,
+                                                                  model_args=model_args, run_dir=run.dir)
                             if inference_fn.__class__ is HACInference:
                                 clustering_threshold = inference_fn.cut_threshold
                             logger.info(
@@ -628,50 +711,14 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                 log_cc_objective_values(scores=clustering_scores,
                                                         split_name=f'best_test_{inference_fn_labels[i]}',
                                                         log_prefix='Eval', verbose=verbose, logger=logger)
-                    inf_end_time = time.time()
-                    run.summary["z_inf_time"] = round(inf_end_time - inf_start_time)
-                else:
-                    with torch.no_grad():
-                        model.eval()
-                        test_scores = eval_fn(model, test_dataloader, tqdm_label='test', device=device, verbose=verbose,
-                                              debug=debug, _errors=_errors, tqdm_position=2, model_args=model_args,
-                                              run_dir=run.dir)
-                        logger.info(f"Final: test_{list(eval_metric_to_idx)[0]}={test_scores[0]}, " +
-                                    f"test_{list(eval_metric_to_idx)[1]}={test_scores[1]}")
-                        # Log final metrics
-                        wandb.log({'best_dev_epoch': best_epoch + 1,
-                                   f'best_dev_{list(eval_metric_to_idx)[0]}': best_dev_scores[0],
-                                   f'best_dev_{list(eval_metric_to_idx)[1]}': best_dev_scores[1],
-                                   f'best_test_{list(eval_metric_to_idx)[0]}': test_scores[0],
-                                   f'best_test_{list(eval_metric_to_idx)[1]}': test_scores[1]})
-                        if len(test_scores) == 3:
-                            log_cc_objective_values(scores=test_scores, split_name='best_test', log_prefix='Final',
-                                                    verbose=True, logger=logger)
-                        # For pairwise-mode:
-                        if pairwise_clustering_fns[0] is not None:
-                            clustering_threshold = None
-                            for i, pairwise_clustering_fn in enumerate(pairwise_clustering_fns):
-                                clustering_scores = eval_fn(model, test_dataloader_e2e,
-                                                            clustering_fn=pairwise_clustering_fn,
-                                                            clustering_threshold=clustering_threshold,
-                                                            val_dataloader=val_dataloader_e2e,
-                                                            tqdm_label='test clustering', device=device, verbose=verbose,
-                                                            debug=debug, _errors=_errors, tqdm_position=2,
-                                                            model_args=model_args, run_dir=run.dir)
-                                if pairwise_clustering_fn.__class__ is HACInference:
-                                    clustering_threshold = pairwise_clustering_fn.cut_threshold
-                                logger.info(f"Final: test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[0]}, " +
-                                            f"test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}={clustering_scores[1]}")
-                                # Log final metrics
-                                wandb.log({f'best_test_{list(clustering_metrics)[0]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[0],
-                                           f'best_test_{list(clustering_metrics)[1]}_{pairwise_clustering_fn_labels[i]}': clustering_scores[1]})
-                                if len(clustering_scores) == 3:
-                                    log_cc_objective_values(scores=clustering_scores,
-                                                            split_name=f'best_test_{pairwise_clustering_fn_labels[i]}',
-                                                            log_prefix='Final', verbose=True, logger=logger)
+                            inf_end_time = time.time()
+                            inf_time = round(inf_end_time - inf_start_time)
+                            total_inf_time += inf_time
+                            wandb.log({f"z_inf_time_{inference_fn_labels[i]}": inf_time})
+                    run.summary["z_inf_time"] = total_inf_time
 
         run.summary["z_model_parameters"] = count_parameters(model)
-        run.summary["z_run_time"] = round(end_time - start_time)
+        run.summary["z_run_time"] = round(end_time - start_time)  # Train time if in training mode
         run.summary["z_run_dir_path"] = run.dir
 
         if _errors is not None:
@@ -691,11 +738,17 @@ if __name__ == '__main__':
     # Handle additional arbitrary arguments
     _, unknown = parser.parse_known_args()
     make_false_args = []
+    def _type_or_none_fn(argtype):
+        def __type_or_none_fn(value):
+            if value.lower() in ['none', 'null']:
+                return None
+            return argtype(value)
+        return __type_or_none_fn
     for arg in unknown:
         if arg.startswith("--"):
             arg_split = arg.split('=')
             argument_name = arg_split[0]
-            if argument_name[2:] in DEFAULT_HYPERPARAMS:
+            if argument_name[2:] in DEFAULT_HYPERPARAMS:  # "--argument_name" without the "--"
                 argument_type = type(DEFAULT_HYPERPARAMS[argument_name[2:]])
                 if argument_type == bool:
                     if len(arg_split) > 1 and arg_split[1].lower() == 'false':
@@ -703,8 +756,11 @@ if __name__ == '__main__':
                         make_false_args.append(argument_name[2:])
                     else:
                         parser.add_argument(argument_name, action='store_true')
+                elif argument_type == list:
+                    parser.add_argument(argument_name, action='append')
                 else:
-                    parser.add_argument(argument_name, type=argument_type)
+                    parser.add_argument(argument_name,
+                                        type=_type_or_none_fn(argument_type), default=None)
     args = parser.parse_args().__dict__
     for false_arg in make_false_args:
         args[false_arg] = False
@@ -730,7 +786,8 @@ if __name__ == '__main__':
             'method': args['wandb_sweep_method'],
             'name': args['wandb_sweep_name'],
             'metric': {
-                'name': args['wandb_sweep_metric_name'],
+                'name': 'best_dev_auroc' if hyp_args.get('pairwise_mode', False) else 'best_dev_b3_f1',
+                # args['wandb_sweep_metric_name'],
                 'goal': args['wandb_sweep_metric_goal'],
             },
             'parameters': sweep_params,
@@ -759,6 +816,7 @@ if __name__ == '__main__':
                                            tags=args['wandb_tags'],
                                            save_model=args['save_model'],
                                            skip_initial_eval=args['skip_initial_eval'],
+                                           skip_final_eval=args['skip_final_eval'],
                                            debug=args['debug'],
                                            track_errors=not args['no_error_tracking'],
                                            local=args['local'],
@@ -791,12 +849,11 @@ if __name__ == '__main__':
               load_model_from_wandb_run=args['load_model_from_wandb_run'],
               load_model_from_fpath=args['load_model_from_fpath'],
               eval_only_split=args['eval_only_split'],
-              eval_all=args['eval_all'],
+              eval_all_only=args['eval_all_only'],
               skip_initial_eval=args['skip_initial_eval'],
-              pairwise_eval_clustering=args['pairwise_eval_clustering'],
               debug=args['debug'],
               track_errors=not args['no_error_tracking'],
               local=args['local'],
               sync_dev=args['sync_dev'],
-              icml_final_eval=args['icml_final_eval'])
+              skip_final_eval=args['skip_final_eval'])
         logger.info("End of run")

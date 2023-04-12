@@ -129,17 +129,12 @@ class Parser(argparse.ArgumentParser):
             help="Run script in inference-only mode on a particular data split (train / dev / test)",
         )
         parser.add_argument(
-            "--eval_all", action='store_true',
+            "--eval_all_only", action='store_true',
             help="Evaluate model using all inference methods over the test set and exit",
         )
         parser.add_argument(
             "--skip_initial_eval", action='store_true',
             help="Whether to skip dev evaluation before training starts",
-        )
-        parser.add_argument(
-            "--pairwise_eval_clustering", type=str,
-            help="(only in --pairwise_mode) Whether to run clustering during --eval_only_split and final test eval. " +
-            "Accepts 'cc' for correlation clustering, 'hac' for agglomerative clustering, and 'both' to run both.",
         )
         parser.add_argument(
             "--debug", action="store_true",
@@ -158,6 +153,6 @@ class Parser(argparse.ArgumentParser):
             help="Whether to force dev evaluations to run synchronously",
         )
         parser.add_argument(
-            "--icml_final_eval", action="store_true",
-            help="ICML REBUTTAL ONLY: Run all eval after training",
+            "--skip_final_eval", action="store_true",
+            help="Whether to skip the final clustering evaluation of all inference variants",
         )

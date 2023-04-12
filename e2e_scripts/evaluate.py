@@ -58,8 +58,8 @@ def _fork_iter(batch_idx, _fork_id, _shared_list, eval_fn, **kwargs):
 
 def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, clustering_threshold=None,
              val_dataloader=None, tqdm_label='', device=None, verbose=False, debug=False, _errors=None,
-             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=500,
-             max_parallel_forks=3, disable_tqdm=False):
+             run_dir='./', tqdm_position=None, model_args=None, return_iter=False, fork_size=-1,
+             max_parallel_forks=2, disable_tqdm=False):
     """
     clustering_fn, clustering_threshold, val_dataloader: unused when pairwise_mode is False
     (only added to keep fn signature identical)
@@ -173,7 +173,7 @@ def evaluate(model, dataloader, overfit_batch_idx=-1, clustering_fn=None, cluste
 def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", return_pred_only=False,
                       thresh_for_f1=0.5, clustering_fn=None, clustering_threshold=None, val_dataloader=None,
                       tqdm_label='', device=None, verbose=False, debug=False, _errors=None, run_dir='./',
-                      tqdm_position=None, model_args=None, return_iter=False, fork_size=500, max_parallel_forks=3,
+                      tqdm_position=None, model_args=None, return_iter=False, fork_size=-1, max_parallel_forks=2,
                       disable_tqdm=False):
     fn_args = locals()
     fork_enabled = fork_size > -1 and model_args is not None
@@ -222,7 +222,7 @@ def evaluate_pairwise(model, dataloader, overfit_batch_idx=-1, mode="macro", ret
             # Forward pass through the e2e model
             data = data.to(device)
             try:
-                edge_weights = model(data, N=block_size, warmstart=True, verbose=verbose)
+                edge_weights = model(data, N=block_size, warmstart=True, verbose=verbose)  # Setting warmstart to True returns weights
                 pred_cluster_ids = clustering_fn(edge_weights, block_size, min_id=(max_pred_id + 1),
                                                  threshold=clustering_threshold)
             except CvxpyException as e:
