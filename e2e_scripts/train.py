@@ -804,12 +804,12 @@ if __name__ == '__main__':
                 os.makedirs(temp_fpath, exist_ok=True)
                 cwd = os.getcwd()
                 os.chdir(temp_fpath)
+                _cwd = os.getcwd()
                 run_params_fpath = wandb.restore('hyperparameters.json', run_path=args['load_hyp_from_wandb_run']).name
                 with open(run_params_fpath, 'r') as fh:
                     run_params = json.load(fh)
-                os.remove(run_params_fpath)
-                shutil.rmtree(temp_fpath)
                 os.chdir(cwd)
+                shutil.rmtree(temp_fpath)
             else:
                 with open(args['wandb_run_params'], 'r') as fh:
                     run_params = json.load(fh)
