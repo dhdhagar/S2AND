@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+import shutil
 import time
 import logging
 import random
@@ -799,10 +800,16 @@ if __name__ == '__main__':
         logger.info("Single-run mode")
         try:
             if args['load_hyp_from_wandb_run'] is not None:
+                temp_fpath = f'./temp/{args["load_hyp_from_wandb_run"].split("/")[-1]}-{time.time()}'
+                os.makedirs(temp_fpath, exist_ok=True)
+                cwd = os.getcwd()
+                os.chdir(temp_fpath)
                 run_params_fpath = wandb.restore('hyperparameters.json', run_path=args['load_hyp_from_wandb_run']).name
                 with open(run_params_fpath, 'r') as fh:
                     run_params = json.load(fh)
                 os.remove(run_params_fpath)
+                shutil.rmtree(temp_fpath)
+                os.chdir(cwd)
             else:
                 with open(args['wandb_run_params'], 'r') as fh:
                     run_params = json.load(fh)
