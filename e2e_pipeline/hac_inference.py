@@ -76,7 +76,7 @@ class HACInference:
         self.cut_threshold = best_threshold
 
     def cut_tree(self, tree, alts, thresh):
-        _cut_explorer = hg.HorizontalCutExplorer(tree, alts)
+        _cut_explorer = hg.HorizontalCutExplorer(tree, np.sort(alts))
         _cut = _cut_explorer.horizontal_cut_from_altitude(thresh)
         _cut_labels = _cut.labelisation_leaves(tree)
         return _cut_labels
