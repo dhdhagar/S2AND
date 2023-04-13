@@ -438,7 +438,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                               best_dev_scores,
                                                                               best_dev_state_dict,
                                                                               early_terminate_epochs, early_terminate_ctr,
-                                                                              sync=sync_dev)
+                                                                              early_terminate, sync=sync_dev)
                     if early_terminate:
                         break
                     if overfit_batch_idx > -1:
@@ -573,7 +573,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                                                               best_dev_scores,
                                                                               best_dev_state_dict,
                                                                               early_terminate_epochs, early_terminate_ctr,
-                                                                              sync=True)
+                                                                              early_terminate, sync=True)
                     if early_terminate:
                         break
 
@@ -609,7 +609,7 @@ def train(hyperparams={}, verbose=False, project=None, entity=None, tags=None, g
                                           best_dev_scores,
                                           best_dev_state_dict,
                                           early_terminate_epochs, early_terminate_ctr,
-                                          sync=True)
+                                          early_terminate, sync=True)
             # Save model
             if save_model:
                 torch.save(best_dev_state_dict, os.path.join(run.dir, 'model_state_dict_best.pt'))

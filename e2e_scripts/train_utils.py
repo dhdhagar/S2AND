@@ -257,8 +257,8 @@ def copy_and_load_model(model, run_dir, device, store_only=False):
 
 def _check_process(_proc, _return_dict, logger, run, overfit_batch_idx, use_lr_scheduler, hyp,
                    scheduler, eval_metric_to_idx, dev_opt_metric, i, best_epoch, best_dev_score,
-                   best_dev_scores, best_dev_state_dict, early_terminate_epochs, early_terminate_ctr, sync=False):
-    early_terminate = False
+                   best_dev_scores, best_dev_state_dict, early_terminate_epochs, early_terminate_ctr,
+                   early_terminate, sync=False):
     if _proc is not None:
         if _return_dict['_state'] == 'done' or (sync and _return_dict['_state'] != 'finish'):
             _proc.join()

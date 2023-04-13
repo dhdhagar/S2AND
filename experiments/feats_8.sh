@@ -8,21 +8,21 @@ log_fpath="./experiments/logs/${sweep_prefix}_$(date +%s).txt"
 declare -a models=("e2e" "e2e-nosdp" "frac" "frac-nosdp" "mlp")
 
 dataset="pubmed"
-gpu_name="gypsum-m40"
+gpu_name="cpu"
 for model in "${models[@]}"
 do
    ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} "${flags}" ${sweep_prefix} >> ${log_fpath}
 done
 
 dataset="qian"
-gpu_name="gypsum-2080ti"
+gpu_name="cpu"
 for model in "${models[@]}"
 do
    ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} "${flags}" ${sweep_prefix} >> ${log_fpath}
 done
 
 dataset="arnetminer"
-gpu_name="gypsum-1080ti"
+gpu_name="cpu"
 for model in "${models[@]}"
 do
    ./run_sweep.sh ${dataset} 1 5 ${model} ${gpu_name} "${flags}" ${sweep_prefix} >> ${log_fpath}
