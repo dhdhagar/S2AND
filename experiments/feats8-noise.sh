@@ -9,7 +9,7 @@ feats8_flags="--keep_feat_idxs=0 --keep_feat_idxs=1 --keep_feat_idxs=2 \
 log_fpath="./experiments/logs/${sweep_prefix}_$(date +%s).txt"
 declare -a arr_models=("e2e" "e2e-nosdp" "frac" "frac-nosdp" "mlp")
 declare -a arr_datasets=("pubmed" "qian" "arnetminer")
-declare -a arr_noise=(1 2 3)
+declare -a arr_noise=("1" "2" "3")
 
 for noise in "${arr_noise[@]}"
 do
