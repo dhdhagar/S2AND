@@ -11,9 +11,12 @@ declare -a arr_models=("e2e" "e2e-nosdp" "frac" "frac-nosdp" "mlp")
 declare -a arr_datasets=("pubmed" "qian" "arnetminer")
 declare -a arr_noise=(1 2 3)
 
-for noise in "${arr_noise[@]}" do
-  for dataset in "${arr_datasets[@]}" do
-    for model in "${arr_models[@]}" do
+for noise in "${arr_noise[@]}"
+do
+  for dataset in "${arr_datasets[@]}"
+  do
+    for model in "${arr_models[@]}"
+    do
       ./run_sweep.sh ${dataset} 1 5 ${model} ${partition} "${feats8_flags} --noise_std=${noise}" "${sweep_prefix}${noise}" >> ${log_fpath}
     done
   done
