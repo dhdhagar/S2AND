@@ -16,7 +16,7 @@ flags_arr=($flags)
 sweep_prefix=${8:-""}
 
 for ((i = 1; i <= ${n_agents}; i++)); do
-  JOB_DESC=${model}_${dataset}_sweep${seed}-agent${i} && JOB_NAME=${JOB_DESC}_$(date +%s) && \
+  JOB_DESC=${sweep_prefix}_${model}_${dataset}_seed${seed}-agent${i} && JOB_NAME=${JOB_DESC}_$(date +%s) && \
   sbatch -J ${JOB_NAME} -e jobs/${JOB_NAME}.err -o jobs/${JOB_NAME}.log \
     --partition=${gpu_name} --gres=gpu:${gpu_count} --mem=120G --time=12:00:00 \
     run_sbatch.sh e2e_scripts/train.py \

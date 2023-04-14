@@ -48,7 +48,7 @@ DEFAULT_HYPERPARAMS = {
     "normalize_data": True,
     "drop_feat_idxs": [],
     "keep_feat_idxs": [],
-    "noise_std": 0.,
+    "noise_std": 0,
     # Model config
     "neumiss_deq": False,
     "neumiss_depth": 20,
